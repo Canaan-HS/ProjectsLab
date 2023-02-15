@@ -144,7 +144,7 @@ $IvHash = $InfoHash.Substring(16, 16)
 # 資訊哈希值, 合併成 保存目錄路徑
 $LocalFile = "$env:Temp\$InfoHash"
 $FileExists = {return Test-Path $LocalFile}
-$DownloadURL = "https://raw.githubusercontent.com/Canaan-HS/Implementation-Project/Main/Command%20Prompt/SelfTools/Toolsv2.ps1"
+$DownloadURL = "https://raw.githubusercontent.com/Canaan-HS/ProjectsLab/refs/heads/main/PowerShell/Tools/Tools%20v2.ps1"
 
 # 處理核心 實例化
 $Core = [ProcessingCore]::new(
