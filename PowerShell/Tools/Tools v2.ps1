@@ -36,16 +36,12 @@ function CheckNetwork {
 function Print {
     param (
         [string]$text,
-        [string]$foregroundColor = 'White',
-        [string]$backgroundColor = 'Black'
+        [string]$foreColor = 'White',
+        [string]$backColor = 'Black'
     )
 
-    # 設置颜色
-    $Host.UI.RawUI.ForegroundColor = [ConsoleColor]::$foregroundColor
-    $Host.UI.RawUI.BackgroundColor = [ConsoleColor]::$backgroundColor
-    
     # 打印粗體
-    Write-Host "[1m$text"
+    Write-Host "[1m$text" -ForegroundColor $foreColor -BackgroundColor $backColor
 }
 
 # 輸入文本
@@ -82,7 +78,7 @@ class Main {
     # 檢查網路狀態
     [void]NetworkState() {
         if (-not(CheckNetwork)) {
-            Print "操作失敗: 沒有網路無法運行" 'Red'
+            Print "操作失敗: 沒有網路無法運行" Red
             $this.WaitBack()
         }
     }
@@ -108,7 +104,7 @@ class Main {
         $Path = "$([Main]::Temp)\$Name" # 組合文件保存路徑
 
         if (-not ($this.__Request($Path, $URL))) { # 檢測主文件請求
-            Print "獲取失敗" 'Red'
+            Print "獲取失敗" Red
             $this.WaitBack()
             return
         }
@@ -129,7 +125,7 @@ class Main {
             foreach ($item in $Depend) {
 
                 if (-not ($this.__Request("$([Main]::Temp)\$($item[0])", $item[1]))) {
-                    Print "獲取失敗" 'Red'
+                    Print "獲取失敗" Red
                     $this.WaitBack()
                     return
                 }
@@ -141,13 +137,13 @@ class Main {
 
     # 二次確認操作
     [void]DoubleConfirm([scriptblock]$confirm) {
-        $y = Input "輸入 Y 確認操作" 'Yellow'
+        $y = Input "輸入 Y 確認操作" Yellow
         switch ($y) {
             "y" {
                 & $confirm
             }
             Default {
-                Print "`n確認失敗 返回首頁..." 'Red'
+                Print "`n確認失敗 返回首頁..." Red
                 Start-Sleep -Seconds 1.3
                 $this.Menu()
             }
@@ -216,14 +212,14 @@ class Main {
                 Remove-Item -Path $Path -Recurse -Force # 他刪除的是整個資料夾
             }
 
-            Print "已刪除: $Name" 'Red'
+            Print "已刪除: $Name" Red
         } catch {
             if ($null -ne $FollowParent -and -not (Test-Path $Path)) {
                 New-Item -Path $Path -Force
             }
 
             Set-ItemProperty -Path $Path -Name $Name -Value $Value
-            Print "已註冊: $Name" 'Green'
+            Print "已註冊: $Name" Green
         }
     }
     # 註冊一般值 (不應直接調用)
@@ -245,14 +241,14 @@ class Main {
                 Remove-ItemProperty -Path $Path -Name $Name -ErrorAction Stop # 他刪除的是單個項目
             }
 
-            Print "已移除: $Name" 'Red'
+            Print "已移除: $Name" Red
         } catch {
             if ($null -ne $FollowParent -and -not (Test-Path $Path)) {
                 New-Item -Path $Path -Force
             }
 
             New-ItemProperty -Path $Path -Name $Name -PropertyType $Type -Value $Value -Force # 不存在就添加
-            Print "已註冊: $Name" 'Green'
+            Print "已註冊: $Name" Green
         }
     }
     <#
@@ -286,7 +282,7 @@ class Main {
                 }
             }
         } else {
-            Print "不支援的註冊格式: $Items" 'Red'
+            Print "不支援的註冊格式: $Items" Red
         }
     }
 
@@ -320,58 +316,58 @@ class Main {
         _Cls
         # 打印菜单内容
         $P_ = "縮排 方便自己觀看 (不會顯示)"
-        Print "========================================================================================================================" 'Red'
-        Print "                                                     - 工具箱 v2 -" 'Magenta'
-        Print "========================================================================================================================" 'White'
+        Print "========================================================================================================================" Red
+        Print "                                                     - 工具箱 v2 -" Magenta
+        Print "========================================================================================================================" White
         $P_
-        Print "   Windows 系統開關機 :" 'Cyan'
+        Print "   Windows 系統開關機 :" Cyan
         $P_
-        Print "   $(Index) 睡眠    $(Index) 重啟    $(Index) 關機`n" 'White'
+        Print "   $(Index) 睡眠    $(Index) 重啟    $(Index) 關機`n" White
         $P_
-        Print "   Windows 防火牆 :" 'Cyan'
+        Print "   Windows 防火牆 :" Cyan
         $P_
-        Print "   $(Index) 開啟防火牆    $(Index) 關閉防火牆    [33m當前狀態:[37m $display`n" 'White'
+        Print "   $(Index) 開啟防火牆    $(Index) 關閉防火牆    [33m當前狀態:[37m $display`n" White
         $P_
-        Print "   Windows 設置 :" 'Cyan'
+        Print "   Windows 設置 :" Cyan
         $P_
-        Print "   $(Index) .NET安裝    $(Index) Visual C++ (x64)安裝    $(Index) 關閉UAC安全通知" 'White'
+        Print "   $(Index) .NET安裝    $(Index) Visual C++ (x64)安裝    $(Index) 關閉UAC安全通知" White
         $P_
-        Print "   $(Index) Windows 一鍵優化    $(Index) Windows 恢復不適用優化    $(Index) Win11 檔案總管優化 (再次運行恢復)`n" 'White'
+        Print "   $(Index) Windows 一鍵優化    $(Index) Windows 恢復不適用優化    $(Index) Win11 檔案總管優化 (再次運行恢復)`n" White
         $P_
-        Print "   瀏覽器設置 :" 'Cyan'
+        Print "   瀏覽器設置 :" Cyan
         $P_
-        Print "   $(Index) Google 變更緩存位置    $(Index) Google 一鍵優化設置    $(Index) Google 重置受機構管理" 'White'
+        Print "   $(Index) Google 變更緩存位置    $(Index) Google 一鍵優化設置    $(Index) Google 重置受機構管理" White
         $P_
-        Print "   $(Index) Edge 變更緩存位置    $(Index) Edge 一鍵優化設置    $(Index) Edge 重置受組織管理`n" 'White'
+        Print "   $(Index) Edge 變更緩存位置    $(Index) Edge 一鍵優化設置    $(Index) Edge 重置受組織管理`n" White
         $P_
-        Print "   授權操作 :" 'Cyan'
+        Print "   授權操作 :" Cyan
         $P_
-        Print "   $(Index) RAR 授權     $(Index) IDM 授權    $(Index) Windows 啟用授權    $(Index) Office 啟用授權`n" 'White'
+        Print "   $(Index) RAR 授權     $(Index) IDM 授權    $(Index) Windows 啟用授權    $(Index) Office 啟用授權`n" White
         $P_
-        Print "   進程操作 :" 'Cyan'
+        Print "   進程操作 :" Cyan
         $P_
-        Print "   $(Index) Google 結束進程    $(Index) Edge 結束進程    $(Index) Adobe 結束進程`n" 'White'
+        Print "   $(Index) Google 結束進程    $(Index) Edge 結束進程    $(Index) Adobe 結束進程`n" White
         $P_
-        Print "   服務操作 :" 'Cyan'
+        Print "   服務操作 :" Cyan
         $P_
-        Print "   $(Index) Surfshark 運行    $(Index) Surfshark 終止`n" 'White'
+        Print "   $(Index) Surfshark 運行    $(Index) Surfshark 終止`n" White
         $P_
-        Print "   網路操作 :" 'Cyan'
+        Print "   網路操作 :" Cyan
         $P_
-        Print "   $(Index) 網路重置    $(Index) 網路優化    $(Index) 自動配置 DNS    $(Index) 取得網域 IP" 'White'
-        Print "------------------------------------------------------------------------------------------------------------------------" 'Red'
-        Print "                                              - 系統指令操作 (不分大小寫) -" 'Magenta'
-        Print "------------------------------------------------------------------------------------------------------------------------" 'Red'
-        Print "   $(Index 'CT') 系統控制台    $(Index 'GP') 本機群組原則    $(Index 'RD') 登入編輯程式    $(Index 'UG') 使用者群組    $(Index 'DX') DX診斷工具    $(Index 'MF') 系統開機設置" 'White'
+        Print "   $(Index) 網路重置    $(Index) 網路優化    $(Index) 自動配置 DNS    $(Index) 取得網域 IP" White
+        Print "------------------------------------------------------------------------------------------------------------------------" Red
+        Print "                                              - 系統指令操作 (不分大小寫) -" Magenta
+        Print "------------------------------------------------------------------------------------------------------------------------" Red
+        Print "   $(Index 'CT') 系統控制台    $(Index 'GP') 本機群組原則    $(Index 'RD') 登入編輯程式    $(Index 'UG') 使用者群組    $(Index 'DX') DX診斷工具    $(Index 'MF') 系統開機設置" White
         $P_
-        Print "   $(Index 'WS') 電腦啟用狀態    $(Index 'SI') 查看系統資訊    $(Index 'MSI') 查看完整系統資訊    $(Index 'NV') 查看顯卡驅動版本    $(Index 'HW') 查看電腦機器碼" 'White'
+        Print "   $(Index 'WS') 電腦啟用狀態    $(Index 'SI') 查看系統資訊    $(Index 'MSI') 查看完整系統資訊    $(Index 'NV') 查看顯卡驅動版本    $(Index 'HW') 查看電腦機器碼" White
         $P_
-        Print "   $(Index 'IP') 查看電腦IP位置    $(Index 'RS') 查看遠端分享    $(Index 'MC') MAC地址查詢    $(Index 'SV') 查看運行中的服務    $(Index 'MRT') 惡意軟體移除工具" 'White'
+        Print "   $(Index 'IP') 查看電腦IP位置    $(Index 'RS') 查看遠端分享    $(Index 'MC') MAC地址查詢    $(Index 'SV') 查看運行中的服務    $(Index 'MRT') 惡意軟體移除工具" White
         $P_
-        Print "   $(Index 'WF') 顯示已連接過的wifi    $(Index 'DV') 修復驅動安裝問題    $(Index 'SR') 系統錯誤修復" 'White'
-        Print "========================================================================================================================" 'White'
-        Print "                                    $(Index 'H') 工具說明     $(Index '0') 離開程式     $(Index 'V') 更新資訊" 'White'
-        Print "========================================================================================================================" 'Red'
+        Print "   $(Index 'WF') 顯示已連接過的wifi    $(Index 'DV') 修復驅動安裝問題    $(Index 'SR') 系統錯誤修復" White
+        Print "========================================================================================================================" White
+        Print "                                    $(Index 'H') 工具說明     $(Index '0') 離開程式     $(Index 'V') 更新資訊" White
+        Print "========================================================================================================================" Red
 
         $this.Choice()
     }
@@ -454,7 +450,7 @@ class Main {
             }
             "HW" { # 查看機器碼
                 if (-not(IsAdmin)) {
-                    Print "該功能需要管理員權限" 'Red'
+                    Print "該功能需要管理員權限" Red
                     $this.WaitBack()
                 }
 
@@ -533,7 +529,7 @@ class Main {
                 $this.Menu()
             }
             "SR" { # 系統錯誤修復
-                Print "準備修復 請稍後...`n" 'Yellow'
+                Print "準備修復 請稍後...`n" Yellow
 
                 if (IsAdmin) {
                     $this.CMD("DISM /Online /Cleanup-Image /ScanHealth", $false)
@@ -560,13 +556,13 @@ class Main {
                 Stop-Computer -Force
             }
             (index) { # 開啟防火牆
-                Print "啟用中 =>`n" 'Green'
+                Print "啟用中 =>`n" Green
                 netsh advfirewall set allprofiles state on
                 netsh advfirewall firewall set rule all new enable=yes
                 $this.Menu()
             }
             (index) { # 關閉防火牆
-                Print "禁用中 =>`n" 'Red'
+                Print "禁用中 =>`n" Red
                 netsh advfirewall set allprofiles state off
                 netsh advfirewall firewall set rule all new enable=no
                 $this.Menu()
@@ -764,9 +760,9 @@ class Main {
                         "HKLM:\SOFTWARE\Policies\Google\Chrome", "DiskCacheDir", "String", "$($folderPath)GoogleCache"
                     ), $false)
 
-                    Print "修改成功！緩存目錄已設置為： $($folderPath)GoogleCache" 'Green'
+                    Print "修改成功！緩存目錄已設置為： $($folderPath)GoogleCache" Green
                 } else {
-                    Print "未選擇任何路徑，修改取消。" 'Red'
+                    Print "未選擇任何路徑，修改取消。" Red
                 }
 
                 $this.WaitBack()
@@ -848,16 +844,16 @@ class Main {
             }
             (index) { # Google 重置受機構管理
                 Print " ============================================== "
-                Print "          無特別需求不建議使用該功能" 'Red'
-                Print "        該功能會重置先前所有優化註冊項目" 'Red'
-                Print "  如只想重置 (一鍵優化設置) 可再次運行 (一鍵優化設置)`n" 'Red'
+                Print "          無特別需求不建議使用該功能" Red
+                Print "        該功能會重置先前所有優化註冊項目" Red
+                Print "  如只想重置 (一鍵優化設置) 可再次運行 (一鍵優化設置)`n" Red
                 Print "     重置包含: (變更緩存位置) (一鍵優化設置)"
                 Print "     重置不包含: 瀏覽器設定, 與任何保存數據"
                 Print " ============================================== "
 
                 $this.DoubleConfirm({
                     Remove-Item -Path "HKLM:\SOFTWARE\Policies\Google" -Recurse -Force
-                    Print "已重置 Google 受機構管理" 'Green'
+                    Print "已重置 Google 受機構管理" Green
                     $this.WaitBack()
                 })
             }
@@ -877,9 +873,9 @@ class Main {
                         "HKLM:\SOFTWARE\Policies\Microsoft\Edge", "DiskCacheDir", "String", "$($folderPath)EdgeCache"
                     ), $false)
 
-                    Print "修改成功！緩存目錄已設置為： $($folderPath)EdgeCache" 'Green'
+                    Print "修改成功！緩存目錄已設置為： $($folderPath)EdgeCache" Green
                 } else {
-                    Print "未選擇任何路徑，修改取消。" 'Red'
+                    Print "未選擇任何路徑，修改取消。" Red
                 }
 
                 $this.WaitBack()
@@ -1055,9 +1051,9 @@ class Main {
             }
             (index) { # Edge 重置受組織管理
                 Print " ============================================== "
-                Print "          無特別需求不建議使用該功能" 'Red'
-                Print "        該功能會重置先前所有優化註冊項目" 'Red'
-                Print "  如只想重置 (一鍵優化設置) 可再次運行 (一鍵優化設置)`n" 'Red'
+                Print "          無特別需求不建議使用該功能" Red
+                Print "        該功能會重置先前所有優化註冊項目" Red
+                Print "  如只想重置 (一鍵優化設置) 可再次運行 (一鍵優化設置)`n" Red
                 Print "     重置包含: (變更緩存位置) (一鍵優化設置)"
                 Print "     重置不包含: 瀏覽器設定, 與任何保存數據"
                 Print " ============================================== "
@@ -1065,7 +1061,7 @@ class Main {
                 $this.DoubleConfirm({
                     Remove-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Edge" -Recurse -Force
                     Remove-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\MicrosoftEdge" -Recurse -Force
-                    Print "已重置 Edge 受組織管理" 'Green'
+                    Print "已重置 Edge 受組織管理" Green
                     $this.WaitBack()
                 })
             }
@@ -1080,13 +1076,13 @@ class Main {
                     Invoke-WebRequest -Uri $DownloadURL -OutFile $RegistPath
 
                     if (Test-Path $RegistPath) {
-                        Print "授權完成" 'Green'
+                        Print "授權完成" Green
                     } else {
-                        Print "授權失敗" 'Red'
+                        Print "授權失敗" Red
                     }
 
                 } else {
-                    Print "已擁有授權" 'Green'
+                    Print "已擁有授權" Green
                 }
 
                 $this.WaitBack()
@@ -1142,8 +1138,8 @@ class Main {
                     Start-Process -FilePath $Path2
                     $this.Menu()
                 } else {
-                    Print "找不到啟動程序: $Path1 或 $Path2" 'Red'
-                    Print "下載連結: https://surfshark.com/zh-tw/download" 'Green'
+                    Print "找不到啟動程序: $Path1 或 $Path2" Red
+                    Print "下載連結: https://surfshark.com/zh-tw/download" Green
                     $this.WaitBack()
                 }
             }
@@ -1463,10 +1459,10 @@ class Main {
                 $this.NetworkState()
                 
                 Print "===== 輸入要取得的網址 (輸入 0 直接退出返回) =====`n"
-                Print "!! 可輸入完整網址 (如 https://www.google.com) 或單純網域 (如 google.com)" 'Magenta'
+                Print "!! 可輸入完整網址 (如 https://www.google.com) 或單純網域 (如 google.com)" Magenta
                 
                 while ($true) {
-                    $url = Input "輸入網址" 'Yellow'
+                    $url = Input "輸入網址" Yellow
 
                     if ($url -eq "0") {
                         $this.Menu()
@@ -1492,7 +1488,7 @@ class Main {
                             throw "無法提取主機名，輸入的 URL 格式可能有誤"
                         }
 
-                        Print "`n正在解析網域: $hostname`n" 'Cyan'
+                        Print "`n正在解析網域: $hostname`n" Cyan
 
                         # 解析域名地址（包含 IPv4 和 IPv6）
                         $dnsResult = Resolve-DnsName -Name $hostname -ErrorAction Stop
@@ -1503,41 +1499,41 @@ class Main {
                         if ($ipv4Addresses -or $ipv6Addresses) {
 
                             if ($ipv4Addresses) {
-                                Print "IPv4 地址：" 'Green'
+                                Print "IPv4 地址：" Green
                                 $ipv4Addresses | ForEach-Object {
-                                    Print "  $_" 'Green'
+                                    Print "  $_" Green
                                 }
                             } else {
-                                Print "未找到 IPv4 地址" 'Yellow'
+                                Print "未找到 IPv4 地址" Yellow
                             }
 
                             if ($ipv6Addresses) {
-                                Print "IPv6 地址：" 'Green'
+                                Print "IPv6 地址：" Green
                                 $ipv6Addresses | ForEach-Object {
-                                    Print "  $_" 'Green'
+                                    Print "  $_" Green
                                 }
                             } else {
-                                Print "未找到 IPv6 地址" 'Yellow'
+                                Print "未找到 IPv6 地址" Yellow
                             }
 
                         } else {
-                            Print "無法獲取任何 IP 地址" 'Red'
+                            Print "無法獲取任何 IP 地址" Red
                         }
 
                     } catch {
                         $errorMsg = $_.Exception.Message
                         if ($errorMsg -match "Uri") {
-                            Print "解析錯誤：無效的 URL 格式，請檢查輸入（例如缺少 http:// 或格式錯誤）" 'Red'
+                            Print "解析錯誤：無效的 URL 格式，請檢查輸入（例如缺少 http:// 或格式錯誤）" Red
                         } elseif ($errorMsg -match "DNS") {
-                            Print "解析錯誤：無法解析網域，可能不存在或網路問題" 'Red'
+                            Print "解析錯誤：無法解析網域，可能不存在或網路問題" Red
                         } else {
-                            Print "錯誤：$errorMsg" 'Red'
+                            Print "錯誤：$errorMsg" Red
                         }
                     }
                 }
             }
             Default {
-                Print "無效的代號" 'Red'
+                Print "無效的代號" Red
                 Start-Sleep -Seconds 1.3
                 $this.Menu()
             }
