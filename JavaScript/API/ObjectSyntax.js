@@ -490,7 +490,7 @@ const Syn = (() => {
 
         /**
          * * { 取得下載圖片時的填充量 }
-         * @param {object} pages - 下載的圖片連結物件
+         * @param {number} pages - 下載物件的長度
          * @returns {number}     - 返回填充的值
          *
          * @example
