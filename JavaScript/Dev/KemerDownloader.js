@@ -533,6 +533,7 @@
             Button.textContent = `✓ ${this.ModeDisplay}`;
         }
     }
+
     class DataToJson {
         constructor() {
             this.JsonDict = {};
@@ -544,89 +545,6 @@
             this.Pages = this.progress = this.filtercache = null;
             this.Author = Syn.$$("span[itemprop='name'], fix_name").textContent;
             this.JsonMode = { "orlink": "set_1", "imgnb": "set_2", "videonb": "set_3", "dllink": "set_4" }
-
-            /**
-             * 設置分類輸出 Json時的格式
-             *
-             * @param {string} mode  - 設定的模式 [預設: "FilterMode"]
-             * @param {Array} set    - 要進行的設置 [預設: []]
-             *
-             * @example
-             * 基本設置: ToJsonSet(["orlink", "imgnb", "videonb", "dllink"]) 可選項目
-             * mode = "FilterMode", 根據傳入的值, 將 {原始連結, 圖片數, 影片數, 下載連結} (過濾掉/刪除該項目)
-             * mode = "OnlyMode", 根據傳入的值, 例如 {set = ["imgnb"]}, 那就只會顯示有圖片的
-             * "OnlyMode" 的 "imgnb", "videonb" 會有額外特別處理, {imgnb: 排除有影片的, videonb: 圖片多餘10張的被排除}
-             */
-            this.ToJsonSet = async (mode = "FilterMode", set = []) => {
-                try {
-                    switch (mode) {
-                        case "FilterMode":
-                            this.Genmode = true;
-                            set.forEach(key => { delete this.JsonMode[key] });
-                            break;
-                        case "OnlyMode":
-                            this.Genmode = false;
-                            this.filtercache = Object.keys(this.JsonMode).reduce((obj, key) => {
-                                if (set.includes(key)) { obj[key] = this.JsonMode[key] }
-                                return obj;
-                            }, {});
-                            this.JsonMode = this.filtercache;
-                            break;
-                    }
-                } catch (error) { console.error(error) }
-            }
-
-            /* 輸出Json */
-            this.ToJson = async () => {
-                const Json_data = Object.assign({
-                    ["Meta-Data"]: {
-                        [Lang.Transl("作者")]: this.Author,
-                        [Lang.Transl("時間")]: Syn.GetDate("{year}-{month}-{date} {hour}:{minute}:{second}"),
-                        [Lang.Transl("來源")]: this.Source
-                    }
-                }, this.JsonDict);
-
-                Syn.OutputJson(Json_data, this.Author, () => {
-                    if (Config.NotiFication) {
-                        GM_notification({
-                            title: Lang.Transl("數據處理完成"),
-                            text: Lang.Transl("Json 數據下載"),
-                            image: GM_getResourceURL("json-processing"),
-                            timeout: 2000
-                        });
-                    }
-
-                    lock = false;
-                    this.worker.terminate();
-                    document.title = this.TitleCache;
-                });
-            }
-
-            /**
-             * 傳入數據生成列表物件
-             *
-             * @param {string} ol - 原始連結
-             * @param {string} pn - 圖片數量
-             * @param {string} vn - 影片數量
-             * @param {string} lb - 下載連結
-             */
-            this.GenerateBox = (ol, pn, vn, lb) => {
-                if (this.Genmode) {
-                    return {
-                        ...(this.JsonMode.hasOwnProperty("orlink") ? { [Lang.Transl("原始連結")]: ol } : {}),
-                        ...(this.JsonMode.hasOwnProperty("imgnb") ? { [Lang.Transl("圖片數量")]: pn } : {}),
-                        ...(this.JsonMode.hasOwnProperty("videonb") ? { [Lang.Transl("影片數量")]: vn } : {}),
-                        ...(this.JsonMode.hasOwnProperty("dllink") ? { [Lang.Transl("下載連結")]: lb || {} } : {}),
-                    }
-                } else {
-                    return {
-                        ...(this.JsonMode.hasOwnProperty("orlink") ? { [Lang.Transl("原始連結")]: ol } : {}),
-                        ...(this.JsonMode.hasOwnProperty("imgnb") && pn > 0 && vn == 0 ? { [Lang.Transl("圖片數量")]: pn } : {}),
-                        ...(this.JsonMode.hasOwnProperty("videonb") && vn > 0 && pn <= 10 ? { [Lang.Transl("影片數量")]: vn } : {}),
-                        ...(this.JsonMode.hasOwnProperty("dllink") && Object.keys(lb).length > 0 ? { [Lang.Transl("下載連結")]: lb } : {}),
-                    }
-                }
-            }
 
             /* Mega 連結解析 (測試中 有些Bug) */
             this.MegaAnalysis = (data) => {
@@ -648,51 +566,6 @@
                 }
                 return { pass, result };
             }
-
-            this.worker = Syn.WorkerCreation(`
-                let queue = [], processing=false;
-                onmessage = function(e) {
-                    queue.push(e.data);
-                    !processing && (processing=true, processQueue());
-                }
-                async function processQueue() {
-                    if (queue.length > 0) {
-                        const {index, title, url} = queue.shift();
-                        XmlRequest(index, title, url);
-                        processQueue();
-                    } else {processing = false}
-                }
-                async function XmlRequest(index, title, url) {
-                    let xhr = new XMLHttpRequest();
-                    xhr.responseType = "text";
-                    xhr.open("GET", url, true);
-                    xhr.onload = function() {
-                        if (xhr.readyState === 4 && xhr.status === 200) {
-                            postMessage({ index, title, url, text: xhr.response, error: false });
-                        } else {
-                            FetchRequest(index, title, url);
-                        }
-                    }
-                    xhr.onerror = function() {
-                        FetchRequest(index, title, url);
-                    }
-                    xhr.send();
-                }
-                async function FetchRequest(index, title, url) {
-                    fetch(url).then(response => {
-                        if (response.ok) {
-                            response.text().then(text => {
-                                postMessage({ index, title, url, text, error: false });
-                            });
-                        } else {
-                            postMessage({ index, title, url, text: "", error: true });
-                        }
-                    })
-                    .catch(error => {
-                        postMessage({ index, title, url, text: "", error: true });
-                    });
-                }
-            `);
         }
 
         /* 初始化獲取數據 */
@@ -758,30 +631,21 @@
             }
 
             const menu = Syn.$$("a.pagination-button-after-current", { root: section });
-            if (Config.ExperimeDownload) { // 使用較蠢的方式處理
+            const ILength = item.length,
+                wait = setInterval(() => {
+                    if (ILength == this.SortMap.size) {
+                        clearInterval(wait);
 
-                const ILength = item.length,
-                    wait = setInterval(() => {
-                        if (ILength == this.SortMap.size) {
-                            clearInterval(wait);
-
-                            for (let i = 0; i < ILength; i++) { // 按照索引順序取出 SortMap, 並將數據添加到 JsonDict, 接著清除掉 SortMap
-                                const data = this.SortMap.get(i);
-                                this.JsonDict[data.title] = data.box;
-                            }
-
-                            this.Pages++;
-                            this.SortMap.clear(); // 清除
-                            menu ? this.GetNextPage(menu.href) : this.ToJson();
+                        for (let i = 0; i < ILength; i++) { // 按照索引順序取出 SortMap, 並將數據添加到 JsonDict, 接著清除掉 SortMap
+                            const data = this.SortMap.get(i);
+                            this.JsonDict[data.title] = data.box;
                         }
-                    }, 500);
 
-            } else {
-
-                this.Pages++;
-                await Syn.Sleep(500);
-                menu ? this.GetNextPage(menu.href) : this.ToJson();
-            }
+                        this.Pages++;
+                        this.SortMap.clear(); // 清除
+                        menu ? this.GetNextPage(menu.href) : this.ToJson();
+                    }
+                }, 500);
         }
 
         /* Json 數據請求 並 解析 */
