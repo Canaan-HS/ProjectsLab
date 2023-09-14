@@ -40,7 +40,7 @@ class UrlGenerator:
         self.headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"}
         # 舊版隨機盒 self.RandomBox = [[65,90],[97,122],[48,57],[[65,90],[97,122]],[[65,90],[97,122],[48,57]]]
         self.RandomBox = [string.ascii_uppercase, string.ascii_lowercase, string.digits, string.ascii_letters, string.ascii_letters+string.digits]
-        self.SupportDomain = ["reurl.cc", "gofile.io", "ppt.cc", "drive.google.com", "files.catbox.moe"]
+        self.SupportDomain = ["reurl.cc", "gofile.io", "ppt.cc", "drive.google.com", "files.catbox.moe", "streamable.com"]
 
         # 判斷類變數
         self.support = None
@@ -61,6 +61,7 @@ class UrlGenerator:
 
         # 保存類變數
         self.SaveBox = {}
+        self.DelayCache = 0
         self.SuccessCount = 0
 
         # 宣告
@@ -127,6 +128,8 @@ class UrlGenerator:
                 self.Whitelistdomains = Whitelistdomains
                 self.SecondVerification = secondverification
 
+                self.DelayCache = generatedelay # 用於紀錄初始設置
+
                 if charformat >= 0 and charformat <= 4: # 判斷生成格式設置 , 是否符合規範
                     self.CharFormat = charformat
                 else:
@@ -173,7 +176,7 @@ class UrlGenerator:
         try:
             # 第一重驗證 (開發支援)
             if self.support == 0: # reurl
-                tree, C_url = self.get_data(link)
+                tree, uri = self.get_data(link)
                 url = unquote(tree.xpath("//span[@class='lead']/text()")[0])
                 title = tree.xpath("//span[@class='text-muted']/text()")[0].replace(","," ")
 
@@ -184,7 +187,7 @@ class UrlGenerator:
                         "authorization": "Bearer mK7RnENe3wXVB9ijif3v2WWmYAyavAzc",
                     })
 
-                json, C_url = self.get_data(
+                json, uri = self.get_data(
                     f"https://api.gofile.io/contents/{link[-6:]}?wt=4fd6sg89d7s6&contentFilter=&page=1&pageSize=1000&sortField=name&sortDirection=1",
                     "json"
                 )
@@ -196,27 +199,43 @@ class UrlGenerator:
                     title = json["data"]["name"]
 
             elif self.support == 2: # ppt
-                tree, C_url = self.get_data(link)
-                C_url = unquote(C_url)
+                tree, uri = self.get_data(link)
+                uri = unquote(uri)
 
                 # 簡單驗證一下
-                if C_url.find(self.SupportDomain[2]) != -1:
+                if uri.find(self.SupportDomain[2]) != -1:
                     raise Exception()
                 else:
-                    url = C_url
+                    url = uri
                     title = tree.xpath("//title/text()")[0]
-                    
+
             elif self.support == 3: # google
-                respon, C_url = self.get_data(link, "none")
-                
-                if respon.status_code != 200:
-                    raise Exception()
-                else:
+                respon, uri = self.get_data(link, "none")
+ 
+                if respon.status_code == 200:
+                    self.GenerateDelay = self.DelayCache
                     tree = etree.HTML(respon.text)
 
                     url = link
                     title = tree.xpath("//title/text()")[0].replace(" - Google 雲端硬碟", "")
+                elif respon.status_code == 429:   
+                    self.GenerateDelay = 10
+                else:
+                    raise Exception()
+                    
+            elif self.support == 5: # streamable
+                respon, uri = self.get_data(link, "none")
 
+                if respon.status_code == 200:
+                    self.GenerateDelay = self.DelayCache
+                    tree = etree.HTML(respon.text)
+
+                    url = link
+                    title = tree.xpath("//h1/text()")[0]
+                elif respon.status_code == 429:
+                    self.GenerateDelay = 10
+                else:
+                    raise Exception()
             else:
                 url = link
                 title = ""    
@@ -285,13 +304,6 @@ if __name__ == "__main__":
     # )
 
     # url.generate_settin(
-        # domain = "https://drive.google.com/drive/folders/",
-        # generatednumber = 10,
-        # charnumber = 33,
-        # charformat = 4
-    # )
-
-    # url.generate_settin(
     #     domain = "https://ppt.cc/",
     #     generatednumber = 10,
     #     charnumber = 6,
@@ -319,6 +331,21 @@ if __name__ == "__main__":
         # generatedelay = 0.5,
         # charformat = 4,
         # charnumber = 6
+    # )
+
+    # url.generate_settin(
+        # domain = "https://drive.google.com/drive/folders/",
+        # generatednumber = 10,
+        # charnumber = 33,
+        # charformat = 4
+    # )
+
+    # url.generate_settin(
+        # domain = "https://streamable.com/",
+        # generatednumber = 10,
+        # charformat = 4,
+        # charnumber = 6,
+        # debug = True
     # )
 
     """ ___ 主要生成 ____ """
