@@ -386,9 +386,7 @@ class Main {
                 Print ""
                 Print "  更新資訊:"
                 Print ""
-                Print "   1. 調整 自動配置 DNS 邏輯"
-                Print ""
-                Print "   2. 修改 取得網域 IP 顯示內容"
+                Print "   1. 優化 網路優化功能並新增配置"
                 Print "----------------------------------"
                 $this.WaitBack()
             }
@@ -1168,8 +1166,6 @@ class Main {
                 netsh advfirewall reset
                 # 清除 ARP 緩存
                 netsh interface ip delete arpcache
-                # 清除 NetBIOS 快取
-                nbtstat -R
                 # 禁用並重新啟用網絡接口
                 Get-NetAdapter | Disable-NetAdapter -Confirm:$false
                 Get-NetAdapter | Enable-NetAdapter -Confirm:$false
@@ -1179,104 +1175,136 @@ class Main {
             }
             (index) { # 網路優化
 
-                Print " ====================================== "
-                Print "      這個優化不見得適用於所有人" "Cyan"
-                Print " ====================================== "
+                Print " ================================================== "
+                Print "     以下配置致力於提升網路性能 並降低延遲" Cyan
+                Print "     雖然以通用性為主 但不見得適用於所有人" Cyan
+                Print " ================================================== "
 
                 $this.DoubleConfirm({
                     Print "`n請稍後...`n"
                     Start-Sleep -Seconds 1
                 })
 
-                # TCP 接收側縮放 (RSS) (disabled|enabled|default)
+                # 1. 接收與窗口調整相關 (disabled|enabled|default)
+                # 啟用接收側縮放 (RSS)，分散接收處理至多核心，提升吞吐量與低延遲處理能力
                 netsh int tcp set global rss=enabled
-                # 接收窗口自動調整級別(disabled|highlyrestricted|restricted|normal|experimental)
+                # 設定接收窗口自動調整為正常級別，動態適應網路條件，確保通用性與效能平衡
                 netsh int tcp set global autotuninglevel=normal
-                # TCP ECN 擁塞控制能力(disabled|enabled|default)
-                netsh int tcp set global ecncapability=enabled
-                # TCP 時間戳(disabled|enabled|default)
-                netsh int tcp set global timestamps=enabled
-                # TCP 初始時的超時 重傳時間 (300~3000)
-                netsh int tcp set global initialrto=1000
-                # 接收段合併狀態 (disabled|enabled|default)
-                netsh int tcp set global rsc=enabled
-                # SACK 用於改進丟包恢復和擁塞控制 (disabled|enabled|default)
-                netsh int tcp set global nonsackrttresiliency=enabled
-                # 客戶端允許的最大 SYN 重傳次數 (2~8)
-                netsh int tcp set global maxsynretransmissions=2
-                # TCP 快速啟用 (disabled|enabled|default)
-                netsh int tcp set global fastopen=enabled
-                # TCP 快速回退,如果遠程端點不支持 TCP 快速打開或發生任何錯誤，將回退到正常的握手過程 (disabled|enabled|default)
-                netsh int tcp set global fastopenfallback=enabled
-                # 擁塞控制算法 (disabled|enabled|default)
-                netsh int tcp set global hystart=enabled
-                # 擁塞控制算法 (disabled|enabled|default)
-                netsh int tcp set global prr=enabled
-                # 啟用數據中心擁塞控制算法 (DCA)
-                netsh int tcp set global dca=enabled
-                # TCP 發送方的流量控制機制 (off|initialwindow|slowstart|always|default)
-                netsh int tcp set global pacingprofile=always
-
-                # netsh int tcp set supplemental template= (automatic|datacenter|internet|compat|custom)
-                # TCP 超時最小重傳時間 (20~300)
-                netsh int tcp set supplemental template=datacenter minrto=200
-                # TCP 在連接剛建立時允許發送的數據包數量 (2~64)
-                netsh int tcp set supplemental template=datacenter icw=64
-                # 擁塞控制算法 (none|ctcp|dctcp|cubic|bbr2|default)
-                netsh int tcp set supplemental template=datacenter congestionprovider=bbr2
-                # 擁塞窗口重啟 (disabled|enabled|default)
-                netsh int tcp set supplemental template=datacenter enablecwndrestart=enabled
-                # TCP延遲應答的超時 (10~600)
-                netsh int tcp set supplemental template=datacenter delayedacktimeout=100
-                # TCP延遲應答頻率 (1~255)
-                netsh int tcp set supplemental template=datacenter delayedackfrequency=30
-                # TCP 啟發式優化
+                # 禁用接收段合併 (RSC)，避免合併延遲，適合低延遲應用如遊戲
+                netsh int tcp set global rsc=disabled
+                # 避免強制視窗縮放，讓啟發式優化根據網路條件動態調整，提升通用性
                 netsh int tcp set heuristics forcews=disabled
 
+                # 2. 擁塞控制與恢復相關 (disabled|enabled|default)
+                # 啟用顯式擁塞通知 (ECN)，協助檢測擁塞，減少封包丟失，適合現代網路
+                netsh int tcp set global ecncapability=enabled
+                # 啟用選擇性確認 (SACK) 的非 SACK RTT 彈性，提升丟包恢復效率，適用不支援 SACK 的網路
+                netsh int tcp set global nonsackrttresiliency=enabled
+                # 啟用 HyStart 擁塞控制算法，加速慢啟動階段，降低初始延遲
+                netsh int tcp set global hystart=enabled
+                # 啟用比例速率減少 (PRR)，改善丟包後的恢復速度，提升連線穩定性
+                netsh int tcp set global prr=enabled
+                # 啟用數據中心擁塞控制算法 (DCA)，優化高流量環境的延遲與吞吐量
+                netsh int tcp set global dca=enabled
+
+                # 3. 連線建立與重傳相關 (disabled|enabled|default)
+                # 啟用 TCP 時間戳，精確測量 RTT，提升擁塞控制與重傳效率
+                netsh int tcp set global timestamps=enabled
+                # 設定初始重傳超時 (RTO) 為 1000ms，加速丟包恢復，適合低延遲需求
+                netsh int tcp set global initialrto=1000
+                # 限制最大 SYN 重傳次數為 2 次，加快連線失敗檢測，減少等待時間
+                netsh int tcp set global maxsynretransmissions=2
+                # 啟用 TCP 快速開啟 (TFO)，減少初次連線延遲，提升應用啟動速度
+                netsh int tcp set global fastopen=enabled
+                # 啟用 TFO 回退，若遠端不支持則使用標準握手，確保通用性
+                netsh int tcp set global fastopenfallback=enabled
+
+                # 4. 發送與流量控制相關
+                # 設定發送節奏為 initialwindow，僅初始階段控制流量，減少發送延遲 (off|initialwindow|slowstart|always|default)
+                netsh int tcp set global pacingprofile=initialwindow
+                # 啟用 TCP Chimney Offload，將 TCP 處理卸載至網卡，降低 CPU 負擔並略微減少延遲
+                netsh int tcp set global chimney=enabled
+
+                # 5. 補充模板設定（針對 Internet 環境優化）(automatic|datacenter|internet|compat|custom)
+                # 使用 Internet 模板，設定最小 RTO 為 20ms、初始擁塞窗口為 16、使用 CTCP 擁塞控制、
+                # 啟用窗口重啟、延遲確認超時為 10ms、每包確認，全面優化低延遲與通用性
+                netsh int tcp set supplemental template=internet minrto=20 icw=16 congestionprovider=ctcp enablecwndrestart=enabled delayedacktimeout=10 delayedackfrequency=1
+
+                # 登錄表修改
                 $this.RegistItem(@(
-                    # 啟用黑洞偵測，以防止封包在網路中丟失
+                    # 啟用路徑 MTU 黑洞檢測，當封包因 MTU 不匹配丟失時自動調整，避免傳輸中斷
                     @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "EnablePMTUBHDetect", "DWORD", 1)
-                    # 提高 IP 封包緩衝區容量，以增強封包處理能力
+                    # 設定 IP 前向緩衝區記憶體為 1MB，提升封包處理能力，減少緩衝區溢位風險
                     @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "ForwardBufferMemory", "DWORD", 1048576)
-                    # 增加封包處理能力，降低丟包率
+                    # 增加前向封包數量至 256，提升網路堆疊的封包處理能力，降低丟包可能性
                     @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "NumForwardPackets", "DWORD", 256)
-                    # 設置 TCP 超時值以更快釋放資源，但可能增加套接字重用問題
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "TcpTimedWaitDelay", "DWORD", 60)
-                    # 縮短 NetBT 廣播查詢超時以加快名稱解析速度，但可能增加網絡流量
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters", "BcastQueryTimeout", "DWORD", 500)
-                    # 縮短 NetBT 名稱伺服器查詢超時以加快名稱解析速度，但可能增加網絡流量
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters", "NameSrvQueryTimeout", "DWORD", 1000)
-                    # 增加 NetBT 會話保持時間以提高連接穩定性，但可能增加網絡流量
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters", "SessionKeepAlive", "DWORD", 1800000)
-                    # 設置 NetBT 名稱表大小，選擇中型（2）或大型（3）
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters", "NameTableSize", "DWORD", 2)
-                    # 減少名稱註冊的初始超時以加快名稱註冊速度，但可能增加網絡負荷
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters", "InitialRefreshT.O.", "DWORD", 480000)
-                    # 設置 LMHOSTS 和 DNS 名稱查詢超時值
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters", "LmhostsTimeout", "DWORD", 3000)
-                    # 增加 NetBT 數據報緩衝區容量以提升傳送性能，但可能增加內存消耗
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters", "MaxDgramBuffering", "DWORD", 0x40000)
-                    # 縮短 WINS 重新嘗試超時以加快 WINS 查詢，但可能增加網絡負荷
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\NetBT\Parameters", "WinsDownTimeout", "DWORD", 10000)
-                    # 設定 DNS 快取中記錄的最大存活時間
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters", "MaxCacheTtl", "DWORD", 86400)
-                    # 設定 TCP 窗口大小以改善 TCP 連接的流量控制
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "TcpWindowSize", "DWORD", 64000)
-                    # 禁用 Nagle 算法以減少延遲（預設為 1，啟用）
+                    # 縮短 TCP TIME_WAIT 狀態持續時間至 30 秒，加速端口釋放，提升連線建立速度
+                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "TcpTimedWaitDelay", "DWORD", 30)
+                    # 禁用 Nagle 算法，立即發送小封包，降低延遲，適合遊戲和即時應用
                     @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "TcpNoDelay", "DWORD", 1)
+                    # 設定 TCP Keep-Alive 檢測間隔為 30 秒，快速發現斷線並釋放無效連線
+                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "KeepAliveTime", "DWORD", 30000)
+                    # 設定 Keep-Alive 探測間隔為 1 秒，加快連線狀態檢查，提升恢復速度
+                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "KeepAliveInterval", "DWORD", 1000)
                 ), $false)
 
+                # 網卡硬體優化 - 提升低延遲的硬體層面設定
+                Get-NetAdapter | ForEach-Object {
+                    # 禁用網卡中斷調節，減少封包處理延遲，提升即時性，適合低延遲應用
+                    Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName "Interrupt Moderation" -DisplayValue "Disabled" -ErrorAction SilentlyContinue
+                    # 禁用節能以太網 (EEE)，避免進入低功耗狀態引入延遲，確保穩定低延遲
+                    Set-NetAdapterAdvancedProperty -Name $_.Name -DisplayName "Energy-Efficient Ethernet" -DisplayValue "Disabled" -ErrorAction SilentlyContinue
+                }
+
+                # 測試適合 MTU
+                function Test-InterfaceMTU {
+                    param (
+                        [string]$InterfacePath,
+                        [string]$TestIP
+                    )
+
+                    # 獲取介面 IP（DHCP 或靜態）
+                    $DhcpIP = Get-ItemProperty -Path $InterfacePath -Name DhcpIPAddress -ErrorAction SilentlyContinue
+                    $StaticIP = Get-ItemProperty -Path $InterfacePath -Name IPAddress -ErrorAction SilentlyContinue
+                    $IP = if ($DhcpIP -and $DhcpIP.DhcpIPAddress -ne "0.0.0.0") { $DhcpIP.DhcpIPAddress }
+                          elseif ($StaticIP -and $StaticIP.IPAddress[0] -ne "0.0.0.0") { $StaticIP.IPAddress[0] }
+                          else { return $null }
+
+                    # 未提供測試 IP 時，使用網關或 8.8.8.8
+                    $TestIP = if ($TestIP) { $TestIP } 
+                              else { (Get-NetRoute -DestinationPrefix "0.0.0.0/0" | Where-Object { 
+                                  $_.InterfaceAlias -eq (Get-NetAdapter | Where-Object { $_.IpAddress -eq $IP }).Name 
+                              }).NextHop ?? "8.8.8.8" }
+
+                    # 測試 MTU 值（從 1472 到 9000）
+                    $TestSizes = 1472, 1492, 1500, 2000, 4000, 9000
+                    $MaxMTU = 0
+
+                    foreach ($size in $TestSizes) {
+                        $ping = ping $TestIP -f -l $size -n 3
+                        if ($ping -match "Reply from" -and $ping -notmatch "Fragmented") {
+                            $MaxMTU = $size + 28
+                        } else { break }
+                    }
+
+                    # 建議 MTU（至少 1500）
+                    $SuggestedMTU = [math]::Max($MaxMTU, 1500)
+                    return $SuggestedMTU
+                }
+
+                # 動態測試並設定每個網路介面的 MTU 和 TCP 參數，確保低延遲與網路兼容性
                 $interfaces = Get-ChildItem -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"
                 foreach ($interface in $interfaces) {
+                    # 獲取當前網路介面的登錄表路徑，用於後續參數設定
                     $interfacePath = $interface.PSPath
-                    # 嘗試獲取 IPAddress 屬性
-                    $IPAddress = Get-ItemProperty -Path $interfacePath -Name DhcpIPAddress -ErrorAction SilentlyContinue
-                    # 存在 IPAddress 且不為 0.0.0.0
-                    if ($IPAddress -and $IPAddress.DhcpIPAddress -ne "0.0.0.0") {
+                    # 呼叫 Test-InterfaceMTU 函數，測試介面到 8.8.8.8 的路徑 MTU，獲取建議值
+                    $suggestedMTU = Test-InterfaceMTU -InterfacePath $interfacePath -TestIP "8.8.8.8"
+                    # 如果測試成功返回建議 MTU，則應用設定
+                    if ($suggestedMTU) {
                         $this.RegistItem(@(
-                            # 調整 MTU 值以優化網路性能，特別是避免封包碎片化
-                            @($interfacePath, "MTU", "DWORD", 1500)
-                            # 設置 TCP 立即確認以降低延遲（預設為 1）
+                            # 設定 MTU 為測試建議值，確保封包大小與網路路徑兼容，避免碎片化
+                            @($interfacePath, "MTU", "DWORD", $suggestedMTU)
+                            # 設定 TCP 確認頻率為 1，每個封包立即確認，降低延遲，適合即時應用
                             @($interfacePath, "TcpAckFrequency", "DWORD", 1)
                         ), $false)
                     }
@@ -1328,8 +1356,8 @@ class Main {
                 }
 
                 Print " ================================================== "
-                Print "     自動開始配置時 建議不要有消耗網路流量的操作" "Cyan"
-                Print "   根據環境不同 可能出現延遲顯示都是 0 這是正常的" "Cyan"
+                Print "     自動開始配置時 建議不要有消耗網路流量的操作" Cyan
+                Print "   根據環境不同 可能出現延遲顯示都是 0 這是正常的" Cyan
                 Print " ================================================== "
 
                 $this.DoubleConfirm({
@@ -1401,7 +1429,7 @@ class Main {
 
                     if ($result) {
                         $pingResults[$result.Key] = $result.Value # 在主線程中處理並行線程的結果
-                        Print "$($result.Key[0]) | $($result.Key[1]) | $([math]::Round($result.Value, 1)) ms" "Yellow" # 列印結果
+                        Print "$($result.Key[0]) | $($result.Key[1]) | $([math]::Round($result.Value, 1)) ms" Yellow # 列印結果
                     }
                 }
 
@@ -1450,8 +1478,8 @@ class Main {
 
                 Print "`n===== 配置完成 ======`n"
 
-                Print "慣用配置: $($idiomaticResults[0]) | $idiomaticDNS" "Green"
-                Print "其他配置: $($otherResults[0]) | $otherDNS" "Green"
+                Print "慣用配置: $($idiomaticResults[0]) | $idiomaticDNS" Green
+                Print "其他配置: $($otherResults[0]) | $otherDNS" Green
 
                 $this.WaitBack()
             }
