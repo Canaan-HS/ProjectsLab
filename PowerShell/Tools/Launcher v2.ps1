@@ -3,48 +3,16 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force # 給予臨時
 Add-Type -AssemblyName System.Windows.Forms
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-$String = @{
-    ToMD5 = {
-        param ([string]$string, [int]$byte = 32)
-        try {
-            $md5 = [System.Security.Cryptography.MD5]::Create()
-            $fileBytes = [System.Text.Encoding]::UTF8.GetBytes($string)
-            $hashBytes = $md5.ComputeHash($fileBytes)
-            $hashString = [BitConverter]::ToString($hashBytes) -replace '-'
-            $lowerHash = $hashString.ToLower()
-
-            return $lowerHash.Substring(0, [System.Math]::Min($byte, 32))
-        }
-        catch {
-            return "33aa87e37963715b802bd6d8536aecb1"
-        } 
-    };
-    ToSHA = {
-        param ([string]$string, [int]$byte = 384)
-        try {
-            $sha384 = [System.Security.Cryptography.SHA384]::Create()
-            $fileBytes = [System.Text.Encoding]::UTF8.GetBytes($string)
-            $hashBytes = $sha384.ComputeHash($fileBytes)
-            $hashString = [BitConverter]::ToString($hashBytes) -replace '-'
-            $lowerHash = $hashString.ToLower()
-
-            return $lowerHash.Substring(0, [System.Math]::Min($byte, 384))
-        }
-        catch {
-            return "7622d5aa667836b4dc0b2151441c67c77daee89ffdd1330e170c905c1156cd55de8c83decd0a7549cc0ec6c3c5002f06"
-        }
-    }
-}
-
 function Print {
     param (
         [string]$text,
-        [string]$foreColor = 'White',
-        [string]$backColor = 'Black'
+        [string]$foreColor = "White",
+        [string]$backColor = "Black"
     )
     Write-Host "[1m$text" -ForegroundColor $foreColor -BackgroundColor $backColor
 }
 
+# 檢查網路連線
 function CheckNetwork {
     # 檢查網路連接
     try {
@@ -56,11 +24,16 @@ function CheckNetwork {
     }
 }
 
+# 請求網路數據
 function Request {
     # 請求數據
     param ([string]$url)
     try {
-        $response = Invoke-WebRequest -Uri $url -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri "$url" -Headers @{
+            "Cache-Control" = "no-cache, no-store, must-revalidate"
+            "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+        } -ErrorAction Stop
+
         if ($response.StatusCode -eq 200) {
             return $response.Content
         }
@@ -73,14 +46,64 @@ function Request {
     }
 }
 
+# 生成隨機字串
+function RandomString {
+    param (
+        [int]$length
+    )
+
+    $randomString = ""
+    $charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+
+    for ($i = 0; $i -lt $length; $i++) {
+        $randomIndex = Get-Random -Minimum 0 -Maximum $charSet.Length
+        $randomString += $charSet[$randomIndex]
+    }
+
+    return $randomString
+}
+
+$String = @{
+    ToMD5 = {
+        param ([string]$string, [int]$byte = 32)
+        try {
+            $md5 = [System.Security.Cryptography.MD5]::Create()
+            $fileBytes = [System.Text.Encoding]::UTF8.GetBytes($string)
+            $hashBytes = $md5.ComputeHash($fileBytes)
+            $hashString = [BitConverter]::ToString($hashBytes) -replace "-"
+            $lowerHash = $hashString.ToLower()
+
+            return $lowerHash.Substring(0, [System.Math]::Min($byte, $lowerHash.Length))
+        }
+        catch {
+            return (RandomString $byte)
+        } 
+    };
+    ToSHA = {
+        param ([string]$string, [int]$byte = 256)
+        try {
+            $sha256 = [System.Security.Cryptography.SHA256]::Create()
+            $fileBytes = [System.Text.Encoding]::UTF8.GetBytes($string)
+            $hashBytes = $sha256.ComputeHash($fileBytes)
+            $hashString = [BitConverter]::ToString($hashBytes) -replace "-"
+            $lowerHash = $hashString.ToLower()
+
+            return $lowerHash.Substring(0, [System.Math]::Min($byte, $lowerHash.Length))
+        }
+        catch {
+            return (RandomString 32)
+        }
+    }
+}
+
 class ProcessingCore {
     [string]$path
     $aes = $null
 
-    ProcessingCore([byte[]]$iv, [byte[]]$key, [string]$path) {
+    ProcessingCore([byte[]]$key, [byte[]]$iv, [string]$path) {
         $this.aes = [System.Security.Cryptography.Aes]::Create()
-        $this.aes.IV = $iv
         $this.aes.Key = $key
+        $this.aes.IV = $iv
         $this.path = $path
     }
 
@@ -154,18 +177,15 @@ try {
         $InfoHash = &($String.ToMD5) "Author: Canaan HS - Tools v2"
     }
 
-    $KeyHash = $InfoHash.Substring(0, 16)
-    $IvHash = $InfoHash.Substring(16, 16)
-
     # 資訊哈希值, 合併成 保存目錄路徑
     $LocalFile = "$env:Temp\$InfoHash"
     $FileExists = { return Test-Path $LocalFile }
     $DownloadURL = "https://raw.githubusercontent.com/Canaan-HS/ProjectsLab/refs/heads/main/PowerShell/Tools/Tools%20v2.ps1"
 
-    # 處理核心 實例化
+    # 處理核心 實例化 (生成加密用 key, iv)
     $Core = [ProcessingCore]::new(
-        [System.Text.Encoding]::UTF8.GetBytes($IvHash), # 生成加密用 key, iv
-        [System.Text.Encoding]::UTF8.GetBytes($KeyHash),
+        [System.Text.Encoding]::UTF8.GetBytes($InfoHash.Substring(0, 16)),
+        [System.Text.Encoding]::UTF8.GetBytes($InfoHash.Substring(16, 16)),
         $LocalFile
     )
 
@@ -226,7 +246,12 @@ try {
             if (-not($RemoteHash -eq $LocalHash)) {
                 # 哈希值不同 (需要更新)
                 $codeString = $Core.OutputAndGet($remoteString) # 輸出加密 並獲取結果
-                Print "數據已更新" Green
+
+                # 大於 32 的哈希數才是真正的更新, 不然就是 Catch 部份的隨機值
+                if ($RemoteHash.Length -gt 32) {
+                    Print "數據已更新" Green
+                    Start-Sleep -Seconds 1
+                }
             }
         }
         elseif (-not((& $FileExists)) -and $remoteStringValid) {
@@ -245,6 +270,7 @@ try {
             )
             exit
         }
+
         $Core.InvokeCode($codeString) # 運行代碼
     }
 } catch {
