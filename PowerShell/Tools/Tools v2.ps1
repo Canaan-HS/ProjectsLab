@@ -1322,8 +1322,6 @@ class Main {
                     Global = @(
                         @{name="Cloudflare"; dns="1.1.1.1"; doh="https://cloudflare-dns.com/dns-query"},
                         @{name="Cloudflare"; dns="1.0.0.1"; doh="https://cloudflare-dns.com/dns-query"},
-                        @{name="Cloudflare 病毒攔截"; dns="1.1.1.2"; doh="https://security.cloudflare-dns.com/dns-query"},
-                        @{name="Cloudflare 病毒攔截"; dns="1.0.0.2"; doh="https://security.cloudflare-dns.com/dns-query"},
                         @{name="Google"; dns="8.8.8.8"; doh="https://dns.google/dns-query"},
                         @{name="Google"; dns="8.8.4.4"; doh="https://dns.google/dns-query"},
                         @{name="IBM"; dns="9.9.9.9"; doh="https://dns.quad9.net/dns-query"},
@@ -1334,8 +1332,6 @@ class Main {
                         @{name="Alternate"; dns="76.223.122.150"; doh=$null},
                         @{name="AdGuard"; dns="94.140.14.14"; doh="https://dns.adguard.com/dns-query"},
                         @{name="AdGuard"; dns="94.140.15.15"; doh="https://dns.adguard.com/dns-query"},
-                        @{name="CleanBrowsing 病毒攔截"; dns="185.228.168.9"; doh="https://doh.cleanbrowsing.org/doh/security-filter"},
-                        @{name="CleanBrowsing 病毒攔截"; dns="185.228.169.9"; doh="https://doh.cleanbrowsing.org/doh/security-filter"},
                         @{name="Open"; dns="208.67.222.222"; doh="https://doh.opendns.com/dns-query"},
                         @{name="Open"; dns="208.67.220.220"; doh="https://doh.opendns.com/dns-query"}
                     )
