@@ -227,6 +227,7 @@ class Main {
         if ($null -eq $FollowParent -and -not (Test-Path $Path)) {
             New-Item -Path $Path -Force # 路徑添加
         }
+
         try { # 檢查註冊表值是否存在
             if (-not($Delete)) { # 跳過刪除
                 throw [System.Exception]::new("不刪除")
@@ -709,13 +710,13 @@ class Main {
 
                 $this.RegistItem(@(
                     # 以下為將檔案總管變回 win 10 的方式
-                    @{path=$pathA; name="(default)"; value="CLSID_ItemsViewAdapter"}
-                    @{path="$pathA\InProcServer32"; name="(default)"; value=$dll; parent=$pathA}
-                    @{path="$pathA\InProcServer32"; name="ThreadingModel"; type="String"; value="Apartment"; parent=$pathA}
+                    @{path=$pathA; name="(default)"; value="CLSID_ItemsViewAdapter"},
+                    @{path="$pathA\InProcServer32"; name="(default)"; value=$dll; parent=$pathA},
+                    @{path="$pathA\InProcServer32"; name="ThreadingModel"; type="String"; value="Apartment"; parent=$pathA},
 
-                    @{path=$pathB; name="(default)"; value="File Explorer Xaml Island View Adapter"}
-                    @{path="$pathB\InProcServer32"; name="(default)"; value=$dll; parent=$pathB}
-                    @{path="$pathB\InProcServer32"; name="ThreadingModel"; type="String"; value="Apartment"; parent=$pathB}
+                    @{path=$pathB; name="(default)"; value="File Explorer Xaml Island View Adapter"},
+                    @{path="$pathB\InProcServer32"; name="(default)"; value=$dll; parent=$pathB},
+                    @{path="$pathB\InProcServer32"; name="ThreadingModel"; type="String"; value="Apartment"; parent=$pathB},
 
                     # 以下為 避免大量運算 檔案類型
                     @{path="HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\Shell\Bags\AllFolders\Shell"; name="FolderType"; type="String"; value="NotSpecified"; parent=$pathA}
@@ -770,71 +771,69 @@ class Main {
                 # https://admx.help/?Category=Chrome&Language=zh-tw
                 $this.RegistItem(@(
                     # 緩存大小
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DiskCacheSize", "String", "2000000000")
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DiskCacheSize", "String", "2000000000"),
 
                     # 安全瀏覽功能防護等級 0 關閉 1 預設 2強化防護
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SafeBrowsingProtectionLevel", "DWORD", 2)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SafeBrowsingProtectionLevel", "DWORD", 2),
                     # 下載檔案安全限制 0 ~ 4 , 0 無特別限制
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DownloadRestrictions", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DownloadRestrictions", "DWORD", 0),
                     # 為已輸入的憑證啟用資料外洩偵測功能
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "PasswordLeakDetectionEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "PasswordLeakDetectionEnabled", "DWORD", 1),
                     # 密碼在網路詐騙網頁上遭到重複使用時，會觸發密碼保護警告
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "PasswordProtectionWarningTrigger", "DWORD", 2)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "PasswordProtectionWarningTrigger", "DWORD", 2),
                     # 啟用預設搜尋引擎
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DefaultSearchProviderEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DefaultSearchProviderEnabled", "DWORD", 1),
                     # 使用 POST 傳遞搜尋參數
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DefaultSearchProviderSearchURLPostParams", "String", "q={searchTerms}&client=chrome&sourceid=chrome&ie=UTF-8")
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DefaultSearchProviderSuggestURLPostParams", "String", "q={searchTerms}&client=chrome&sourceid=chrome&ie=UTF-8&oe=UTF-8")
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DefaultSearchProviderSearchURLPostParams", "String", "q={searchTerms}&client=chrome&sourceid=chrome&ie=UTF-8"),
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DefaultSearchProviderSuggestURLPostParams", "String", "q={searchTerms}&client=chrome&sourceid=chrome&ie=UTF-8&oe=UTF-8"),
 
                     # 將這項政策設為 Disabled，則表示除非使用者停用 PDF 外掛程式，否則系統一律會使用 PDF 外掛程式開啟 PDF 檔案
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AlwaysOpenPdfExternally", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AlwaysOpenPdfExternally", "DWORD", 1),
                     # 信用卡的自動填入功能
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AutofillCreditCardEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AutofillCreditCardEnabled", "DWORD", 1),
                     # 地址的自動填入功能
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AutofillAddressEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AutofillAddressEnabled", "DWORD", 1),
                     # 啟用搜尋建議
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SearchSuggestEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SearchSuggestEnabled", "DWORD", 1),
                     # 顯示完整網址
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ShowFullUrlsInAddressBar", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ShowFullUrlsInAddressBar", "DWORD", 1),
 
                     # 啟用剪貼簿共用功能
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SharedClipboardEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SharedClipboardEnabled", "DWORD", 1),
                     # 拼字檢查網路服務
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SpellCheckServiceEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SpellCheckServiceEnabled", "DWORD", 0),
                     # 0 無論使用任何網路連線，皆預測網路動作
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "NetworkPredictionOptions", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "NetworkPredictionOptions", "DWORD", 0),
                     # 關閉 Google Chrome 關閉時繼續執行背景應用程式
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "BackgroundModeEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "BackgroundModeEnabled", "DWORD", 0),
 
                     # 第一次執行時從預設瀏覽器匯入已儲存的密碼
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ImportSavedPasswords", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ImportSavedPasswords", "DWORD", 1),
                     # 第一次執行時從預設瀏覽器匯入搜尋引擎
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ImportSearchEngine", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ImportSearchEngine", "DWORD", 1),
                     # 第一次執行時從預設瀏覽器匯入搜尋書籤
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ImportBookmarks", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ImportBookmarks", "DWORD", 1),
                     # 第一次執行時從預設瀏覽器匯入瀏覽記錄
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ImportHistory", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ImportHistory", "DWORD", 1),
                     # 第一次執行時從預設瀏覽器匯入自動填入表單資料
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ImportAutofillFormData", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ImportAutofillFormData", "DWORD", 1),
 
                     # Quic通訊
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "QuicAllowed", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "QuicAllowed", "DWORD", 1),
                     # 登入攔截功能
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SigninInterceptionEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SigninInterceptionEnabled", "DWORD", 0),
                     # 允許音訊程式在 Windows 系統上以高於一般優先順序的次序執行
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AudioProcessHighPriorityEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AudioProcessHighPriorityEnabled", "DWORD", 1),
                     # 禁止顯示侵入式廣告
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AdsSettingForIntrusiveAdsSites", "DWORD", 2)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AdsSettingForIntrusiveAdsSites", "DWORD", 2),
                     # 輸入網址匿名資料收集功能
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "UrlKeyedAnonymizedDataCollectionEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "UrlKeyedAnonymizedDataCollectionEnabled", "DWORD", 0),
                     # 啟用視窗遮蔽功能
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "WindowOcclusionEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "WindowOcclusionEnabled", "DWORD", 1),
                     # YouTube 嚴格篩選模式
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ForceYouTubeRestrict", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ForceYouTubeRestrict", "DWORD", 0),
                     # 允許使用無頭
                     @("HKLM:\SOFTWARE\Policies\Google\Chrome", "HeadlessMode", "DWORD", 1)
-                    # 加入進階保護計畫的使用者啟用額外防護功能
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AdvancedProtectionAllowed", , 1)
                 ), $true)
 
                 Print "`n===== 重新啟動後應用 ====="
@@ -885,161 +884,161 @@ class Main {
                 # https://learn.microsoft.com/zh-tw/DeployEdge/microsoft-edge-policies
                 $this.RegistItem(@(
                     # 設置快取大小
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "DiskCacheSize", "String", "2000000000")
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "DiskCacheSize", "String", "2000000000"),
                     # 可讓螢幕助讀程式使用者取得網頁上未標記影像的描述
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AccessibilityImageLabelsEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AccessibilityImageLabelsEnabled", "DWORD", 1),
                     # 搜尋不到時 , 提供類似頁面
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AlternateErrorPagesEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AlternateErrorPagesEnabled", "DWORD", 1),
                     # 可讓啟用應用程式防護的 Microsoft Edge 電腦/裝置將我的最愛從主機同步處理到容器
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ApplicationGuardFavoritesSyncEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ApplicationGuardFavoritesSyncEnabled", "DWORD", 1),
                     # 啟用此原則，使用者將無法在應用程式防護中上傳檔案
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ApplicationGuardUploadBlockingEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ApplicationGuardUploadBlockingEnabled", "DWORD", 0),
                     # 允許音訊處理程式在 Windows 上以高於正常優先順序執行
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AudioProcessHighPriorityEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AudioProcessHighPriorityEnabled", "DWORD", 1),
                     # 允許匯入表單資訊
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportAutofillFormData", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportAutofillFormData", "DWORD", 1),
                     # 允許匯入瀏覽器設定
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportBrowserSettings", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportBrowserSettings", "DWORD", 1),
                     # 允許匯入 Cookie
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportCookies", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportCookies", "DWORD", 1),
                     # 允許匯入擴充功能
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportExtensions", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportExtensions", "DWORD", 1),
                     # 允許匯入 [我的最愛]
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportFavorites", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportFavorites", "DWORD", 1),
                     # 允許匯入歷史紀錄
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportHistory", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportHistory", "DWORD", 1),
                     # 允許匯入首頁設定
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportHomepage", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportHomepage", "DWORD", 1),
                     # 允許匯入已開啟的索引標籤
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportOpenTabs", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportOpenTabs", "DWORD", 1),
                     # 允許匯入付款資訊
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportPaymentInfo", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportPaymentInfo", "DWORD", 1),
                     # 允許匯入已儲存的密碼
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportSavedPasswords", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportSavedPasswords", "DWORD", 1),
                     # 允許匯入搜尋引擎設定
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportSearchEngine", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportSearchEngine", "DWORD", 1),
                     # 允許匯入捷徑
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportShortcuts", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportShortcuts", "DWORD", 1),
                     # 允許匯入設置
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportStartupPageSettings", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImportStartupPageSettings", "DWORD", 1),
                     # 允許執行音訊沙箱
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AudioSandboxEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AudioSandboxEnabled", "DWORD", 1),
                     # 如果您啟用此原則，使用者就可以看到 edge://compat 頁面上的 Enterprise Mode Site List Manager 的瀏覽按鈕，以瀏覽到該工具並加以使用。
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "EnterpriseModeSiteListManagerAllowed", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "EnterpriseModeSiteListManagerAllowed", "DWORD", 0),
                     # 可用時便使用硬體加速
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "HardwareAccelerationModeEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "HardwareAccelerationModeEnabled", "DWORD", 1),
                     #  封鎖含有干擾廣告的網站上的廣告
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AdsSettingForIntrusiveAdsSites", "DWORD", 2)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AdsSettingForIntrusiveAdsSites", "DWORD", 2),
                     # 自動完成地址資訊
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AutofillAddressEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AutofillAddressEnabled", "DWORD", 1),
                     # 自動完成信用卡資訊
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AutofillCreditCardEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AutofillCreditCardEnabled", "DWORD", 1),
                     # 首次執行時，自動匯入其他瀏覽器的資料和設定 (0) = 從預設的瀏覽器自動匯入 , (1) = 從 Internet Explorer 自動匯入 , (2) = 從 Google Chrome 自動匯入 , (3) = 從 Safari 自動匯入 , (4) = 已停用自動匯入 , (5) = 從 Mozilla Firefox 自動匯入
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AutoImportAtFirstRun", "DWORD", 2)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AutoImportAtFirstRun", "DWORD", 2),
                     # 關閉後繼續執行背景應用程式
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "BackgroundModeEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "BackgroundModeEnabled", "DWORD", 0),
                     # 封鎖 Bing 搜尋結果中的所有廣告
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "BingAdsSuppression", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "BingAdsSuppression", "DWORD", 1),
                     # 使用內建 DNS 用戶端
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "BuiltInDnsClientEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "BuiltInDnsClientEnabled", "DWORD", 1),
                     # 封鎖使用者的網頁瀏覽活動追蹤 (0) = 關閉 , (1) = 基本 , (2) = 平衡 , (3) = 嚴格
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "TrackingPrevention", "DWORD", 3)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "TrackingPrevention", "DWORD", 3),
                     # 傳送不要追蹤
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ConfigureDoNotTrack", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ConfigureDoNotTrack", "DWORD", 1),
                     # 防止 Microsoft 收集使用者的 Microsoft Edge 瀏覽歷程記錄
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PersonalizationReportingEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PersonalizationReportingEnabled", "DWORD", 0),
                     # (1) = 允許網站追蹤使用者的實體位置 , (2) = 不允許任何網站追蹤使用者的實體位置 , (3) = 每當網站想要追蹤使用者的實體位置時詢問
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "DefaultGeolocationSetting", "DWORD", 2)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "DefaultGeolocationSetting", "DWORD", 2),
                     # 關閉家長監護
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "FamilySafetySettingsEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "FamilySafetySettingsEnabled", "DWORD", 0),
                     # 設置是否可以利用「線上文字轉語音」語音字型
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ConfigureOnlineTextToSpeech", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ConfigureOnlineTextToSpeech", "DWORD", 1),
                     # 移轉時刪除舊版瀏覽器資料
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "DeleteDataOnMigration", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "DeleteDataOnMigration", "DWORD", 1),
                     # 設定 Microsoft Edge 是否可以自動增強影像
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "EdgeEnhanceImagesEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "EdgeEnhanceImagesEnabled", "DWORD", 1),
                     # 啟用工作區功能
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "EdgeWorkspacesEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "EdgeWorkspacesEnabled", "DWORD", 1),
                     # 啟用效率模式 (主要是筆電)
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "EfficiencyModeEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "EfficiencyModeEnabled", "DWORD", 1),
                     # 啟用密碼顯示按紐
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PasswordRevealEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PasswordRevealEnabled", "DWORD", 1),
                     # 啟用儲存密碼
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PasswordManagerEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PasswordManagerEnabled", "DWORD", 0),
                     # 啟用性能檢測
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PerformanceDetectorEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PerformanceDetectorEnabled", "DWORD", 1),
                     # 啟動提昇 (啟用了話 , 會在關閉程式後 , 背景進程繼續運行)
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "StartupBoostEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "StartupBoostEnabled", "DWORD", 0),
                     # 啟用睡眠標籤
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "SleepingTabsEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "SleepingTabsEnabled", "DWORD", 1),
                     # 標籤睡眠時間
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge\Recommended", "SleepingTabsTimeout", "DWORD", 30)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge\Recommended", "SleepingTabsTimeout", "DWORD", 30),
                     # 禁止新分頁頁面上的 Microsoft 新聞內容
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "NewTabPageContentEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "NewTabPageContentEnabled", "DWORD", 0),
                     # 新的索引標籤頁面隱藏預設熱門網站
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "NewTabPageHideDefaultTopSites", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "NewTabPageHideDefaultTopSites", "DWORD", 1),
                     # 啟用域名檢測器
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "TyposquattingCheckerEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "TyposquattingCheckerEnabled", "DWORD", 1),
                     # 可讓使用者比較他們所查看的產品價格、從所在網站獲得優待卷，或在結帳時自動套用優待卷。
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "EdgeShoppingAssistantEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "EdgeShoppingAssistantEnabled", "DWORD", 1),
                     # 啟用搜尋建議
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "SearchSuggestEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "SearchSuggestEnabled", "DWORD", 1),
                     # 視窗閉塞 偵測視窗是否被其他視窗覆蓋，而且將暫停工作繪製像素。
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "WindowOcclusionEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "WindowOcclusionEnabled", "DWORD", 1),
                     # 控制 DNS 預先擷取、TCP 和 SSL 預先連線和預先轉譯網頁 (0) = 預測任何網路連線上的網路動作 , (2) = 不要預測任何網路連線的網路動作
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge\Recommended", "NetworkPredictionOptions", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge\Recommended", "NetworkPredictionOptions", "DWORD", 0),
                     # 將不相容的網站從 Internet Explorer 重新導向至 Microsoft Edge
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "RedirectSitesFromInternetExplorerRedirectMode", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "RedirectSitesFromInternetExplorerRedirectMode", "DWORD", 1),
                     # 允許來自裝置上建議提供者 (本地提供者) 的建議，例如 Microsoft Edge 的網址列和自動建議清單中的 [我的最愛] 和 [瀏覽歷程記錄]。
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "LocalProvidersEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "LocalProvidersEnabled", "DWORD", 1),
                     # 下載限制 (0) = 沒有特殊限制 , (1) = 封鎖危險下載內容 , (2) = 封鎖有潛在危險或垃圾下載項目 , (3) = 封鎖所有下載
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "DownloadRestrictions", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "DownloadRestrictions", "DWORD", 0),
                     # 啟動時動作 (5) = 開啟新索引標籤 , (1) = 還原上次工作階段 , (4) = 開啟 URL 清單
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "RestoreOnStartup", "DWORD", 5)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "RestoreOnStartup", "DWORD", 5),
                     # 檢查下載源安全性
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "SmartScreenForTrustedDownloadsEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "SmartScreenForTrustedDownloadsEnabled", "DWORD", 0),
                     # 是否可以接收 Microsoft 服務的自訂背景影像和文字、建議、通知及提示
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "SpotlightExperiencesAndRecommendationsEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "SpotlightExperiencesAndRecommendationsEnabled", "DWORD", 0),
                     # 啟用 Microsoft Defender SmartScreen
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "SmartScreenEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "SmartScreenEnabled", "DWORD", 1),
                     # 允許使用者從 HTTPS 警告頁面繼續
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "SSLErrorOverrideAllowed", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "SSLErrorOverrideAllowed", "DWORD", 1),
                     # 在 Microsoft Edge 沈浸式閱讀程式內啟用文法工具功能
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImmersiveReaderGrammarToolsEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImmersiveReaderGrammarToolsEnabled", "DWORD", 1),
                     # Microsoft Edge 中沈浸式閱讀程式內的圖片字典功能
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImmersiveReaderPictureDictionaryEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ImmersiveReaderPictureDictionaryEnabled", "DWORD", 1),
                     # 控制是否允許網站對更多私人網路端點提出要求
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "InsecurePrivateNetworkRequestsAllowed", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "InsecurePrivateNetworkRequestsAllowed", "DWORD", 1),
                     # 啟用新索引標籤頁面的預先載入
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "NewTabPagePrerenderEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "NewTabPagePrerenderEnabled", "DWORD", 1),
                     # 禁用限制可在密碼管理員中儲存的密碼長度
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PasswordManagerRestrictLengthEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PasswordManagerRestrictLengthEnabled", "DWORD", 1),
                     # 啟用密碼不安全的提示
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PasswordMonitorAllowed", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PasswordMonitorAllowed", "DWORD", 1),
                     # 啟用此設定，則使用者將無法忽略 Microsoft Defender SmartScreen 警告，且會讓使用者無法繼續瀏覽該網站。
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PreventSmartScreenPromptOverride", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PreventSmartScreenPromptOverride", "DWORD", 0),
                     # 如果啟用此原則，則您組織中的使用者將無法忽略 Microsoft Defender SmartScreen 警告，且會讓使用者無法完成未驗證的下載。
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PreventSmartScreenPromptOverrideForFiles", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "PreventSmartScreenPromptOverrideForFiles", "DWORD", 0),
                     # 允許 QUIC 通訊協定
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "QuicAllowed", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "QuicAllowed", "DWORD", 1),
                     # 顯示微軟獎勵
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ShowMicrosoftRewards", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ShowMicrosoftRewards", "DWORD", 0),
                     # 顯示使用edge作為默認pdf開啟
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ShowPDFDefaultRecommendationsEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ShowPDFDefaultRecommendationsEnabled", "DWORD", 0),
                     # 允許來自 Microsoft Edge 的功能建議和瀏覽器協助通知
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ShowRecommendationsEnabled", "DWORD", 0)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "ShowRecommendationsEnabled", "DWORD", 0),
                     # 允許從進程管理關閉edge
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "TaskManagerEndProcessEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "TaskManagerEndProcessEnabled", "DWORD", 1),
                     # 限制 WebRTC 暴露本地 IP 位址
                     @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "WebRtcLocalhostIpHandling", "String", "default_public_interface_only"),
                     # Microsoft Edge 關閉時清除快取圖片與檔案
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge\Recommended", "ClearCachedImagesAndFilesOnExit", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge\Recommended", "ClearCachedImagesAndFilesOnExit", "DWORD", 1),
                     # 允許 Microsoft Edge 發出無資料連線至 Web 服務，以探查網路連線狀況
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge\Recommended", "ResolveNavigationErrorsUseWebService", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge\Recommended", "ResolveNavigationErrorsUseWebService", "DWORD", 1),
                     # DNS 攔截檢查的本機交換器
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "DNSInterceptionChecksEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "DNSInterceptionChecksEnabled", "DWORD", 1),
                     # 允許凍結背景索引標籤
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "TabFreezingEnabled", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "TabFreezingEnabled", "DWORD", 1),
                     # 控制是否已啟用 Microsoft Edge 管理
                     @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "EdgeManagementEnabled", "DWORD", 0)
                 ), $true)
@@ -1233,17 +1232,17 @@ class Main {
                 # 登錄表修改
                 $this.RegistItem(@(
                     # 啟用路徑 MTU 黑洞檢測，當封包因 MTU 不匹配丟失時自動調整，避免傳輸中斷
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "EnablePMTUBHDetect", "DWORD", 1)
+                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "EnablePMTUBHDetect", "DWORD", 1),
                     # 設定 IP 前向緩衝區記憶體為 1MB，提升封包處理能力，減少緩衝區溢位風險
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "ForwardBufferMemory", "DWORD", 1048576)
+                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "ForwardBufferMemory", "DWORD", 1048576),
                     # 增加前向封包數量至 256，提升網路堆疊的封包處理能力，降低丟包可能性
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "NumForwardPackets", "DWORD", 256)
+                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "NumForwardPackets", "DWORD", 256),
                     # 縮短 TCP TIME_WAIT 狀態持續時間至 30 秒，加速端口釋放，提升連線建立速度
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "TcpTimedWaitDelay", "DWORD", 30)
+                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "TcpTimedWaitDelay", "DWORD", 30),
                     # 禁用 Nagle 算法，立即發送小封包，降低延遲，適合遊戲和即時應用
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "TcpNoDelay", "DWORD", 1)
+                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "TcpNoDelay", "DWORD", 1),
                     # 設定 TCP Keep-Alive 檢測間隔為 30 秒，快速發現斷線並釋放無效連線
-                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "KeepAliveTime", "DWORD", 30000)
+                    @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "KeepAliveTime", "DWORD", 30000),
                     # 設定 Keep-Alive 探測間隔為 1 秒，加快連線狀態檢查，提升恢復速度
                     @("HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "KeepAliveInterval", "DWORD", 1000)
                 ), $false)
@@ -1305,7 +1304,7 @@ class Main {
                     if ($suggestedMTU) {
                         $this.RegistItem(@(
                             # 設定 MTU 為測試建議值，確保封包大小與網路路徑兼容，避免碎片化
-                            @($interfacePath, "MTU", "DWORD", $suggestedMTU)
+                            @($interfacePath, "MTU", "DWORD", $suggestedMTU),
                             # 設定 TCP 確認頻率為 1，每個封包立即確認，降低延遲，適合即時應用
                             @($interfacePath, "TcpAckFrequency", "DWORD", 1)
                         ), $false)
