@@ -133,6 +133,5 @@ class AutomaticCapture:
                 if not self.queue.empty():
                     url = self.queue.get()
                     yield url
-                time.sleep(0.1)
 
 AutoCapture = AutomaticCapture()
