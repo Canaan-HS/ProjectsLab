@@ -11,6 +11,7 @@ test
 *.pt
 *.exe
 *.pyc
+*.spec
 *.class
 
 *default
