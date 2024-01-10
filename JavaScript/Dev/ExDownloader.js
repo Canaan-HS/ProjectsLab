@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.16-Beta7
+// @version      0.0.16-Beta8
 // @author       Canaan HS
 // @description         漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
 // @description:zh-TW   漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
@@ -484,11 +484,15 @@ Todo - 預計新開發功能
                         responseType: "blob",
                         onload: response => {
                             clearTimeout(timeout);
-                            const blob = response.response;
-                            response.status == 200 && response.finalUrl == Iurl &&
-                            blob instanceof Blob && blob.size > 0
-                                ? StatusUpdate(time, Index, Iurl, blob)
-                                : StatusUpdate(time, Index, Iurl, null, true);
+
+                            if (response.finalUrl !== Iurl && `${response.status}`.startsWith("30")) {
+                                Request(Index, response.finalUrl);
+                            } else {
+                                const blob = response.response;
+                                response.status == 200 && blob instanceof Blob && blob.size > 0
+                                    ? StatusUpdate(time, Index, Iurl, blob)
+                                    : StatusUpdate(time, Index, Iurl, null, true);
+                            }
                         }, onerror: () => {
                             clearTimeout(timeout);
                             StatusUpdate(time, Index, Iurl, null, true);
