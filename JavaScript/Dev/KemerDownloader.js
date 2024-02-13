@@ -38,9 +38,9 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
 
+// @require      https://update.greasyfork.org/scripts/529004/1548656/JSZip_min.js
 // @require      https://update.greasyfork.org/scripts/495339/1532088/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
-// @require      https://raw.githubusercontent.com/Canaan-HS/ProjectsLab/refs/heads/main/JavaScript/API/JSZip.min.js
 
 // @resource     json-processing https://cdn-icons-png.flaticon.com/512/2582/2582087.png
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/svg-with-js.min.css
