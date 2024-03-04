@@ -187,7 +187,7 @@
                 async function FetchRequest(index, url) {
                     try {
                         const response = await fetch(url);
-                        if (response.readyState === 4 && response.status === 200) {
+                        if (response.ok === true && response.status === 200) {
                             const blob = await response.blob();
                             postMessage({ index, url: url, blob, error: false });
                         } else {
@@ -1216,7 +1216,7 @@
                     ${GM_getResourceText("font-awesome")}
                     .File_Span {
                         padding: 1rem;
-                        font-size: 20% !important;
+                        font-size: 70% !important;
                     }
                     .Setting_Button {
                         cursor: pointer;
@@ -1228,12 +1228,12 @@
                         border-radius: 8px;
                         border: 2px solid rgba(59, 62, 68, 0.7);
                         background-color: rgba(29, 31, 32, 0.8);
-                        font-family: Arial, sans-serif;
+                        font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
                     }
                     .Download_Button:hover {
                         color: hsl(0, 0%, 95%);
                         background-color: hsl(0, 0%, 45%);
-                        font-family: Arial, sans-serif;
+                        font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
                     }
                     .Download_Button:disabled {
                         color: hsl(0, 0%, 95%);
