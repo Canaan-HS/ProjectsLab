@@ -1,4 +1,3 @@
-from playsound import playsound
 import pyperclip
 import threading
 import keyboard
@@ -68,9 +67,6 @@ class AutomaticCapture:
                 elif self.return_type:
                     self.queue.put(clipboard)
                     break
-
-                # try:playsound(self.sound)
-                # except:pass
 
             time.sleep(self.intercept_delay)
 
