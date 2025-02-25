@@ -110,12 +110,16 @@ class Compression:
 
         filePath = filePath or filedialog.askdirectory()
 
-        for path, dirname, filename in os.walk(filePath): # 路徑, 空資料夾, 文檔
-            for name in filename + dirname:
-                gui.RightText.insert("end", f"{name}\n\n") # 這行是在每行的最後插入字串並且換行
-                Complete = os.path.join(path, name) # 取得路徑位置 + 檔名
-                if os.path.isdir(Complete) and os.path.getsize(Complete) == 0 and self.Is_hidden(Complete):continue # 空白目錄 或 隱藏資料夾過濾
-                self.SeparateList.append(Complete)
+        if os.path.isfile(filePath): # 單個檔案添加 (針對拖放功能)
+            gui.RightText.insert("end", filePath)
+            self.SeparateList.append(filePath)
+        else:
+            for path, dirname, filename in os.walk(filePath): # 路徑, 空資料夾, 文檔
+                for name in filename + dirname:
+                    gui.RightText.insert("end", f"{name}\n\n") # 這行是在每行的最後插入字串並且換行
+                    Complete = os.path.join(path, name) # 取得路徑位置 + 檔名
+                    if os.path.isdir(Complete) and os.path.getsize(Complete) == 0 and self.Is_hidden(Complete):continue # 空白目錄 或 隱藏資料夾過濾
+                    self.SeparateList.append(Complete)
 
     """---------- 命令與操作 ----------"""
 
