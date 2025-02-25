@@ -9,7 +9,18 @@ import os
 
 """ Versions 1.0.3 (測試版)
 
-適用於 Windows 系統
+運行環境 =>
+
+Windows 11
+Python 3.12.9 64-bit
+
+相同目錄下需要有:
+
+7z.exe
+Rar.exe
+upx.exe
+
+功能概述 =>
 
 [+] UPX壓縮
 [+] UPX還原
