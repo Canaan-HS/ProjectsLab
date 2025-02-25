@@ -11,10 +11,11 @@ function Read(Path) {
         let Cache = "";
         open.readFile(Path, "utf-8", (err, data) => {
             if (err) return reject(err);
+            
+            for (const value of Object.values(JSON.parse(data)["帖子內容"])) {
 
-            for (const value of Object.values(JSON.parse(data))) {
                 try {
-                    for (const [name, link] of Object.entries(value["下載連結"])) {
+                    for (const [name, link] of Object.entries(value["影片連結"], value["下載連結"])) {
                         Cache += `${link}?f=${name}\n`;
                     }
                 } catch (error) {}
