@@ -36,13 +36,11 @@ $String = @{
 
 function Print {
     param (
-        [string]$text = "",
-        [string]$foregroundColor = 'White',
-        [string]$backgroundColor = 'Black'
+        [string]$text,
+        [string]$foreColor = 'White',
+        [string]$backColor = 'Black'
     )
-    $Host.UI.RawUI.ForegroundColor = [ConsoleColor]::$foregroundColor
-    $Host.UI.RawUI.BackgroundColor = [ConsoleColor]::$backgroundColor
-    Write-Host "[1m$text"
+    Write-Host "[1m$text" -ForegroundColor $foreColor -BackgroundColor $backColor
 }
 
 function CheckNetwork { # 檢查網路連接
@@ -119,13 +117,13 @@ class ProcessingCore {
             Clear-Host
             Invoke-Expression $code
         } catch {
-            Print "錯誤：$($_.Exception.Message)" "Red"
+            Print "錯誤：$($_.Exception.Message)" Red
             Read-Host "[1mEnter 退出程式..."
         }
     }
 }
 
-Print "============= 檢查更新 =============" "Yellow"
+Print "============= 檢查更新 =============" Yellow
 
 $InfoHash = $null
 try {
@@ -177,7 +175,7 @@ if (-not (CheckNetwork)) { # 沒有網路
     foreach ($_ in 1..5) {
         $remoteString = Request $DownloadURL
         if ($remoteString -eq "Request failed") {
-            Print "請求失敗 重試 =>" "Green"
+            Print "請求失敗 重試 =>" Green
             continue
         } elseif ($remoteString -eq "Update address to change") {
             $Message = [System.Windows.Forms.MessageBox]::Show(
@@ -200,7 +198,7 @@ if (-not (CheckNetwork)) { # 沒有網路
 
         if (-not($RemoteHash -eq $LocalHash)) { # 哈希值不同 (需要更新)
             $codeString = $Core.OutputAndGet($remoteString) # 輸出加密 並獲取結果
-            Print "數據已更新" "Green"
+            Print "數據已更新" Green
         }
     } elseif (-not((& $FileExists)) -and $remoteStringValid) { # 沒有本地文件, 但有遠端數據
         $codeString = $Core.OutputAndGet($remoteString) # 輸出加密 並獲取結果

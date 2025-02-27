@@ -18,16 +18,10 @@ function Input {
 function Print {
     param (
         [string]$text,
-        [string]$foregroundColor = 'White',
-        [string]$backgroundColor = 'Black'
+        [string]$foreColor = 'White',
+        [string]$backColor = 'Black'
     )
-
-    # 設置颜色
-    $Host.UI.RawUI.ForegroundColor = [ConsoleColor]::$foregroundColor
-    $Host.UI.RawUI.BackgroundColor = [ConsoleColor]::$backgroundColor
-    
-    # 打印粗體
-    Write-Host "[1m$text"
+    Write-Host "[1m$text" -ForegroundColor $foreColor -BackgroundColor $backColor
 }
 
 function Delete {
