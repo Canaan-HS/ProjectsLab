@@ -24,6 +24,12 @@ $Package = @(
     <# 解密反編譯 - 反編譯工具，用於解碼編譯後的 Python 程式碼 #>
     "uncompyle6" # 將編譯後的 Python 位元組碼反編譯為原始碼
 
+    <# 逆向調式 #>
+    #! "winappdbg" # 適用較舊的 Windows，支持進程控制、內存操作、設置斷點等
+    #! "pydbg" # Windows 平台的動態分析和逆向工程，可以進行進程控制、內存讀寫、設置斷點等
+    "pwntools" # 漏洞利用、逆向工程、滲透測試等高級攻擊模擬，支持動態內存操作和注入代碼
+    "frida" # 動態分析，進程注入，內存操作、API hook、記錄系統調用等
+
     <# 請求/爬蟲 - 處理 HTTP 請求和網路爬蟲的工具 #>
     "httpx[http2]" # 非同步 HTTP 客戶端，支援 HTTP/1.1 和 HTTP/2
     "requests" # 最流行的同步 HTTP 客戶端，易於使用
@@ -60,7 +66,7 @@ $Package = @(
     "python-Levenshtein" # 提供高效的 Levenshtein 編輯距離演算法
 
     <# 系統資訊與操作 #>
-    "psutil" # 檢測系統事件和獲取程序相關資訊
+    "psutil" # 進程監控，支持 CPU、內存、磁碟、網絡等信息的讀取，並能夠操作進程
     "GPUtil" # 獲取 GPU 資訊和監控 GPU 資源
 
     <# 日程安排和版本管理 #>
@@ -85,7 +91,7 @@ $Package = @(
     "matplotlib" # 資料視覺化工具，生成靜態、動畫和互動式圖形
     "scikit-learn" # 機器學習和資料探勘庫，支援多種演算法
     "pyyaml" # 處理 YAML 檔案的庫，適用於配置檔案解析
-    # "torch" # 深度學習框架，支援 CPU 和 GPU 計算
+    #! "torch" # 深度學習框架，支援 CPU 和 GPU 計算
     # (GPU版) https://pytorch.org/get-started/locally/
 
     <# 系統操作與自動化 #>
@@ -108,14 +114,14 @@ $Package = @(
 
     <# 網頁開發 #>
     "Jinja2" # 模板引擎，常用於生成 HTML 內容
-    # "flask" # 輕量級 Web 應用框架
-    # "fastapi" # 高效能 Web 框架，適合構建 API
+    #! "flask" # 輕量級 Web 應用框架
+    #! "fastapi" # 高效能 Web 框架，適合構建 API
 
     <# discord 開發 - 開發 Discord 相關工具 #>
-    # "discord_webhook" # 簡化向 Discord 傳送訊息的操作
+    #! "discord_webhook" # 簡化向 Discord 傳送訊息的操作
 
     <# 視覺與影像處理 - 影像和影片處理工具 #>
-    # "opencv-python" # 開源計算機視覺庫，支援影像和影片處理(CPU 版本)
+    #! "opencv-python" # 開源計算機視覺庫，支援影像和影片處理(CPU 版本)
 
     <# 編譯 opencv - gpu版本 =>
         顯卡算力 https://developer.nvidia.com/cuda-gpus#compute
