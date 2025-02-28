@@ -11,14 +11,16 @@ function Read(Path) {
         let Cache = "";
         open.readFile(Path, "utf-8", (err, data) => {
             if (err) return reject(err);
-            
-            for (const value of Object.values(JSON.parse(data)["帖子內容"])) {
 
-                try {
-                    for (const [name, link] of Object.entries(value["影片連結"], value["下載連結"])) {
-                        Cache += `${link}?f=${name}\n`;
+            for (const [key, value] of Object.entries(JSON.parse(data))) {
+
+                if (key === "元數據") continue;
+                
+                for (const item of Object.values(value)) {
+                    for (const link of Object.values(Object.assign({}, item["圖片連結"], item["影片連結"], item["下載連結"]))) {
+                        Cache += `${link}\n`;
                     }
-                } catch (error) {}
+                }
             }
 
             if (Cache.endsWith('\n')) Cache = Cache.slice(0, -1); // 如果最後一行是 \n 就排除掉這行
@@ -28,5 +30,5 @@ function Read(Path) {
 };
 
 Read("").then(read=> {
-    Out("R:/Kemer.txt", read);
+    Out("R:/DownloadList.txt", read);
 })
