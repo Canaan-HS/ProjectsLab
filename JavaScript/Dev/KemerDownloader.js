@@ -66,7 +66,7 @@
 
 (async () => {
     const Config = {
-        Dev: true, // 顯示請求資訊, 與錯誤資訊
+        Dev: false, // 顯示請求資訊, 與錯誤資訊
         ContainsVideo: false, // 下載時包含影片
         CompleteClose: false, // 下載完成後關閉
         ConcurrentDelay: 3, // 下載線程延遲 (秒) [壓縮下載]
@@ -102,7 +102,7 @@
     /** ---------------------
      * 設置 FetchData 輸出格式
      *
-     * 無論設置什麼, 只要該數據沒抓到, 就不會顯示
+     *! 無論設置什麼, 只要沒有的數據, 就不會顯示 (會被排除掉)
      *
      * Mode
      * 排除模式: "FilterMode" -> 預設為全部使用, 設置排除的項目
@@ -113,13 +113,13 @@
      * Format
      * 帖子連結: "PostLink"
      * 發佈時間: "Timestamp"
-     * 圖片數量: "ImgLink"
      * 標籤 Tag: "TypeTag"
+     * 圖片數量: "ImgLink"
      * 影片連結: "VideoLink"
      * 下載連結: "DownloadLink"
      */
     const FetchSet = {
-        AdvancedFetch: true, // 往內抓取數據, 可獲取 Mega 或 Tag 標籤資訊 (時間較久)
+        AdvancedFetch: true, // 進階抓取, 可獲取 Mega 和 Tag 標籤資訊 (所需時間較久)
         UseFormat: false, // 這裡為 false 下面兩項就不生效
         Mode: "FilterMode",
         Format: ["Timestamp", "ImgLink"],
@@ -877,7 +877,7 @@
             };
 
             /**
-             * 生成數據 (傳入以下參數) [不驗證有效性]
+             * 生成數據
              * @param {{
              *      PostLink: string,
              *      Timestamp: string,
@@ -892,7 +892,7 @@
                 return Object.keys(Data).reduce((acc, key) => {
                     if (this.InfoRules.hasOwnProperty(key)) {
                         const value = this.Default(Data[key]);
-                        value && (acc[this.InfoRules[key]] = value); // 只有有數據的才被添加
+                        value && (acc[this.InfoRules[key]] = value); // 有數據的才被添加
                     }
                     return acc;
                 }, {});
@@ -902,16 +902,47 @@
             this.Video = new Set([
                 ".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".webm", ".mpg", ".mpeg",
                 ".m4v", ".ogv", ".3gp", ".asf", ".ts", ".vob", ".rm", ".rmvb", ".m2ts",
-                ".divx", ".xvid", ".wm"
+                ".f4v", ".mts"
             ]);
 
-            // 分類數據
-            this.FetchCategorize = (Data) => {
+            // 圖片類型
+            this.Image = new Set([
+                ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".tiff", ".tif",
+                ".svg", ".heic", ".heif", ".raw", ".ico", ".psd"
+            ]);
+
+            // 進階抓取檔案分類 (影片與圖片文件 Array) => { video: {}, other: {} }
+            this.AdvancedCategorize = (Data) => {
                 return Data.reduce((acc, file) => {
                     const url = `${file.server}/data${file.path}?f=${file.name.replace(/\s/g, "+")}`;
                     this.Video.has(file.extension) ? (acc.video[file.name] = url) : (acc.other[file.name] = url);
                     return acc;
                 }, { video: {}, other: {} });
+            };
+
+            // 一般抓取的檔案分類 (標題字串, 所有類型文件 Array) => { img: [], video: {}, other: {} }
+            this.Categorize = (Title, Data) => {
+                let imgNumber = 0;
+                let serverNumber = 0;
+
+                return Data.reduce((acc, file) => {
+                    const name = file.name;
+                    const path = file.path;
+                    const extension = `.${name.match(/\.([^.]+)$/)[1]}`;
+
+                    serverNumber = (serverNumber % 4) + 1;
+                    const server = `https://n${serverNumber}.${this.Host}/data`;
+
+                    if (this.Video.has(extension)) {
+                        acc.video[name] = `${server}${path}?f=${name}`;
+                    } else if (this.Image.has(extension)) {
+                        acc.img.push(`${server}${path}?f=${Title}_${String(++imgNumber).padStart(2, "0")}${extension}`);
+                    } else {
+                        acc.other[name] = `${server}${path}?f=${name}`;
+                    }
+
+                    return acc;
+                }, { img: [], video: {}, other: {} });
             };
 
             this.TryAgain_Promise = null; // 緩存等待的 Promise
@@ -932,7 +963,7 @@
                         const timeoutId = setTimeout(() => {
                             controller.abort(); // 超時後中止請求
                         }, timeout);
-            
+
                         try {
                             const response = await fetch(Url, { // 發起請求
                                 method: "HEAD", signal
@@ -952,7 +983,7 @@
                             await checkRequest();
                         }
                     };
-            
+
                     await checkRequest();
                 });
 
@@ -1120,7 +1151,7 @@
                         if (!error) resolve({ index, title, url, text });
                         else {
                             Syn.Log(error, { title: title, url: url }, { dev: Config.Dev, collapsed: false });
-                            await Syn.Sleep(3e3);
+                            await this.TooMany_TryAgain(url);
                             this.Worker.postMessage({ index: index, title: title, url: url });
                         };
                     }
@@ -1167,88 +1198,118 @@
                         };
                     }
 
-                    const Tasks = [];
+
                     const Results = Json.results;
 
-                    /* ----- 這邊內容的數據 ----- */
-                    const resolvers = new Map(); // 用於存儲每個 Promise
+                    /* ----- 進階抓取數據 ----- */
+                    if (this.AdvancedFetch) {
+                        console.log("進階抓取數據");
 
-                    // 進階抓取數據
-                    this.Worker.onmessage = async (e) => {
-                        const { index, title, url, text, error } = e.data;
+                        const Tasks = [];
+                        const resolvers = new Map(); // 用於存儲每個 Promise
 
-                        if (resolvers.has(index)) {
-                            const { resolve, reject } = resolvers.get(index);
+                        this.Worker.onmessage = async (e) => {
+                            const { index, title, url, text, error } = e.data;
+
+                            if (resolvers.has(index)) {
+                                const { resolve, reject } = resolvers.get(index);
+
+                                try {
+                                    if (!error) {
+                                        const Json = JSON.parse(text);
+
+                                        if (Json) {
+                                            const Post = Json.post;
+
+                                            // 對下載連結進行分類
+                                            const File = this.AdvancedCategorize(Json.attachments);
+
+                                            // 獲取圖片連結
+                                            const ImgList = () => {//! 還需要測試
+                                                const ServerList = Json.previews.filter(item => item.server); // 取得圖片伺服器
+                                                if ((ServerList?.length ?? 0) === 0) return;
+
+                                                // 為了穩定性這樣寫, 雖然目前沒啥必要
+                                                const List = [...(Array.isArray(Post.file) ? Post.file : [Post.file]), ...Post.attachments]; // 這裡面會有其他類型檔案
+                                                const Fill = Syn.GetFill(ServerList.length);
+
+                                                // 依據篩選出有預覽圖伺服器的, 生成圖片連結
+                                                return ServerList.map((Server, Index) =>
+                                                    `${Server.server}/data${List[Index].path}?f=${Post.title}_${Syn.Mantissa(Index, Fill, '0', List[Index].name)}`
+                                                );
+                                            };
+
+                                            // 生成請求數據 (處理要抓什麼數據)
+                                            const Gen = this.FetchGenerate({
+                                                PostLink: `${this.FirstURL}/post/${Post.id}`,
+                                                Timestamp: new Date(Post.added)?.toLocaleString(),
+                                                TypeTag: Post.tags,
+                                                ImgLink: ImgList(),
+                                                VideoLink: File.video,
+                                                DownloadLink: Object.assign({}, File.other, this.MegaParse(Post.content))
+                                            });
+
+                                            // 儲存數據
+                                            if (Object.keys(Gen).length !== 0) {
+                                                this.TaskDict.set(index, { title: Post.title, content: Gen });
+                                            };
+
+                                            resolve();
+                                            document.title = `（${this.Pages} - ${++this.Progress}）`;
+                                            Syn.Log("Request Successful", this.TaskDict, { dev: Config.Dev, collapsed: false });
+                                        } else throw new Error("Json Parse Failed");
+                                    } else {
+                                        throw new Error("Request Failed");
+                                    }
+                                } catch (error) {
+                                    Syn.Log(error, { title: title, url: url }, { dev: Config.Dev, collapsed: false });
+                                    await this.TooMany_TryAgain(url); // 錯誤等待
+                                    this.Worker.postMessage({ index: index, title: title, url: url });
+                                }
+
+                                await Syn.Sleep(50);
+                            }
+                        };
+
+                        // 生成任務
+                        for (const [Index, Post] of Results.entries()) {
+                            Tasks.push(new Promise((resolve, reject) => {
+                                resolvers.set(Index, { resolve, reject }); // 存儲解析器
+                                this.Worker.postMessage({ index: Index, title: Post.title, url: `${this.PostAPI}/${Post.id}` });
+                            }));
+                        }
+
+                        // 等待所有任務
+                        await Promise.allSettled(Tasks);
+
+                    } else {
+                        for (const [Index, Post] of Results.entries()) {
+                            const title = Post.title.trim();
 
                             try {
-                                if (!error) {
-                                    const Json = JSON.parse(text);
+                                // 分類所有文件
+                                const File = this.Categorize(title, [...(Array.isArray(Post.file) ? Post.file : [Post.file]), ...Post.attachments]);
 
-                                    if (Json) {
-                                        const Post = Json.post;
+                                const Gen = this.FetchGenerate({
+                                    PostLink: `${this.FirstURL}/post/${Post.id}`,
+                                    Timestamp: new Date(Post.published)?.toLocaleString(),
+                                    ImgLink: File.img,
+                                    VideoLink: File.video,
+                                    DownloadLink: File.other
+                                });
 
-                                        // 對下載連結進行分類
-                                        const Categorized = this.FetchCategorize(Json.attachments);
+                                if (Object.keys(Gen).length !== 0) {
+                                    this.TaskDict.set(Index, { title: title, content: Gen });
+                                };
 
-                                        //! 還需要測試
-                                        // 獲取圖片連結
-                                        const UrlList = () => {
-                                            const ServerList = Json.previews.filter(item => item.server); // 取得圖片伺服器
-                                            if ((ServerList?.length ?? 0) === 0) return;
-
-                                            const ImgList = [Post.file, ...Post.attachments];
-                                            const Fill = Syn.GetFill(ServerList.length);
-
-                                            return ServerList.map((Server, Index) =>
-                                                `${Server.server}/data${ImgList[Index].path}?f=${Post.title}_${Syn.Mantissa(Index, Fill, '0', ImgList[Index].name)}`
-                                            );
-                                        };
-
-                                        // 生成請求數據 (處理要抓什麼數據)
-                                        const Gen = this.FetchGenerate({
-                                            PostLink: `${this.FirstURL}/post/${Post.id}`,
-                                            Timestamp: new Date(Post.added)?.toLocaleString(),
-                                            TypeTag: Post.tags,
-                                            ImgLink: UrlList(),
-                                            VideoLink: Categorized.video,
-                                            DownloadLink: Object.assign({}, Categorized.other, this.MegaParse(Post.content))
-                                        });
-
-                                        // 儲存數據
-                                        if (Object.keys(Gen).length !== 0) {
-                                            this.TaskDict.set(index, { title: Post.title, content: Gen });
-                                        }
-
-                                        resolve();
-                                        document.title = `（${this.Pages} - ${++this.Progress}）`;
-                                        Syn.Log("Request Successful", this.TaskDict, { dev: Config.Dev, collapsed: false });
-                                    } else throw new Error("Json Parse Failed");
-                                } else {
-                                    throw new Error("Request Failed");
-                                }
+                                document.title = `（${this.Pages} - ${++this.Progress}）`;
+                                Syn.Log("Parsed Successful", this.TaskDict, { dev: Config.Dev, collapsed: false });
                             } catch (error) {
                                 Syn.Log(error, { title: title, url: url }, { dev: Config.Dev, collapsed: false });
-                                await this.TooMany_TryAgain(url); // 錯誤等待
-                                this.Worker.postMessage({ index: index, title: title, url: url });
+                                continue;
                             }
-
-                            await Syn.Sleep(50);
-                        }
-                    };
-
-                    for (const [index, page] of Results.entries()) {
-                        if (this.AdvancedFetch) {
-                            Tasks.push(new Promise((resolve, reject) => {
-                                resolvers.set(index, { resolve, reject }); // 存儲解析器
-                                this.Worker.postMessage({ index: index, title: page.title, url: `${this.PostAPI}/${page.id}` });
-                            }));
-                        } else {
-
                         }
                     }
-
-                    // 等待所有任務
-                    await Promise.allSettled(Tasks);
 
                     // 將數據依序取出轉存
                     for (const data of this.TaskDict.values()) {
@@ -1266,7 +1327,9 @@
         async ToJson() {
             // 合併數據
             const Json_data = Object.assign(
-                {}, { [Lang.Transl("元數據")]: this.MetaDict }, { [Lang.Transl("帖子內容")]: this.DataDict }
+                {},
+                { [Lang.Transl("元數據")]: this.MetaDict },
+                { [`${Lang.Transl("帖子內容")} (${Object.keys(this.DataDict).length})`]: this.DataDict }
             );
 
             Syn.OutputJson(Json_data, this.MetaDict[Lang.Transl("作者")], () => {
