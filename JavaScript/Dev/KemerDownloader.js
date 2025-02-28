@@ -1076,8 +1076,11 @@
                                                 const ServerList = Json.previews.filter(item => item.server); // 取得圖片伺服器
                                                 if ((ServerList?.length ?? 0) === 0) return;
 
-                                                // 為了穩定性這樣寫, 雖然目前沒啥必要
-                                                const List = [...(Array.isArray(Post.file) ? Post.file : [Post.file]), ...Post.attachments]; // 這裡面會有其他類型檔案
+                                                // 為了穩定性這樣寫
+                                                const List = [
+                                                    ...(Post.file ? (Array.isArray(Post.file) ? Post.file : Object.keys(Post.file).length ? [Post.file] : []) : []),
+                                                    ...Post.attachments
+                                                ];
                                                 const Fill = Syn.GetFill(ServerList.length);
 
                                                 // 依據篩選出有預覽圖伺服器的, 生成圖片連結
@@ -1138,7 +1141,7 @@
 
                             try {
                                 // 分類所有文件
-                                const File = this.Categorize(title, [...(Array.isArray(Post.file) ? Post.file : [Post.file]), ...Post.attachments]);
+                                const File = this.Categorize(title, [...(Post.file ? (Array.isArray(Post.file) ? Post.file : Object.keys(Post.file).length ? [Post.file] : []) : []), ...Post.attachments]);
 
                                 const Gen = this.FetchGenerate({
                                     PostLink: `${this.FirstURL}/post/${Post.id}`,
