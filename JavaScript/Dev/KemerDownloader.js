@@ -757,7 +757,7 @@
             // 進階抓取檔案分類 (影片與圖片文件 Array) => { video: {}, other: {} }
             this.AdvancedCategorize = (Data) => {
                 return Data.reduce((acc, file) => {
-                    const url = `${file.server}/data${file.path}?f=${file.name.replace(/\s/g, "+")}`;
+                    const url = `${file.server}/data${file.path}?f=${file.name}`;
                     this.Video.has(file.extension) ? (acc.video[file.name] = url) : (acc.other[file.name] = url);
                     return acc;
                 }, { video: {}, other: {} });
