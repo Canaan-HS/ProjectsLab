@@ -751,6 +751,9 @@
                 ".svg", ".heic", ".heif", ".raw", ".ico", ".psd"
             ]);
 
+            // 抓取檔案的副檔名
+            this.Suffix = (Str) => `.${Str.match(/\.([^.]+)$/)[1].trim()}`;
+
             // 進階抓取檔案分類 (影片與圖片文件 Array) => { video: {}, other: {} }
             this.AdvancedCategorize = (Data) => {
                 return Data.reduce((acc, file) => {
@@ -768,7 +771,7 @@
                 return Data.reduce((acc, file) => {
                     const name = file.name;
                     const path = file.path;
-                    const extension = `.${name.match(/\.([^.]+)$/)[1]}`;
+                    const extension = this.Suffix(name);
 
                     serverNumber = (serverNumber % 4) + 1;
                     const server = `https://n${serverNumber}.${this.Host}/data`;
@@ -1067,6 +1070,7 @@
 
                                         if (Json) {
                                             const Post = Json.post;
+                                            const Title = Post.title.trim();
 
                                             // 對下載連結進行分類
                                             const File = this.AdvancedCategorize(Json.attachments);
@@ -1085,10 +1089,16 @@
 
                                                 // 依據篩選出有預覽圖伺服器的, 生成圖片連結
                                                 return ServerList.reduce((acc, Server, Index) => {
-                                                    const name = `${Post.title}_${Syn.Mantissa(Index, Fill, '0', List[Index].name)}`;
+                                                    const extension = [List[Index].name, List[Index].path]
+                                                        .map(name => this.Suffix(name))
+                                                        .find(ext => this.Image.has(ext));
+
+                                                    if (!extension) return acc;
+
+                                                    const name = `${Title}_${Syn.Mantissa(Index, Fill, '0', extension)}`;
                                                     acc[name] = `${Server.server}/data${List[Index].path}?f=${name}`;
                                                     return acc;
-                                                }, {});                                                
+                                                }, {});
                                             };
 
                                             // 生成請求數據 (處理要抓什麼數據)
@@ -1104,7 +1114,7 @@
 
                                             // 儲存數據
                                             if (Object.keys(Gen).length !== 0) {
-                                                this.TaskDict.set(index, { title: Post.title, content: Gen });
+                                                this.TaskDict.set(index, { title: Title, content: Gen });
                                             };
 
                                             resolve();
@@ -1137,11 +1147,11 @@
 
                     } else {
                         for (const [Index, Post] of Results.entries()) {
-                            const title = Post.title.trim();
+                            const Title = Post.title.trim();
 
                             try {
                                 // 分類所有文件
-                                const File = this.Categorize(title, [...(Post.file ? (Array.isArray(Post.file) ? Post.file : Object.keys(Post.file).length ? [Post.file] : []) : []), ...Post.attachments]);
+                                const File = this.Categorize(Title, [...(Post.file ? (Array.isArray(Post.file) ? Post.file : Object.keys(Post.file).length ? [Post.file] : []) : []), ...Post.attachments]);
 
                                 const Gen = this.FetchGenerate({
                                     PostLink: `${this.FirstURL}/post/${Post.id}`,
@@ -1152,13 +1162,13 @@
                                 });
 
                                 if (Object.keys(Gen).length !== 0) {
-                                    this.TaskDict.set(Index, { title: title, content: Gen });
+                                    this.TaskDict.set(Index, { title: Title, content: Gen });
                                 };
 
                                 document.title = `（${this.Pages} - ${++this.Progress}）`;
                                 Syn.Log("Parsed Successful", this.TaskDict, { dev: Config.Dev, collapsed: false });
                             } catch (error) {
-                                Syn.Log(error, { title: title, url: url }, { dev: Config.Dev, type: "error", collapsed: false });
+                                Syn.Log(error, { title: Title, url: url }, { dev: Config.Dev, type: "error", collapsed: false });
                                 continue;
                             }
                         }
