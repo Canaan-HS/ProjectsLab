@@ -32,14 +32,13 @@
 // @grant        GM_download
 // @grant        GM_openInTab
 // @grant        GM_addElement
-// @grant        GM_notification
 // @grant        GM_getResourceURL
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
 
-// @require      https://update.greasyfork.org/scripts/495339/1456526/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1532088/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @require      https://raw.githubusercontent.com/Canaan-HS/Practical-Exercises/refs/heads/Main/JavaScript/API/JSZip.min.js
 
@@ -67,11 +66,9 @@
 
 (async () => {
     const Config = {
-        Dev: false, // 顯示請求資訊, 與錯誤資訊
-        NotiFication: true, // 操作時 系統通知
+        Dev: true, // 顯示請求資訊, 與錯誤資訊
         ContainsVideo: false, // 下載時包含影片
         CompleteClose: false, // 下載完成後關閉
-        ExperimeDownload: true, // 實驗功能 [json 下載]
         ConcurrentDelay: 3, // 下載線程延遲 (秒) [壓縮下載]
         ConcurrentQuantity: 5, // 下載線程數量 [壓縮下載]
         BatchOpenDelay: 500, // 一鍵開啟帖子的延遲 (ms)
@@ -103,28 +100,29 @@
     };
 
     /** ---------------------
-     * 設置 json 輸出格式
+     * 設置 FetchData 輸出格式
      *
      * 無論設置什麼, 只要該數據沒抓到, 就不會顯示
-     * 
+     *
      * Mode
      * 排除模式: "FilterMode" -> 預設為全部使用, 設置排除的項目
      * 僅有模式: "OnlyMode" -> 預設為全部不使用, 設置使用的項目
      *
      * ----------------------
      *
-     * Settings
+     * Format
      * 帖子連結: "PostLink"
      * 發佈時間: "Timestamp"
-     * 圖片數量: "ImgNumber"
+     * 圖片數量: "ImgLink"
      * 標籤 Tag: "TypeTag"
      * 影片連結: "VideoLink"
      * 下載連結: "DownloadLink"
      */
-    const JsonFormat = {
-        Use: false,
+    const FetchSet = {
+        AdvancedFetch: true, // 往內抓取數據, 可獲取 Mega 或 Tag 標籤資訊 (時間較久)
+        UseFormat: false, // 這裡為 false 下面兩項就不生效
         Mode: "FilterMode",
-        Settings: ["Timestamp", "ImgNumber"],
+        Format: ["Timestamp", "ImgLink"],
     };
 
     /* --------------------- */
@@ -217,7 +215,7 @@
 
         /* 下載觸發 [ 查找下載數據, 解析下載資訊, 呼叫下載函數 ] */
         DownloadTrigger() { // 下載數據, 文章標題, 作者名稱
-            Syn.WaitMap([
+            Syn.WaitElem([
                 ".post__title, .scrape__title",
                 ".post__files, .scrape__files",
                 ".post__user-name, .scrape__user-name, fix_name"
@@ -230,7 +228,7 @@
                     fill: () => "fill",
                     title: () => Syn.$$("span", { root: title }).textContent.trim(),
                     artist: () => artist.textContent.trim(),
-                    source: () => title.querySelector(":nth-child(2)").textContent.trim(),
+                    source: () => new Date(title.querySelector(":nth-child(2)").textContent.trim()).toLocaleString(),
                     time: () => {
                         if (IsNeko) {
                             return Syn.$$(".timestamp")?.textContent.trim() || "";
@@ -829,7 +827,7 @@
     }
 
     class FetchData {
-        constructor() {
+        constructor(AdvancedFetch) {
             this.MetaDict = {}; // 保存元數據
             this.DataDict = {}; // 保存最終數據
 
@@ -844,6 +842,7 @@
             this.FinalPages = 10; // 預設最終抓取的頁數
             this.Progress = 0; // 用於顯示當前抓取進度
             this.OnlyMode = false; // 判斷獲取數據的模式
+            this.AdvancedFetch = AdvancedFetch; // 判斷是否往內抓數據
 
             // 內部連結的 API 模板
             this.PostAPI = `${this.FirstURL}/post`.replace(this.Host, `${this.Host}/api/v1`);
@@ -853,27 +852,27 @@
                     ? Url.replace(this.Host, `${this.Host}/api/v1`).replace(/([?&]o=)/, "/posts-legacy$1")
                     : Url.replace(this.Host, `${this.Host}/api/v1`) + "/posts-legacy";
 
-            // 影片類型
-            this.Media = new Set([
-                ".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".webm", ".mpg", ".mpeg",
-                ".m4v", ".ogv", ".3gp", ".asf", ".ts", ".vob", ".rm", ".rmvb", ".m2ts",
-                ".divx", ".xvid", ".wm"
-            ]);
-
             // 預設添加的數據
             this.InfoRules = {
                 "PostLink": Lang.Transl("帖子連結"),
                 "Timestamp": Lang.Transl("發佈日期"),
-                "ImgNumber": Lang.Transl("圖片數量"),
                 "TypeTag": Lang.Transl("類型標籤"),
+                "ImgLink": Lang.Transl("圖片連結"),
                 "VideoLink": Lang.Transl("影片連結"),
                 "DownloadLink": Lang.Transl("下載連結")
             };
 
             // 根據類型判斷預設值
             this.Default = (Value) => {
-                if (typeof Value === "number") return Value !== 0 ? Value : null;
-                if (typeof Value === "object") return Object.values(Value).length > 0 ? Value : null;
+                if (!Value) return null;
+
+                const type = Syn.Type(Value);
+                if (type === "Array") return Value.length > 0 && Value.some(item => item !== "") ? Value : null;
+                if (type === "Object") {
+                    const values = Object.values(Value);
+                    return values.length > 0 && values.some(item => item !== "") ? Value : null;
+                }
+
                 return Value;
             };
 
@@ -882,8 +881,8 @@
              * @param {{
              *      PostLink: string,
              *      Timestamp: string,
-             *      ImgNumber: number,
-             *      TypeTag: string[],
+             *      TypeTag: array,
+             *      ImgLink: array,
              *      VideoLink: object,
              *      DownloadLink: object
              * }} Data
@@ -899,14 +898,118 @@
                 }, {});
             };
 
+            // 影片類型
+            this.Video = new Set([
+                ".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".webm", ".mpg", ".mpeg",
+                ".m4v", ".ogv", ".3gp", ".asf", ".ts", ".vob", ".rm", ".rmvb", ".m2ts",
+                ".divx", ".xvid", ".wm"
+            ]);
+
             // 分類數據
             this.FetchCategorize = (Data) => {
                 return Data.reduce((acc, file) => {
                     const url = `${file.server}/data${file.path}?f=${file.name.replace(/\s/g, "+")}`;
-                    this.Media.has(file.extension) ? (acc.video[file.name] = url) : (acc.other[file.name] = url);
+                    this.Video.has(file.extension) ? (acc.video[file.name] = url) : (acc.other[file.name] = url);
                     return acc;
                 }, { video: {}, other: {} });
             };
+
+            this.TryAgain_Promise = null; // 緩存等待的 Promise
+            this.TooMany_TryAgain = (Uri) => {
+                // 如果已經有一個等待中的 Promise，直接返回
+                if (this.TryAgain_Promise) {
+                    return this.TryAgain_Promise;
+                }
+
+                const sleepTime = 5e3; // 每次等待 5 秒
+                const timeout = 8e3; // 最多等待 8 秒
+                const Url = Uri;
+
+                this.TryAgain_Promise = new Promise(async (resolve) => {
+                    const checkRequest = async () => {
+                        const controller = new AbortController(); // 創建 AbortController
+                        const signal = controller.signal;
+                        const timeoutId = setTimeout(() => {
+                            controller.abort(); // 超時後中止請求
+                        }, timeout);
+            
+                        try {
+                            const response = await fetch(Url, { // 發起請求
+                                method: "HEAD", signal
+                            });
+
+                            clearTimeout(timeoutId);
+                            if (response.status === 429) {
+                                await Syn.Sleep(sleepTime);
+                                await checkRequest(); // 繼續檢查
+                            } else {
+                                resolve(); // 等待完成
+                                this.TryAgain_Promise = null;
+                            }
+                        } catch (err) {
+                            clearTimeout(timeoutId);
+                            await Syn.Sleep(sleepTime);
+                            await checkRequest();
+                        }
+                    };
+            
+                    await checkRequest();
+                });
+
+                return this.TryAgain_Promise;
+            };
+
+            // 請求工作
+            this.Worker = Syn.WorkerCreation(`
+                let queue = [], processing=false;
+                onmessage = function(e) {
+                    queue.push(e.data);
+                    !processing && (processing=true, processQueue());
+                }
+                async function processQueue() {
+                    if (queue.length > 0) {
+                        const {index, title, url} = queue.shift();
+                        XmlRequest(index, title, url);
+                        processQueue();
+                    } else {processing = false}
+                }
+                async function XmlRequest(index, title, url) {
+                    let xhr = new XMLHttpRequest();
+                    xhr.responseType = "text";
+                    xhr.open("GET", url, true);
+                    xhr.onload = function() {
+                        if (xhr.status === 200) {
+                            postMessage({ index, title, url, text: xhr.response, error: false });
+                        } else if (xhr.status === 429) {
+                            postMessage({ index, title, url, text: "", error: true });
+                        } else {
+                            FetchRequest(index, title, url);
+                        }
+                    }
+                    xhr.onerror = function() {
+                        if (xhr.status === 429) {
+                            postMessage({ index, title, url, text: "", error: true });
+                        } else {
+                            FetchRequest(index, title, url);
+                        }
+                    }
+                    xhr.send();
+                }
+                async function FetchRequest(index, title, url) {
+                    fetch(url).then(response => {
+                        if (response.ok) {
+                            response.text().then(text => {
+                                postMessage({ index, title, url, text, error: false });
+                            });
+                        } else {
+                            postMessage({ index, title, url, text: "", error: true });
+                        }
+                    })
+                    .catch(error => {
+                        postMessage({ index, title, url, text: "", error: true });
+                    });
+                }
+            `);
 
             // 解析 MEGA 連結
             this.MegaParse = (Data) => {
@@ -938,51 +1041,6 @@
 
                 return Cache;
             };
-
-            this.Worker = Syn.WorkerCreation(`
-                let queue = [], processing=false;
-                onmessage = function(e) {
-                    queue.push(e.data);
-                    !processing && (processing=true, processQueue());
-                }
-                async function processQueue() {
-                    if (queue.length > 0) {
-                        const {index, title, url} = queue.shift();
-                        XmlRequest(index, title, url);
-                        processQueue();
-                    } else {processing = false}
-                }
-                async function XmlRequest(index, title, url) {
-                    let xhr = new XMLHttpRequest();
-                    xhr.responseType = "text";
-                    xhr.open("GET", url, true);
-                    xhr.onload = function() {
-                        if (xhr.readyState === 4 && xhr.status === 200) {
-                            postMessage({ index, title, url, text: xhr.response, error: false });
-                        } else {
-                            FetchRequest(index, title, url);
-                        }
-                    }
-                    xhr.onerror = function() {
-                        FetchRequest(index, title, url);
-                    }
-                    xhr.send();
-                }
-                async function FetchRequest(index, title, url) {
-                    fetch(url).then(response => {
-                        if (response.ok) {
-                            response.text().then(text => {
-                                postMessage({ index, title, url, text, error: false });
-                            });
-                        } else {
-                            postMessage({ index, title, url, text: "", error: true });
-                        }
-                    })
-                    .catch(error => {
-                        postMessage({ index, title, url, text: "", error: true });
-                    });
-                }
-            `);
         }
 
         /**
@@ -991,13 +1049,13 @@
          * @param {Array} UserSet - 要進行的設置
          *
          * @example
-         * 可配置項目: ["PostLink", "Timestamp", "ImgNumber", "TypeTag", "VideoLink", "DownloadLink"]
+         * 可配置項目: ["PostLink", "Timestamp", "TypeTag", "ImgLink", "VideoLink", "DownloadLink"]
          *
          * 這會將這些項目移除在顯示
-         * FetchConfig("FilterMode", ["PostLink", "ImgNumber", "DownloadLink"]);
+         * FetchConfig("FilterMode", ["PostLink", "ImgLink", "DownloadLink"]);
          *
          * 這會只顯示這些項目
-         * FetchConfig("OnlyMode", ["PostLink", "ImgNumber", "DownloadLink"]);
+         * FetchConfig("OnlyMode", ["PostLink", "ImgLink", "DownloadLink"]);
          */
         async FetchConfig(Mode = "FilterMode", UserSet = []) {
             let Cache;
@@ -1043,15 +1101,6 @@
 
         /* 運行抓取數據 */
         async FetchRun(Section, Url) {
-
-            if (Config.NotiFication) {
-                GM_notification({
-                    title: Lang.Transl("數據處理中"),
-                    text: `${Lang.Transl("當前處理頁數")} : ${this.Pages}`,
-                    image: GM_getResourceURL("json-processing"),
-                    timeout: 800
-                });
-            }
 
             if (IsNeko) {
                 const Item = Syn.$$(".card-list__items article", { all: true, root: Section });
@@ -1122,9 +1171,9 @@
                     const Results = Json.results;
 
                     /* ----- 這邊內容的數據 ----- */
-                    const resolvers = new Map(); // 用於存儲每個 Promise 的 resolve 和 reject
+                    const resolvers = new Map(); // 用於存儲每個 Promise
 
-                    // 將 onmessage 移出循環，單獨定義
+                    // 進階抓取數據
                     this.Worker.onmessage = async (e) => {
                         const { index, title, url, text, error } = e.data;
 
@@ -1136,16 +1185,31 @@
                                     const Json = JSON.parse(text);
 
                                     if (Json) {
+                                        const Post = Json.post;
+
                                         // 對下載連結進行分類
                                         const Categorized = this.FetchCategorize(Json.attachments);
 
+                                        //! 還需要測試
+                                        // 獲取圖片連結
+                                        const UrlList = () => {
+                                            const ServerList = Json.previews.filter(item => item.server); // 取得圖片伺服器
+                                            if ((ServerList?.length ?? 0) === 0) return;
+
+                                            const ImgList = [Post.file, ...Post.attachments];
+                                            const Fill = Syn.GetFill(ServerList.length);
+
+                                            return ServerList.map((Server, Index) =>
+                                                `${Server.server}/data${ImgList[Index].path}?f=${Post.title}_${Syn.Mantissa(Index, Fill, '0', ImgList[Index].name)}`
+                                            );
+                                        };
+
                                         // 生成請求數據 (處理要抓什麼數據)
-                                        const Post = Json.post;
                                         const Gen = this.FetchGenerate({
                                             PostLink: `${this.FirstURL}/post/${Post.id}`,
-                                            Timestamp: new Date(Post.added).toLocaleString() ?? "",
-                                            ImgNumber: Json.previews.length ?? 0,
-                                            TypeTag: Post.tags ?? "",
+                                            Timestamp: new Date(Post.added)?.toLocaleString(),
+                                            TypeTag: Post.tags,
+                                            ImgLink: UrlList(),
                                             VideoLink: Categorized.video,
                                             DownloadLink: Object.assign({}, Categorized.other, this.MegaParse(Post.content))
                                         });
@@ -1164,7 +1228,7 @@
                                 }
                             } catch (error) {
                                 Syn.Log(error, { title: title, url: url }, { dev: Config.Dev, collapsed: false });
-                                await Syn.Sleep(2e4); // 錯誤等待 20 秒後 (通常都是短期間請求過多)
+                                await this.TooMany_TryAgain(url); // 錯誤等待
                                 this.Worker.postMessage({ index: index, title: title, url: url });
                             }
 
@@ -1172,12 +1236,15 @@
                         }
                     };
 
-                    // 創建 Promise 並存儲解析器
                     for (const [index, page] of Results.entries()) {
-                        Tasks.push(new Promise((resolve, reject) => {
-                            resolvers.set(index, { resolve, reject }); // 存儲解析器
-                            this.Worker.postMessage({ index: index, title: page.title, url: `${this.PostAPI}/${page.id}` });
-                        }));
+                        if (this.AdvancedFetch) {
+                            Tasks.push(new Promise((resolve, reject) => {
+                                resolvers.set(index, { resolve, reject }); // 存儲解析器
+                                this.Worker.postMessage({ index: index, title: page.title, url: `${this.PostAPI}/${page.id}` });
+                            }));
+                        } else {
+
+                        }
                     }
 
                     // 等待所有任務
@@ -1203,15 +1270,6 @@
             );
 
             Syn.OutputJson(Json_data, this.MetaDict[Lang.Transl("作者")], () => {
-                if (Config.NotiFication) {
-                    GM_notification({
-                        title: Lang.Transl("數據處理完成"),
-                        text: Lang.Transl("Json 數據下載"),
-                        image: GM_getResourceURL("json-processing"),
-                        timeout: 2000
-                    });
-                }
-
                 // 狀態恢復
                 lock = false;
                 this.Worker.terminate();
@@ -1334,25 +1392,9 @@
 
         /* 下載模式切換 */
         async DownloadModeSwitch() {
-            if (Syn.Storage("Compression", { type: localStorage, error: true })) {
-                Syn.Storage("Compression", { type: localStorage, value: false });
-                if (Config.NotiFication) {
-                    GM_notification({
-                        title: Lang.Transl("模式切換"),
-                        text: Lang.Transl("單圖下載模式"),
-                        timeout: 1500
-                    });
-                }
-            } else {
-                Syn.Storage("Compression", { type: localStorage, value: true });
-                if (Config.NotiFication) {
-                    GM_notification({
-                        title: Lang.Transl("模式切換"),
-                        text: Lang.Transl("壓縮下載模式"),
-                        timeout: 1500
-                    });
-                }
-            }
+            Syn.Storage("Compression", { type: localStorage, error: true })
+                ? Syn.Storage("Compression", { type: localStorage, value: false })
+                : Syn.Storage("Compression", { type: localStorage, value: true });
             Syn.$$("#ExDB").remove();
             this.ButtonCreation();
         }
@@ -1376,8 +1418,8 @@
                         func: () => {
                             if (!lock) {
                                 let Instantiate = null;
-                                Instantiate = new FetchData();
-                                JsonFormat.Use && Instantiate.FetchConfig(JsonFormat.Mode, JsonFormat.Settings);
+                                Instantiate = new FetchData(FetchSet.AdvancedFetch);
+                                FetchSet.UseFormat && Instantiate.FetchConfig(FetchSet.Mode, FetchSet.Format);
                                 Instantiate.FetchInit();
                             }
                         }
