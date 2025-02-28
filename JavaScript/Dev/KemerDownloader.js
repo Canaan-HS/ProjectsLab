@@ -104,12 +104,15 @@
      *
      *! 無論設置什麼, 只要沒有的數據, 就不會顯示 (會被排除掉)
      *
+     * ----------------------
+     * 舊版 nekohouse.su
+     *
+     *
+     * ----------------------
      * Mode
      * 排除模式: "FilterMode" -> 預設為全部使用, 設置排除的項目
      * 僅有模式: "OnlyMode" -> 預設為全部不使用, 設置使用的項目
-     *
      * ----------------------
-     *
      * Format
      * 帖子連結: "PostLink"
      * 發佈時間: "Timestamp"
@@ -117,9 +120,10 @@
      * 圖片數量: "ImgLink"
      * 影片連結: "VideoLink"
      * 下載連結: "DownloadLink"
+     * 其他連結: "CloudLink"
      */
     const FetchSet = {
-        AdvancedFetch: true, // 進階抓取, 可獲取 Mega 和 Tag 標籤資訊 (所需時間較久)
+        AdvancedFetch: true, // 進階抓取, 可獲取 (雲端 or 第三方) 連結 和 Tag 標籤資訊 (所需時間較久)
         UseFormat: false, // 這裡為 false 下面兩項就不生效
         Mode: "FilterMode",
         Format: ["Timestamp", "ImgLink"],
@@ -384,7 +388,7 @@
             this.worker.onmessage = (e) => {
                 const { index, url, blob, error } = e.data;
                 error
-                    ? (Request(index, url), Syn.Log("Download Failed", url, { dev: Config.Dev, collapsed: false }))
+                    ? (Request(index, url), Syn.Log("Download Failed", url, { dev: Config.Dev, type: "error", collapsed: false }))
                     : (Request_update(index, url, blob), Syn.Log("Download Successful", url, { dev: Config.Dev, collapsed: false }));
             }
         }
@@ -497,7 +501,7 @@
                             */
                         },
                         onerror: () => {
-                            Syn.Log("Download Error", link, { dev: Config.Dev, collapsed: false });
+                            Syn.Log("Download Error", link, { dev: Config.Dev, type: "error", collapsed: false });
                             setTimeout(() => {
                                 reject();
                                 Request(index);
@@ -568,27 +572,6 @@
             }
         }
 
-        /* 初始化獲取數據 */
-        async GetData() {
-            if (this.Section) {
-                lock = true;
-                this.Pages = 1;
-
-                for (const page of Syn.$$(".pagination-button-disabled b", { all: true })) {
-                    const number = Number(page.textContent);
-                    if (number) {
-                        this.Pages = number;
-                        break;
-                    }
-                }
-
-                this.GetPageData(this.Section);
-                this.DataAnalysis(); // 解析回傳數據
-            } else {
-                alert(Lang.Transl("未取得數據"));
-            }
-        }
-
         /* 獲取下一頁數據 */
         async GetNextPage(NextPage) {
             GM_xmlhttpRequest({
@@ -605,15 +588,6 @@
         async GetPageData(section) {
             let title, link;
             const item = Syn.$$(".card-list__items article", { all: true, root: section });
-
-            if (Config.NotiFication) {
-                GM_notification({
-                    title: Lang.Transl("數據處理中"),
-                    text: `${Lang.Transl("當前處理頁數")} : ${this.Pages}`,
-                    image: GM_getResourceURL("json-processing"),
-                    timeout: 800
-                });
-            }
 
             // 遍歷數據
             this.progress = 0;
@@ -682,7 +656,7 @@
                     Syn.Log("Request Successful", this.SortMap, { dev: Config.Dev, collapsed: false });
                     document.title = `（${this.Pages} - ${++this.progress}）`;
                 } else {
-                    Syn.Log("Request Failed", { title: title, url: url }, { dev: Config.Dev, collapsed: false });
+                    Syn.Log("Request Failed", { title: title, url: url }, { dev: Config.Dev, type: "error", collapsed: false });
                     await Syn.Sleep(1500);
                     this.worker.postMessage({ index: index, title: title, url: url });
                 }
@@ -723,7 +697,8 @@
                 "TypeTag": Lang.Transl("類型標籤"),
                 "ImgLink": Lang.Transl("圖片連結"),
                 "VideoLink": Lang.Transl("影片連結"),
-                "DownloadLink": Lang.Transl("下載連結")
+                "DownloadLink": Lang.Transl("下載連結"),
+                "CloudLink": Lang.Transl("雲端連結")
             };
 
             // 根據類型判斷預設值
@@ -746,9 +721,10 @@
              *      PostLink: string,
              *      Timestamp: string,
              *      TypeTag: array,
-             *      ImgLink: array,
+             *      ImgLink: object,
              *      VideoLink: object,
              *      DownloadLink: object
+             *      CloudLink: object
              * }} Data
              * @returns {object}
              */
@@ -800,13 +776,14 @@
                     if (this.Video.has(extension)) {
                         acc.video[name] = `${server}${path}?f=${name}`;
                     } else if (this.Image.has(extension)) {
-                        acc.img.push(`${server}${path}?f=${Title}_${String(++imgNumber).padStart(2, "0")}${extension}`);
+                        const name = `${Title}_${String(++imgNumber).padStart(2, "0")}${extension}`;
+                        acc.img[name] = `${server}${path}?f=${name}`;
                     } else {
                         acc.other[name] = `${server}${path}?f=${name}`;
                     }
 
                     return acc;
-                }, { img: [], video: {}, other: {} });
+                }, { img: {}, video: {}, other: {} });
             };
 
             this.TryAgain_Promise = null; // 緩存等待的 Promise
@@ -817,7 +794,7 @@
                 }
 
                 const sleepTime = 5e3; // 每次等待 5 秒
-                const timeout = 8e3; // 最多等待 8 秒
+                const timeout = 20e4; // 最多等待 20 秒
                 const Url = Uri;
 
                 this.TryAgain_Promise = new Promise(async (resolve) => {
@@ -906,21 +883,24 @@
                 }
             `);
 
-            // 解析 MEGA 連結
-            this.MegaParse = (Data) => {
+            // 解析特別連結
+            this.specialLinkParse = (Data) => {
                 const Cache = {};
 
                 try {
-                    for (const p of Syn.$$("body p", { all: true, root: Syn.DomParse(Data) })) {
-                        for (const a of Syn.$$("a", { all: true, root: p })) {
-                            const href = a.href;
+                    for (const strong of Syn.$$("body strong", { all: true, root: Syn.DomParse(Data) })) {
+                        const mayBeLink = strong.nextElementSibling;
+
+                        // 確認是連結
+                        if (mayBeLink?.tagName === "A" && mayBeLink.hasAttribute("href")) {
+                            const href = mayBeLink.href;
 
                             if (href.startsWith("https://mega.nz")) {
 
-                                let name = a.previousElementSibling.textContent.replace(":", "").trim();
+                                let name = strong.textContent.replace(":", "").trim() || href.textContent.trim();
                                 if (name === "") continue;
 
-                                let pass = [...a.nextElementSibling.childNodes].filter(node => node.nodeType === Node.TEXT_NODE)?.[0].textContent ?? "";
+                                let pass = [...mayBeLink.nextElementSibling.childNodes].filter(node => node.nodeType === Node.TEXT_NODE)?.[0].textContent ?? "";
                                 if (pass.startsWith("Pass")) {
                                     pass = pass.match(/Pass:([^<]*)/)[1].trim();
                                 }
@@ -929,10 +909,15 @@
                                     [Lang.Transl("密碼")]: pass,
                                     [Lang.Transl("連結")]: href
                                 };
+                            } else if (href) { // ! 待測試
+                                const name = mayBeLink.textContent.replace(":", "").trim();
+                                Cache[name] = href;
                             }
-                        }
+                        };
                     }
-                } catch { }
+                } catch (error) {
+                    Syn.Log("Error specialLinkParse", error, { dev: Config.Dev, type: "error", collapsed: false });
+                }
 
                 return Cache;
             };
@@ -1014,7 +999,7 @@
                         const { index, title, url, text, error } = e.data;
                         if (!error) resolve({ index, title, url, text });
                         else {
-                            Syn.Log(error, { title: title, url: url }, { dev: Config.Dev, collapsed: false });
+                            Syn.Log(error, { title: title, url: url }, { dev: Config.Dev, type: "error", collapsed: false });
                             await this.TooMany_TryAgain(url);
                             this.Worker.postMessage({ index: index, title: title, url: url });
                         };
@@ -1067,8 +1052,6 @@
 
                     /* ----- 進階抓取數據 ----- */
                     if (this.AdvancedFetch) {
-                        console.log("進階抓取數據");
-
                         const Tasks = [];
                         const resolvers = new Map(); // 用於存儲每個 Promise
 
@@ -1089,7 +1072,7 @@
                                             const File = this.AdvancedCategorize(Json.attachments);
 
                                             // 獲取圖片連結
-                                            const ImgList = () => {//! 還需要測試
+                                            const ImgLink = () => {//! 還需要測試
                                                 const ServerList = Json.previews.filter(item => item.server); // 取得圖片伺服器
                                                 if ((ServerList?.length ?? 0) === 0) return;
 
@@ -1098,9 +1081,11 @@
                                                 const Fill = Syn.GetFill(ServerList.length);
 
                                                 // 依據篩選出有預覽圖伺服器的, 生成圖片連結
-                                                return ServerList.map((Server, Index) =>
-                                                    `${Server.server}/data${List[Index].path}?f=${Post.title}_${Syn.Mantissa(Index, Fill, '0', List[Index].name)}`
-                                                );
+                                                return ServerList.reduce((acc, Server, Index) => {
+                                                    const name = `${Post.title}_${Syn.Mantissa(Index, Fill, '0', List[Index].name)}`;
+                                                    acc[name] = `${Server.server}/data${List[Index].path}?f=${name}`;
+                                                    return acc;
+                                                }, {});                                                
                                             };
 
                                             // 生成請求數據 (處理要抓什麼數據)
@@ -1108,9 +1093,10 @@
                                                 PostLink: `${this.FirstURL}/post/${Post.id}`,
                                                 Timestamp: new Date(Post.added)?.toLocaleString(),
                                                 TypeTag: Post.tags,
-                                                ImgLink: ImgList(),
+                                                ImgLink: ImgLink(),
                                                 VideoLink: File.video,
-                                                DownloadLink: Object.assign({}, File.other, this.MegaParse(Post.content))
+                                                DownloadLink: File.other,
+                                                CloudLink: this.specialLinkParse(Post.content)
                                             });
 
                                             // 儲存數據
@@ -1126,7 +1112,7 @@
                                         throw new Error("Request Failed");
                                     }
                                 } catch (error) {
-                                    Syn.Log(error, { title: title, url: url }, { dev: Config.Dev, collapsed: false });
+                                    Syn.Log(error, { title: title, url: url }, { dev: Config.Dev, type: "error", collapsed: false });
                                     await this.TooMany_TryAgain(url); // 錯誤等待
                                     this.Worker.postMessage({ index: index, title: title, url: url });
                                 }
@@ -1169,7 +1155,7 @@
                                 document.title = `（${this.Pages} - ${++this.Progress}）`;
                                 Syn.Log("Parsed Successful", this.TaskDict, { dev: Config.Dev, collapsed: false });
                             } catch (error) {
-                                Syn.Log(error, { title: title, url: url }, { dev: Config.Dev, collapsed: false });
+                                Syn.Log(error, { title: title, url: url }, { dev: Config.Dev, type: "error", collapsed: false });
                                 continue;
                             }
                         }
