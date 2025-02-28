@@ -116,17 +116,17 @@
      * Format
      * 帖子連結: "PostLink"
      * 發佈時間: "Timestamp"
-     * 標籤 Tag: "TypeTag"
-     * 圖片數量: "ImgLink"
+     * 標籤 Tag: "TypeTag" (Only AdvancedFetch)
+     * 圖片連結: "ImgLink"
      * 影片連結: "VideoLink"
      * 下載連結: "DownloadLink"
-     * 其他連結: "CloudLink"
+     * 外部連結: "ExternalLink" (Only AdvancedFetch)
      */
     const FetchSet = {
-        AdvancedFetch: true, // 進階抓取, 可獲取 (雲端 or 第三方) 連結 和 Tag 標籤資訊 (所需時間較久)
+        AdvancedFetch: true, // 進階獲取 (如果只需要 圖片和影片連結, 關閉該功能獲取會快很多)
         UseFormat: false, // 這裡為 false 下面兩項就不生效
         Mode: "FilterMode",
-        Format: ["Timestamp", "ImgLink"],
+        Format: ["Timestamp", "TypeTag"],
     };
 
     /* --------------------- */
@@ -698,7 +698,7 @@
                 "ImgLink": Lang.Transl("圖片連結"),
                 "VideoLink": Lang.Transl("影片連結"),
                 "DownloadLink": Lang.Transl("下載連結"),
-                "CloudLink": Lang.Transl("雲端連結")
+                "ExternalLink": Lang.Transl("外部連結")
             };
 
             // 根據類型判斷預設值
@@ -724,7 +724,7 @@
              *      ImgLink: object,
              *      VideoLink: object,
              *      DownloadLink: object
-             *      CloudLink: object
+             *      ExternalLink: object
              * }} Data
              * @returns {object}
              */
@@ -891,33 +891,29 @@
                 const Cache = {};
 
                 try {
-                    for (const strong of Syn.$$("body strong", { all: true, root: Syn.DomParse(Data) })) {
-                        const mayBeLink = strong.nextElementSibling;
+                    for (const a of Syn.$$("body a", { all: true, root: Syn.DomParse(Data) })) {
+                        const href = a.href;
 
-                        // 確認是連結
-                        if (mayBeLink?.tagName === "A" && mayBeLink.hasAttribute("href")) {
-                            const href = mayBeLink.href;
+                        if (href.startsWith("https://mega.nz")) {
 
-                            if (href.startsWith("https://mega.nz")) {
+                            let name = a.previousElementSibling?.textContent.replace(":", "").trim() || href.textContent?.trim();
+                            if (name === "") continue;
 
-                                let name = strong.textContent.replace(":", "").trim() || href.textContent.trim();
-                                if (name === "") continue;
-
-                                let pass = [...mayBeLink.nextElementSibling.childNodes].filter(node => node.nodeType === Node.TEXT_NODE)?.[0].textContent ?? "";
-                                if (pass.startsWith("Pass")) {
-                                    pass = pass.match(/Pass:([^<]*)/)[1].trim();
-                                }
-
-                                Cache[name] = {
-                                    [Lang.Transl("密碼")]: pass,
-                                    [Lang.Transl("連結")]: href
-                                };
-                            } else if (href) { // ! 待測試
-                                const name = mayBeLink.textContent.replace(":", "").trim();
-                                Cache[name] = href;
+                            let pass = [...a.nextElementSibling.childNodes].filter(node => node.nodeType === Node.TEXT_NODE)?.[0]?.textContent ?? "";
+                            if (pass.startsWith("Pass")) {
+                                pass = pass.match(/Pass:([^<]*)/)[1].trim();
                             }
-                        };
-                    }
+
+                            Cache[name] = {
+                                [Lang.Transl("密碼")]: pass,
+                                [Lang.Transl("連結")]: href
+                            };
+                        } else if (href) {
+                            const description = a.previousElementSibling?.textContent.trim() ?? "";
+                            const name = `${description} ${a.textContent}`.trim();
+                            Cache[name] = href;
+                        }
+                    };
                 } catch (error) {
                     Syn.Log("Error specialLinkParse", error, { dev: Config.Dev, type: "error", collapsed: false });
                 }
@@ -1109,7 +1105,7 @@
                                                 ImgLink: ImgLink(),
                                                 VideoLink: File.video,
                                                 DownloadLink: File.other,
-                                                CloudLink: this.specialLinkParse(Post.content)
+                                                ExternalLink: this.specialLinkParse(Post.content)
                                             });
 
                                             // 儲存數據
