@@ -18,7 +18,7 @@ function Generator {
             $hashString = [BitConverter]::ToString($hashBytes) -replace '-'
             $lowerHash = $hashString.ToLower()
 
-            $fielHash = $lowerHash.Substring(0, [System.Math]::Min($byte, 32))
+            $fielHash = $lowerHash.Substring(0, [System.Math]::Min($byte, $lowerHash.Length))
             return "$parent\$fielHash-x$scaleFactor"
         }
 
