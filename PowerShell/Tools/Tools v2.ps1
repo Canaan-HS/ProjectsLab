@@ -788,12 +788,12 @@ class Main {
                     @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DefaultSearchProviderEnabled", "DWORD", 1),
                     # 使用 POST 傳遞搜尋參數
                     @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DefaultSearchProviderSearchURLPostParams", "String", "q={searchTerms}&client=chrome&sourceid=chrome&ie=UTF-8"),
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DefaultSearchProviderSuggestURLPostParams", "String", "q={searchTerms}&client=chrome&sourceid=chrome&ie=UTF-8&oe=UTF-8"),
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DefaultSearchProviderSuggestURLPostParams", "String", "q={searchTerms}&client=chrome&sourceid=chrome&ie=UTF-8"),
 
                     # 將這項政策設為 Disabled，則表示除非使用者停用 PDF 外掛程式，否則系統一律會使用 PDF 外掛程式開啟 PDF 檔案
                     @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AlwaysOpenPdfExternally", "DWORD", 1),
                     # 信用卡的自動填入功能
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AutofillCreditCardEnabled", "DWORD", 1),
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AutofillCreditCardEnabled", "DWORD", 0),
                     # 地址的自動填入功能
                     @("HKLM:\SOFTWARE\Policies\Google\Chrome", "AutofillAddressEnabled", "DWORD", 1),
                     # 啟用搜尋建議
@@ -802,7 +802,7 @@ class Main {
                     @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ShowFullUrlsInAddressBar", "DWORD", 1),
 
                     # 啟用剪貼簿共用功能
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SharedClipboardEnabled", "DWORD", 1),
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SharedClipboardEnabled", "DWORD", 0),
                     # 拼字檢查網路服務
                     @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SpellCheckServiceEnabled", "DWORD", 0),
                     # 0 無論使用任何網路連線，皆預測網路動作
@@ -834,9 +834,7 @@ class Main {
                     # 啟用視窗遮蔽功能
                     @("HKLM:\SOFTWARE\Policies\Google\Chrome", "WindowOcclusionEnabled", "DWORD", 1),
                     # YouTube 嚴格篩選模式
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ForceYouTubeRestrict", "DWORD", 0),
-                    # 允許使用無頭
-                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "HeadlessMode", "DWORD", 1)
+                    @("HKLM:\SOFTWARE\Policies\Google\Chrome", "ForceYouTubeRestrict", "DWORD", 0)
                 ), $true)
 
                 Print "`n===== 重新啟動後應用 ====="
@@ -930,12 +928,12 @@ class Main {
                     @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "EnterpriseModeSiteListManagerAllowed", "DWORD", 0),
                     # 可用時便使用硬體加速
                     @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "HardwareAccelerationModeEnabled", "DWORD", 1),
-                    #  封鎖含有干擾廣告的網站上的廣告
+                    # 封鎖含有干擾廣告的網站上的廣告
                     @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AdsSettingForIntrusiveAdsSites", "DWORD", 2),
                     # 自動完成地址資訊
                     @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AutofillAddressEnabled", "DWORD", 1),
                     # 自動完成信用卡資訊
-                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AutofillCreditCardEnabled", "DWORD", 1),
+                    @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AutofillCreditCardEnabled", "DWORD", 0),
                     # 首次執行時，自動匯入其他瀏覽器的資料和設定 (0) = 從預設的瀏覽器自動匯入 , (1) = 從 Internet Explorer 自動匯入 , (2) = 從 Google Chrome 自動匯入 , (3) = 從 Safari 自動匯入 , (4) = 已停用自動匯入 , (5) = 從 Mozilla Firefox 自動匯入
                     @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AutoImportAtFirstRun", "DWORD", 2),
                     # 關閉後繼續執行背景應用程式
