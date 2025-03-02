@@ -1271,10 +1271,12 @@ class Main {
                           else { return $null }
 
                     # 未提供測試 IP 時，使用網關或 8.8.8.8
-                    $TestIP = if ($TestIP) { $TestIP } 
-                              else { (Get-NetRoute -DestinationPrefix "0.0.0.0/0" | Where-Object { 
-                                  $_.InterfaceAlias -eq (Get-NetAdapter | Where-Object { $_.IpAddress -eq $IP }).Name 
-                              }).NextHop ?? "8.8.8.8" }
+                    $TestIP = if ($TestIP) { $TestIP } else { 
+                        $route = Get-NetRoute -DestinationPrefix "0.0.0.0/0" | Where-Object { 
+                            $_.InterfaceAlias -eq (Get-NetAdapter | Where-Object { $_.IpAddress -eq $IP }).Name 
+                        }
+                        if ($route) { $route.NextHop } else { "8.8.8.8" }
+                    }                    
 
                     # 測試 MTU 值（從 1472 到 9000）
                     $TestSizes = 1472, 1492, 1500, 2000, 4000, 9000
