@@ -99,7 +99,22 @@ class Main {
 
         return $State
     }
-    # 獲取遠端授權代碼
+    <# 獲取遠端授權代碼
+
+        1. 只有一個主程式
+            傳入 Name = 要保存文件的名子 (要有副檔名)
+            傳入 URL = 要請求的網址
+
+        2. 一個主程式但他是壓縮文件
+            傳入 Name = 要保存文件的名子 (要有副檔名)
+            傳入 URL = 要請求的網址
+            傳入 Depend = 解壓該文件後, 要執行的主文件路徑 (解壓後資料夾\主程式.cmd)
+
+        3. 一個主程式 但有多個附加檔案
+            傳入 Name = 要保存文件的名子 (要有副檔名)
+            傳入 URL = 要請求的網址
+            傳入 Depend = @(@(附加 1 路徑\名稱, 附加1網址), @(附加 2 路徑\名稱, 附加2網址) ...)
+    #>
     [void]Authorize([string]$Name, [string]$URL, [array]$Depend) {
         Print "===== 獲取最新版本 授權程式 =====`n"
         $this.NetworkState()
@@ -390,7 +405,7 @@ class Main {
                 Print ""
                 Print "  更新資訊:"
                 Print ""
-                Print "   1. 優化 網路優化功能並新增配置"
+                Print "   1. IDM 授權依賴更新"
                 Print "----------------------------------"
                 $this.WaitBack()
             }
@@ -1086,12 +1101,18 @@ class Main {
                 $this.WaitBack()
             }
             (index) { # IDM 授權
-                # https://github.com/Jamshed-Dev/DUDE-Activate-IDM-for-free (目前使用)
-                # https://github.com/asaddiucse/IDM-ACTIVATION-Script-2025 (替代腳本)
+                # https://github.com/Coporton/IDM-Activation-Script (目前使用)
+                # https://github.com/lstprjct/IDM-Activation-Script
+                # https://github.com/kamrullab/idm
                 $this.Authorize(
-                    "$($this.MD5("DUDE")).zip",
-                    "https://github.com/Jamshed-Dev/DUDE-Activate-IDM-for-free/releases/download/DUDE/DUDE.zip",
-                    "DUDE\script.bat" # 要執行的檔案, 這是針對壓縮檔案的特殊調用方法
+                    "$($this.MD5("IASL")).cmd",
+                    "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/IASL.cmd",
+                    @(
+                        @("src\Registry.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/Registry.bin"),
+                        @("src\banner_art.txt", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/banner_art.txt"),
+                        @("src\data.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/data.bin"),
+                        @("src\extensions.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/extensions.bin")
+                    )
                 )
             }
             (index) { # Windows 啟用授權
