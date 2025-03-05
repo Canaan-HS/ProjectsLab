@@ -1,10 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-# 這邊可設置Key(安慰用)
-# 不設置就是把 = 後面刪除
-block_cipher = pyi_crypto.PyiBlockCipher(key='key')
-
-
 a = Analysis(
     ['display.py'], # 設置要打包的 .py 文件
     pathex=[],
@@ -17,11 +12,10 @@ a = Analysis(
     excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure, a.zipped_data)
 
 exe = EXE(
     pyz,
