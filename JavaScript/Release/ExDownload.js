@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.16-Beta7
+// @version      0.0.16-Beta8
 // @author       Canaan HS
 // @description         漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
 // @description:zh-TW   漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
@@ -19,7 +19,7 @@
 // @match        *://exhentai.org/g/*
 // @icon         https://e-hentai.org/favicon.ico
 
-// @license      MIT
+// @license      MPL-2.0
 // @namespace    https://greasyfork.org/users/989635
 
 // @run-at       document-body
@@ -32,22 +32,19 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
 
-// @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/495339/1456526/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1532088/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
+// @require      https://raw.githubusercontent.com/Canaan-HS/ProjectsLab/refs/heads/main/JavaScript/API/JSZip.min.js
 // ==/UserScript==
 
 (async () => {
-    /* 使用者配置 */
     const Config = {
-        Dev: true,           // 開發模式 (會顯示除錯訊息)
-        ReTry: 10,            // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
-        Original: false,      // 是否下載原圖
-        ResetScope: true,     // 下載完成後 重置範圍設置
-        CompleteClose: false, // 下載完成自動關閉
+        Dev: true,
+        ReTry: 10,
+        Original: false,
+        ResetScope: true,
+        CompleteClose: false
     };
-
-    /* 下載配置 (不清楚不要修改) */
     const DConfig = {
         Compr_Level: 5,
         MIN_CONCURRENCY: 5,
@@ -438,8 +435,12 @@
                         responseType: "blob",
                         onload: response => {
                             clearTimeout(timeout);
-                            const blob = response.response;
-                            response.status == 200 && response.finalUrl == Iurl && blob instanceof Blob && blob.size > 0 ? StatusUpdate(time, Index, Iurl, blob) : StatusUpdate(time, Index, Iurl, null, true);
+                            if (response.finalUrl !== Iurl && `${response.status}`.startsWith("30")) {
+                                Request(Index, response.finalUrl);
+                            } else {
+                                const blob = response.response;
+                                response.status == 200 && blob instanceof Blob && blob.size > 0 ? StatusUpdate(time, Index, Iurl, blob) : StatusUpdate(time, Index, Iurl, null, true);
+                            }
                         },
                         onerror: () => {
                             clearTimeout(timeout);
@@ -453,7 +454,7 @@
                 }
                 timeout = setTimeout(() => {
                     StatusUpdate(time, Index, Iurl, null, true);
-                }, 15000);
+                }, 15e3);
             }
             async function Start(DataMap, ReGet = false) {
                 if (Enforce) return;
@@ -625,7 +626,7 @@
         constructor() {
             this.E = /https:\/\/e-hentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
             this.Ex = /https:\/\/exhentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
-            this.Allow = (Uri = Url) => this.E.test(Uri) || this.Ex.test(Uri);
+            this.Allow = Uri => this.E.test(Uri) || this.Ex.test(Uri);
             this.InitStyle = () => {
                 const Position = `
                     .Download_Button {
@@ -689,27 +690,31 @@
             }
         }
         async ButtonCreation() {
-            CompressMode = Syn.Store("g", "CompressedMode", []);
-            ModeDisplay = CompressMode ? Lang.Transl("壓縮下載") : Lang.Transl("單圖下載");
-            const download_button = GM_addElement(Syn.$$("#gd2"), "button", {
-                id: "ExDB",
-                class: "Download_Button"
-            });
-            download_button.disabled = DConfig.Lock ? true : false;
-            download_button.textContent = DConfig.Lock ? Lang.Transl("下載中鎖定") : ModeDisplay;
-            Syn.AddListener(download_button, "click", () => {
-                DConfig.Lock = true;
-                download_button.disabled = true;
-                download_button.textContent = Lang.Transl("開始下載");
-                this.TaskInstance = new DownloadCore(download_button);
-            }, {
-                capture: true,
-                passive: true
+            Syn.WaitElem("#gd2", null, {
+                raf: true
+            }).then(gd2 => {
+                CompressMode = Syn.Store("g", "CompressedMode", []);
+                ModeDisplay = CompressMode ? Lang.Transl("壓縮下載") : Lang.Transl("單圖下載");
+                const download_button = GM_addElement(gd2, "button", {
+                    id: "ExDB",
+                    class: "Download_Button"
+                });
+                download_button.disabled = DConfig.Lock ? true : false;
+                download_button.textContent = DConfig.Lock ? Lang.Transl("下載中鎖定") : ModeDisplay;
+                Syn.AddListener(download_button, "click", () => {
+                    DConfig.Lock = true;
+                    download_button.disabled = true;
+                    download_button.textContent = Lang.Transl("開始下載");
+                    this.TaskInstance = new DownloadCore(download_button);
+                }, {
+                    capture: true,
+                    passive: true
+                });
             });
         }
         static async Init() {
             const Core = new ButtonCore();
-            if (Core.Allow()) {
+            if (Core.Allow(Url)) {
                 Core.InitStyle();
                 OriginalTitle = document.title;
                 Lang = Language(Syn.Device.Lang);
