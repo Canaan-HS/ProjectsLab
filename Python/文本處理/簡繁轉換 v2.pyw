@@ -3,8 +3,8 @@ import time
 import queue
 import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox
 from concurrent.futures import ThreadPoolExecutor
+from tkinter import scrolledtext, filedialog, messagebox
 
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
@@ -95,7 +95,7 @@ class DataProcessing:
             self.Work.put(os.path.join(path, data).replace("\\", "/"))
 
 class GUI(DataProcessing, TkinterDnD.Tk):
-    __slots__ = (
+    __slots__ = ( # 寫好玩的
         "Output_Name", "Output_Rename", 
         "Save", "Work", "lock", "ET",
         "Converter", "SupportFile", "SupportStr", "SupportEncod", "Decode",
@@ -124,36 +124,22 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         self.geometry(f"{self.Win_Width}x{self.Win_Height}+{int((self.Win_Cur_Width() - self.Win_Width) / 2)}+{int((self.Win_Cur_Height() - self.Win_Height) / 2)}")
 
         # 設置顏色
-        self.failure = "#FF2D2D"
-        self.success = "#00A600"
         self.buttontext = "#FDF4F5"
         self.buttontrigger = "#C0DBEA"
         self.buttonbackground = "#E8A0BF"
         self.configure(background="#BA90C6") # 介面背景色
 
         # 內容顯示框架
-        self.Content_frame = tk.Frame(self, width=1060, height=605)
-        self.Content_frame.pack_propagate(False) # 禁止大小變動
+        self.Console_frame = tk.Frame(self, width=1060, height=605)
+        self.Console_frame.pack_propagate(False) # 禁止大小變動
 
-        # 滾動條框加
-        Scrollbar_style = {"cursor": "hand2", "relief": "raised"}
-        self.Scrollbar_frame = tk.Frame(self, width=20, height=605, bg=self.buttontext)
-        self.ScrollbarY = tk.Scrollbar(self.Scrollbar_frame, Scrollbar_style, width=20)
-
-        # (文字框 / 滾動條)
-        self.Content_items = tk.Text(
-            self.Content_frame, font=("KaiTi", 24), fg=self.buttontext, bg=self.buttonbackground,
-            yscrollcommand=self.ScrollbarY.set
+        self.Console = scrolledtext.ScrolledText(
+            self.Console_frame, font=("KaiTi", 24), fg=self.buttontext, bg=self.buttonbackground, state="disabled", cursor="arrow"
         )
 
         # 設置標籤 (顯示顏色)
-        self.Success = "Success"
-        self.Failure = "Failure"
-        self.Content_items.tag_configure(self.Success, foreground=self.success)
-        self.Content_items.tag_configure(self.Failure, foreground=self.failure)
-
-        # 設置通過滾動條拉動文字框
-        self.ScrollbarY.config(command=self.Content_items.yview)
+        self.Console.tag_configure("Success", foreground="#00A600")
+        self.Console.tag_configure("Failure", foreground="#FF2D2D")
 
         Button_style = {
             "height": 1, "width": 12, "border": 2,
@@ -181,6 +167,22 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         self.Document_button.place(x=27, y=85) # 單獨選擇
         self.File_button.place(x=27, y=155) # 批量選擇
         self.mainloop()
+
+    # 取得文本數據
+    def GetText(self, DEL: bool=True, END: str="end-1c"):
+        Text = self.Console.get("1.0", END).splitlines(); Exist = len(Text) > 0
+        if DEL and Exist:
+            self.Console.config(state="normal")
+            self.Console.delete("1.0", "end")
+            self.Console.config(state="disabled")
+        return Text if Exist and Text[0] != "" else False
+
+    # 插入文本數據
+    def InsertText(self, text, *args):
+        self.Console.config(state="normal")
+        self.Console.insert("end", f"{text}\n", *args)
+        self.Console.yview("end")
+        self.Console.config(state="disabled")
 
     # 開啟資料夾    
     def Select_File(self):
@@ -220,12 +222,6 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         except Exception as e:
             print(f"Exception: {e}")
 
-    # 取得文本框數據
-    def GetText(self, DEL: bool=True, END: str="end-1c"):
-        Text = self.Content_items.get("1.0", END).splitlines(); Exist = len(Text) > 0
-        self.Content_items.delete("1.0", "end") if DEL and Exist else None
-        return Text if Exist and Text[0] != "" else False
-
     # 數據解析
     def Data_Analysis(self, data, button):
         button.config(fg=self.buttontext, bg=self.buttonbackground)
@@ -242,7 +238,7 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         # 讀取工作
         while not self.Work.empty():
             work = self.Work.get()
-            self.Content_items.insert(tk.END, f"{work}\n") # 插入文本
+            self.InsertText(work)
 
         # 判斷讀取的狀態 (只取一個小範圍)
         if self.GetText(False, "2.0"):
@@ -262,15 +258,9 @@ class GUI(DataProcessing, TkinterDnD.Tk):
             button.destroy()
 
         # 顯示框架
-        self.Content_frame.place(x=20, y=20)
-        self.Scrollbar_frame.place(x=1080, y=20)
-
-        # 顯示滾動條
-        self.ScrollbarY.pack(side=tk.RIGHT, fill=tk.Y)
-        self.ScrollbarY.place(relheight=1.0, relwidth=1.0)
-
+        self.Console_frame.place(x=20, y=20)
         # 顯示文本
-        self.Content_items.pack(fill=tk.BOTH, expand=True)
+        self.Console.pack(fill=tk.BOTH, expand=True)
 
         if direct: # 針對文本轉換
             def trigger(event): # 觸發後先讀取文本
@@ -281,7 +271,7 @@ class GUI(DataProcessing, TkinterDnD.Tk):
                     for index, text in enumerate(TexT): # 使用線程池 以多線程進行轉換
                         change = executor.submit(self.Text_conversion, text).result() + ("" if index == length else "\n")
                         scrapbook += change # 結果合併成一個字串
-                        self.Content_items.insert("end", change) # 結果插入文本框
+                        self.InsertText(change) # 結果插入文本框
                     pyperclip.copy(scrapbook) # 將結果添加到使用者 剪貼簿
 
             # 焦點狀態
@@ -294,14 +284,12 @@ class GUI(DataProcessing, TkinterDnD.Tk):
             def focus_out(event):
                 self.WaitClear = True
 
-            self.Content_items.config(font=("Courier", 12))
+            self.Console.config(font=("Courier", 12))
 
-            self.Content_items.bind("<FocusIn>", focus_in)
-            self.Content_items.bind("<FocusOut>", focus_out)
+            self.Console.bind("<FocusIn>", focus_in)
+            self.Console.bind("<FocusOut>", focus_out)
             self.bind("<Control-v>", trigger) # 貼上觸發
         else:
-            # 唯讀禁止修改
-            self.Content_items.config(state="disabled", cursor="arrow")
             # 新建輸出按鈕
             self.Create_button.place(x=520, y=645)
             # 覆蓋輸出按鈕
@@ -311,8 +299,6 @@ class GUI(DataProcessing, TkinterDnD.Tk):
 
     # 觸發轉換
     def Conversion_Trigger(self, OutType):
-        # 重新啟用寫入
-        self.Content_items.config(state="normal", cursor="ibeam")
         # 禁用重置按鈕
         self.Reset.config(state="disabled", cursor="arrow")
 
@@ -376,19 +362,14 @@ class GUI(DataProcessing, TkinterDnD.Tk):
                 while not self.Save.empty():
                     output.write(self.Save.get() + ("\n" if not self.Save.empty() else ""))
 
-            # 完成展示
-            self.Content_items.insert(float(index), f"({index}) {os.path.basename(work)} => [轉換完成: {self.ET(Start)} 秒]\n", self.Success)
-            # 自動滾動到最下方
-            self.Content_items.yview_moveto(1.0)
+            self.InsertText(f"({index}) {os.path.basename(work)} => [轉換完成: {self.ET(Start)} 秒]", "Success")
             # 檔名轉換
             os.rename(self.Output_Name, self.Output_Rename)
 
         except UnicodeDecodeError as e:
-            self.Content_items.insert(float(index), f"({index}) {os.path.basename(work)} => [{str(e).split("@")[1]}]\n", self.Failure)
-            self.Content_items.yview_moveto(1.0)
+            self.InsertText(f"({index}) {os.path.basename(work)} => [{str(e).split("@")[1]}]", "Failure")
         except Exception as e:
-            self.Content_items.insert(float(index), f"(Exception) => {e}\n", self.Failure)
-            self.Content_items.yview_moveto(1.0)
+            self.InsertText(f"(Exception) => {e}", "Failure")
 
         self.lock.release() # 線程鎖釋放
 
