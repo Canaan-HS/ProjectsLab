@@ -4,8 +4,9 @@ import queue
 import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from tkinterdnd2 import DND_FILES, TkinterDnD
 from concurrent.futures import ThreadPoolExecutor
+
+from tkinterdnd2 import DND_FILES, TkinterDnD
 
 import opencc
 import chardet
