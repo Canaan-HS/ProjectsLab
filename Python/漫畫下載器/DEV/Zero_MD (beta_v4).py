@@ -1,4 +1,3 @@
-import os
 import re
 import time
 
@@ -34,7 +33,7 @@ from Script import AutoCapture, Reques
 
 Config = {
     "DownloadPath": "R:/",  # 路徑結尾必須為斜線
-    "RequestDomain": "https://www.zerobywzip.com/",  # 域名修正: https://zerobyw.github.io/
+    "RequestDomain": "https://www.zerobywrar.com/",  # 域名修正: https://zerobyw.github.io/
 }
 
 # ? 請求類的實例
