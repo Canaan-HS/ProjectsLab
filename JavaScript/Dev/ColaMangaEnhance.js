@@ -20,7 +20,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 
-// @require      https://update.greasyfork.org/scripts/487608/1456525/ClassSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/487608/1551580/ClassSyntax_min.js
 // ==/UserScript==
 
 /*
@@ -98,7 +98,7 @@ Todo 未來添加
 
             /* 取得數據 */
             this.Get_Data = async (callback) => {
-                this.WaitMap(["body", "div.mh_readtitle", "div.mh_headpager", "div.mh_readend", "#mangalist"], element => {
+                this.WaitElem(["body", "div.mh_readtitle", "div.mh_headpager", "div.mh_readend", "#mangalist"], element => {
                     const [Body, Title, HeadPager, Readend, Manga] = element;
                     this.Body = Body;
 

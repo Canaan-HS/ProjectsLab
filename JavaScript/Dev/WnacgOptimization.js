@@ -35,7 +35,7 @@
 
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.14.0/jquery-ui.min.js
-// @require     https://update.greasyfork.org/scripts/495339/1456526/ObjectSyntax_min.js
+// @require     https://update.greasyfork.org/scripts/495339/1551581/ObjectSyntax_min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js
 // ==/UserScript==
@@ -392,7 +392,7 @@
             return;
         };
 
-        Syn.WaitMap([
+        Syn.WaitElem([
             ".png.bread", // 廣告
             "#bread", // 廣告容器
             "#photo_body", // 圖片區塊
