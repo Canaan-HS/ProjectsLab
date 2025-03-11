@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ObjectSyntax
-// @version      2025/01/22
+// @version      2025/03/11
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Object Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -45,18 +45,6 @@ const Syn = (() => {
             }
         },
         WaitCore = { // WaitElem() & WaitMap()
-            Options: {
-                raf: false,
-                all: false,
-                timeout: 8,
-                throttle: 50,
-                subtree: true,
-                childList: true,
-                attributes: false,
-                characterData: false,
-                timeoutResult: false,
-                root: document,
-            },
             queryMap: (selector) => {
                 const result = selector.map(select => document.querySelector(select));
                 return result.every(Boolean) && result;
@@ -373,11 +361,19 @@ const Syn = (() => {
          */
         WaitElem: async function (selector, found = null, options = {}) {
             const self = this;
-            const Query = typeof selector === "object" ? WaitCore.queryMap : WaitCore.queryElement; //! 為了性能不做精確檢查 (傳遞錯誤類型就會壞掉)
+            const Query = selector instanceof Array ? WaitCore.queryMap : WaitCore.queryElement; //! 批量查找只能傳 Array
             const {
-                raf, all, root, timeout, throttle,
-                subtree, childList, attributes, characterData, timeoutResult
-            } = Object.assign({}, WaitCore.Options, options);
+                raf=false,
+                all=false,
+                timeout=8,
+                throttle=50,
+                subtree=true,
+                childList=true,
+                attributes=true,
+                characterData=false,
+                timeoutResult=false,
+                root=document
+            } = options ?? {};
 
             return new Promise((resolve, reject) => {
 
@@ -538,7 +534,7 @@ const Syn = (() => {
          * object = ScopeParsing("", object);
          */
         ScopeParsing: (scope, object) => {
-            if (typeof scope != "string" || scope.trim() === "") return object;
+            if (typeof scope !== "string" || scope.trim() === "") return object;
 
             const len = object.length;
             const result = new Set(), exclude = new Set();

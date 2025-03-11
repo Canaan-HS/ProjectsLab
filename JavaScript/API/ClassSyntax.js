@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ClassSyntax
-// @version      2025/01/22
+// @version      2025/03/11
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Class Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -55,18 +55,6 @@ class Syntax {
             }
         };
         this.WaitCore = {
-            Options: {
-            raf: false,
-            all: false,
-            timeout: 8,
-            throttle: 50,
-            subtree: true,
-            childList: true,
-            attributes: false,
-            characterData: false,
-            timeoutResult: false,
-            root: document,
-            },
             queryMap: (selector) => {
                 const result = selector.map(select => document.querySelector(select));
                 return result.every(Boolean) && result;
@@ -380,11 +368,19 @@ class Syntax {
      */
     async WaitElem(selector, found = null, options = {}) {
         const self = this;
-        const Query = typeof selector === "object" ? self.WaitCore.queryMap : self.WaitCore.queryElement; //! 為了性能不做精確檢查 (傳遞錯誤類型就會壞掉)
+        const Query = selector instanceof Array ? self.WaitCore.queryMap : self.WaitCore.queryElement; //! 批量查找只能傳 Array
         const {
-            raf, all, root, timeout, throttle,
-            subtree, childList, attributes, characterData, timeoutResult
-        } = Object.assign({}, self.WaitCore.Options, options);
+            raf=false,
+            all=false,
+            timeout=8,
+            throttle=50,
+            subtree=true,
+            childList=true,
+            attributes=true,
+            characterData=false,
+            timeoutResult=false,
+            root=document
+        } = options ?? {};
 
         return new Promise((resolve, reject) => {
 
@@ -550,7 +546,7 @@ class Syntax {
      * object = ScopeParsing("", object);
      */
     ScopeParsing(scope, object) {
-        if (typeof scope != "string" || scope.trim() === "") return object;
+        if (typeof scope !== "string" || scope.trim() === "") return object;
 
         const len = object.length;
         const result = new Set(), exclude = new Set();
