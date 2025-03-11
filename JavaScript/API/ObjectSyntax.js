@@ -44,7 +44,7 @@ const Syn = (() => {
                 return all ? source.querySelectorAll(select) : source.querySelector(select);
             }
         },
-        WaitCore = { // WaitElem() & WaitMap()
+        WaitCore = { // WaitElem()
             queryMap: (selector) => {
                 const result = selector.map(select => document.querySelector(select));
                 return result.every(Boolean) && result;
