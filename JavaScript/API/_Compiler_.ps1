@@ -16,7 +16,7 @@ $CompilerMode = @(
     "uglifyjs 壓縮/混淆",
     "uglifyjs 壓縮/美化",
     "google-closure-compiler",
-    "uglifyjs [壓縮/混淆] + google-closure-compiler",
+    "uglifyjs [壓縮] + google-closure-compiler",
     "google-closure-compiler + uglifyjs [壓縮/混淆]",
     "google-closure-compiler + uglifyjs [壓縮/美化]"
 )
@@ -195,8 +195,8 @@ $window.FindName("Compiler").Add_Click({
             google-closure-compiler $Path --js_output_file $Compile_Output_GPath
             $OpenPath = $Compile_Output_GPath
         }
-        "Mode4" { # uglifyjs(壓縮/混淆) + google-closure-compiler(預設)
-            uglifyjs $Path -c -m -o $Compile_Output_UPath
+        "Mode4" { # uglifyjs(壓縮) + google-closure-compiler(預設)
+            uglifyjs $Path -c -o $Compile_Output_UPath
             google-closure-compiler $Compile_Output_UPath --js_output_file $Compile_Output_GPath
             $OpenPath = $Compile_Output_GPath
         }
