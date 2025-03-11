@@ -29,7 +29,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1382008/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1551581/ObjectSyntax_min.js
 // @resource     jui https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/base/jquery-ui.min.css
 // ==/UserScript==
 
@@ -149,7 +149,7 @@
 
         /* Live 頁面觸發美化 */
         async Trigger() {
-            Syn.WaitMap([
+            Syn.WaitElem([
                 "nav", // 導覽列
                 ".side-nav", // 頻道元素
                 ".side-nav-section div", // 判斷收合狀態

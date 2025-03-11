@@ -39,7 +39,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.14.0/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1496879/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1551581/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js
 
@@ -1094,7 +1094,7 @@
                     });
 
                 } else if (DLL.IsContent()) { // 是內容頁面
-                    Syn.WaitMap([
+                    Syn.WaitElem([
                         "h1 span:nth-child(2)",
                         ".post__user-name, .scrape__user-name"
                     ], null, {raf: true, timeout: 15}).then(found => {

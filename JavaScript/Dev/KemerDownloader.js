@@ -39,7 +39,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/529004/1548656/JSZip_min.js
-// @require      https://update.greasyfork.org/scripts/495339/1532088/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1551581/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 
 // @resource     json-processing https://cdn-icons-png.flaticon.com/512/2582/2582087.png
