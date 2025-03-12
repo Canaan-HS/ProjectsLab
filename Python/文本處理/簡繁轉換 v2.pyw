@@ -13,9 +13,7 @@ import chardet
 import pyperclip
 
 """
->   Versions 1.0.2 - V2
-
-//  [ 簡轉繁 轉換器 ]
+>   Versions 1.0.2 - V2 (待重構)
 
         ~ (開發/運行環境):
         $ Windows 11 23H2
@@ -46,10 +44,6 @@ import pyperclip
 
         > 單獨轉換:
         & 功能基本同上, 只是變成選擇單個檔案, 但也會受到 SupportFile 的允許類型影響
-
-        ~ 更新說明:
-        1. 修改轉換後文本格式
-        2. 修改判斷檔案類型的方式
 """
 
 class DataProcessing:
@@ -170,12 +164,14 @@ class GUI(DataProcessing, TkinterDnD.Tk):
 
     # 取得文本數據
     def GetText(self, DEL: bool=True, END: str="end-1c"):
-        Text = self.Console.get("1.0", END).splitlines(); Exist = len(Text) > 0
+        Text = self.Console.get("1.0", END)
+        Exist = bool(Text.strip())
+
         if DEL and Exist:
             self.Console.config(state="normal")
             self.Console.delete("1.0", "end")
-            self.Console.config(state="disabled")
-        return Text if Exist and Text[0] != "" else False
+
+        return Text.splitlines() if Exist else []
 
     # 插入文本數據
     def InsertText(self, text, *args):
@@ -271,7 +267,7 @@ class GUI(DataProcessing, TkinterDnD.Tk):
                     for index, text in enumerate(TexT): # 使用線程池 以多線程進行轉換
                         change = executor.submit(self.Text_conversion, text).result() + ("" if index == length else "\n")
                         scrapbook += change # 結果合併成一個字串
-                        self.InsertText(change) # 結果插入文本框
+                        self.Console.insert("end", f"{change}\n") # 結果插入文本框 (獨立調用插入)
                     pyperclip.copy(scrapbook) # 將結果添加到使用者 剪貼簿
 
             # 焦點狀態
@@ -284,7 +280,8 @@ class GUI(DataProcessing, TkinterDnD.Tk):
             def focus_out(event):
                 self.WaitClear = True
 
-            self.Console.config(font=("Courier", 12))
+            # 修改預設狀態
+            self.Console.config(font=("Courier", 12), cursor="ibeam", state="normal")
 
             self.Console.bind("<FocusIn>", focus_in)
             self.Console.bind("<FocusOut>", focus_out)
@@ -332,8 +329,8 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         FileName = os.path.basename(work)
 
         if OutType == "create":
-            self.Output_Name = os.path.join(Directory, f"(繁體轉換){FileName}")
-            self.Output_Rename = os.path.join(Directory, f"(繁體轉換){self.Text_conversion(FileName)}")
+            self.Output_Name = os.path.join(Directory, f"(繁體轉換) {FileName}")
+            self.Output_Rename = os.path.join(Directory, f"(繁體轉換) {self.Text_conversion(FileName)}")
         elif OutType == "override":
             self.Output_Name = work
             self.Output_Rename = os.path.join(Directory, self.Text_conversion(FileName))
