@@ -15,7 +15,7 @@ from rich.console import Console
 
         ? (開發/運行環境):
         * Windows 11 23H2
-        * Python 3.12.8 64-bit
+        * Python 3.12.9 64-bit
 
         * 第三方庫:
         * rich
@@ -38,7 +38,7 @@ class Read(tk.Tk):
         super().__init__()
         self.Folder_Path = None
         self.Complete_Data = None
-        
+
         self.withdraw() # 隱藏主視窗
         self.attributes('-topmost', True) # 置頂主視窗
 
@@ -63,7 +63,7 @@ class Read(tk.Tk):
 
     # 解析開啟的路徑數據
     def Analysis(self, Path=None):
-        
+
         self.Folder_Path = Path # 可直接給予測試用路徑
         Data = self.__Read_All_Files() if Path else self.__Open_Folder()
 
