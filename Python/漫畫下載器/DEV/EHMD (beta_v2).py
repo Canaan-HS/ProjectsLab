@@ -2,6 +2,7 @@ from Script import AutoCapture, Reques, Get
 from collections import OrderedDict
 from concurrent.futures import *
 from multiprocessing import *
+from pathlib import Path
 import multiprocessing
 from tqdm import tqdm
 import aiohttp
@@ -48,6 +49,8 @@ import os
 
         * 傳入網址於 download_request() or 測試通道 , 即可開始請求下載
 """
+
+os.chdir(Path(__file__).parent)
 
 #Todo [手動獲取Cookie, 並保存Josn文件]
 def cookie_get():
