@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from bs4 import BeautifulSoup
 from lxml import etree
 import requests
@@ -13,8 +14,8 @@ Todo    適用於 Python 3.10+
 class CarryHead:
     # 使用 navigator.userAgent 直接獲取
     Head = {
-        "Google": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"},
-        "Edge": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0"}
+        "Google": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"},
+        "Edge": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0"}
     }
 
 class Reques(CarryHead):
@@ -23,7 +24,7 @@ class Reques(CarryHead):
         * headers: 自定字典或是, "Google" or "Edge"
         * cookies: 傳入字典 cookie
         """
-        self.client = httpx.Client(http2=True)
+        self.client = httpx.Client(http2=True, timeout=3)
         self.session = requests.Session()
         self.headers = self.Head[headers.capitalize()] if isinstance(headers, str) else headers if isinstance(headers, dict) else None
         self.cookies = cookies
@@ -57,10 +58,13 @@ class Reques(CarryHead):
         return wrapper
 
     def head(self, url: str) -> int:
-        return self.__Parse(
-            self.session.head(url, headers=self.headers, cookies=self.cookies),
-            "status"
-        )
+        try:
+            return self.__Parse(
+                self.session.head(url, headers=self.headers, cookies=self.cookies, timeout=3),
+                "status"
+            )
+        except requests.exceptions.Timeout:
+            return SimpleNamespace(text="Request Timeout", status_code=408)
 
     def get(self, url: str, type: str="text") -> any:
         """
@@ -76,16 +80,22 @@ class Reques(CarryHead):
         "tree" => lxml 進行解析
         "bf" => bs4 進行解析
         """
-        return self.__Parse(
-            self.session.get(url, headers=self.headers, cookies=self.cookies),
-            type
-        )
+        try:
+            return self.__Parse(
+                self.session.get(url, headers=self.headers, cookies=self.cookies, timeout=3),
+                type
+            )
+        except requests.exceptions.Timeout:
+            return SimpleNamespace(text="Request Timeout", status_code=408)
 
     def http2_head(self, url: str) -> int:
-        return self.__Parse(
-            self.client.head(url, headers=self.headers, cookies=self.cookies),
-            "status"
-        )
+        try:
+            return self.__Parse(
+                self.client.head(url, headers=self.headers, cookies=self.cookies),
+                "status"
+            )
+        except httpx.ConnectTimeout:
+            return SimpleNamespace(text="Request Timeout", status_code=408)
 
     def http2_get(self, url: str, type: str="text") -> any:
         """
@@ -101,10 +111,13 @@ class Reques(CarryHead):
         "tree" => lxml 進行解析
         "bf" => bs4 進行解析
         """
-        return self.__Parse(
-            self.client.get(url, headers=self.headers, cookies=self.cookies),
-            type
-        )
+        try:
+            return self.__Parse(
+                self.client.get(url, headers=self.headers, cookies=self.cookies),
+                type
+            )
+        except httpx.ConnectTimeout:
+            return SimpleNamespace(text="Request Timeout", status_code=408)
 
     async def async_http_get(self, url: str) -> object:
         """
