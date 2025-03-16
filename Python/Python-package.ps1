@@ -167,20 +167,18 @@ function Install {
     Print "===================="
     Print "PIP Update =>" Yellow
     Print "====================`n"
-    python.exe -m pip install --upgrade pip
+
+    pip install --upgrade pip
+    pip install --upgrade wheel
+    pip install --upgrade setuptools
 
     Print "`n===================="
     Print "Install Package" Yellow
     Print "====================`n"
+
     foreach ($package in $Package) {
         pip install --upgrade $package
     }
-
-    Print "`n===================="
-    Print "Package Update" Yellow
-    Print "====================`n"
-    pip install --upgrade setuptools
-    pip install --upgrade wheel
 
     Print "`n===================="
     Print "Install Is Complete" Yellow
