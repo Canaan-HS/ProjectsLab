@@ -1,9 +1,11 @@
-import subprocess
-import importlib
-import threading
-import random
-import time
 import os
+import time
+import shutil
+import random
+import threading
+import importlib
+import subprocess
+
 
 # 檢查使用庫
 def Library_installation_detection(lib):
@@ -11,10 +13,14 @@ def Library_installation_detection(lib):
         importlib.import_module(lib)
     except:
         subprocess.check_call(["pip", "install", lib])
-for check in ["undetected_chromedriver"]:
+
+
+for check in ["selenium", "undetected_chromedriver"]:
     Library_installation_detection(check)
 
 import undetected_chromedriver as uc
+from selenium.webdriver.support.ui import WebDriverWait
+
 
 class Chrome(uc.Chrome):
     def __del__(self):
@@ -23,54 +29,83 @@ class Chrome(uc.Chrome):
         except:
             pass
 
+
 class TestBrowser:
+    __version__ = "1.0.1"
+
     def __init__(self):
-        self.driver_path = rf"{os.path.dirname(os.path.abspath(__file__))}\driver\chromedriver.exe"
-        self.Settings = uc.ChromeOptions()
-        self.Version = "1.0.0"
-        self.driver = None
+        self.Driver = None
+        self.DriverPath = (
+            rf"{os.path.dirname(os.path.abspath(__file__))}\driver\chromedriver.exe"
+        )
+        self.CachePath = "R:/UndetectedCache"
+        self.Chrome = uc.ChromeOptions()
 
-    def Setting_Options(self):
-        self.Settings.add_argument("--incognito")
-        self.Settings.add_argument("--log-level=3")
-        self.Settings.add_argument("--no-first-run")
-        self.Settings.add_argument("--start-maximized")
-        self.Settings.add_argument("--disable-infobars")
-        self.Settings.add_argument("--disable-extensions")
-        self.Settings.add_argument("--no-service-autorun")
-        self.Settings.add_argument("--disable-file-system")
-        self.Settings.add_argument("--disable-geolocation")
-        self.Settings.add_argument("--disable-notifications")
-        self.Settings.add_argument("--password-store=disabled")
-        self.Settings.add_argument("--disable-popup-blocking") 
-        self.Settings.add_argument("--no-default-browser-check")
-        self.Settings.add_argument("--profile-directory=Default")
-        self.Settings.add_argument("--disable-blink-features=AutomationControlled")
-        self.Settings.add_argument(f"--remote-debugging-port={random.randint(1024, 65535)}")
+    def LoadWait(self):
+        WebDriverWait(self.Driver, 10).until(
+            lambda driver: driver.execute_script("return document.readyState")
+            == "complete"
+        )
 
-        self.Settings.headless = False
-        return self.Settings
+    def Options(self):
+        self.Chrome.add_argument("--incognito")
+        self.Chrome.add_argument("--log-level=3")
+        self.Chrome.add_argument("--no-first-run")
+        self.Chrome.add_argument("--start-maximized")
+        self.Chrome.add_argument("--disable-infobars")
+        self.Chrome.add_argument("--disable-extensions")
+        self.Chrome.add_argument("--no-service-autorun")
+        self.Chrome.add_argument("--disable-file-system")
+        self.Chrome.add_argument("--disable-geolocation")
+        self.Chrome.add_argument("--disable-notifications")
+        self.Chrome.add_argument("--disable-popup-blocking")
+        self.Chrome.add_argument("--password-store=disabled")
+        self.Chrome.add_argument("--no-default-browser-check")
+        self.Chrome.add_argument("--profile-directory=Default")
+        self.Chrome.add_argument(f"--user-data-dir={self.CachePath}")
+        self.Chrome.add_argument("--disable-blink-features=AutomationControlled")
+        self.Chrome.add_argument(
+            f"--remote-debugging-port={random.randint(1024, 65535)}"
+        )
 
-    def Enable_browsing(self, url:str ="https://www.google.com.tw/"):
-        self.driver = Chrome(
+        self.Chrome.headless = False
+        return self.Chrome
+
+    def Enable_browsing(
+        self, url: str = "https://www.google.com.tw/", UserDat: str = None
+    ):
+        if UserDat:
+            self.CachePath = UserDat
+
+        self.Driver = Chrome(
             version_main=133,
             advanced_elements=True,
-            options=self.Setting_Options(),
-            driver_executable_path=self.driver_path
+            options=self.Options(),
+            driver_executable_path=self.DriverPath,
         )
-        self.driver.delete_all_cookies()
-        self.driver.execute_script('Object.defineProperty(navigator, "webdriver", {get: () => undefined})')
 
-        self.driver.get(url)
+        self.Driver.delete_all_cookies()
+        self.Driver.get(url)
+        self.LoadWait()
+        self.Driver.execute_script(
+            'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
+        )
 
-        threading.Thread(target=self.detection).start()
+        os.system("cls")
+        print(f"{self.__version__} Undetected 瀏覽器啟動完成...")
+        threading.Thread(target=self.Detection).start()
 
-    def get_version(self):
-        return self.Version
+        return self.Driver
 
-    def detection(self):
+    def Detection(self):
         try:
-            while self.driver.window_handles:
+            while self.Driver.window_handles:
                 time.sleep(3)
         except:
-            self.driver.quit()
+            self.Driver.quit()
+
+            if "cache" in self.CachePath.lower():
+                shutil.rmtree(self.CachePath)
+                print("緩存數據已清除")
+        finally:
+            os._exit(0)
