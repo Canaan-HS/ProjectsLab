@@ -2,6 +2,7 @@ from Script import AutoCapture, Reques, Get
 from collections import OrderedDict
 from concurrent.futures import *
 from multiprocessing import *
+from pathlib import Path
 from tqdm import tqdm
 import itertools
 import asyncio
@@ -35,6 +36,8 @@ import os
         ? 更新說明:
         * 使用 3.12 運行時, 有不知原因的 BUG, 沒有任何錯誤訊息, 暫時無法正常使用
 """
+
+os.chdir(Path(__file__).parent)
 
 #Todo [ 手動獲取Cookie, 並保存Josn文件 ]
 def cookie_get():
