@@ -1,19 +1,26 @@
+from pathlib import Path
 import pickle
 import json
 import os
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+os.chdir(Path(__file__).parent)
+
+
 # 使用絕對路徑 , 創建 user-data-dir 時 , 會創建完整的數據
-def data_location():
-    return "WebsiteData"
+data_location = lambda: "WebsiteData"
+
 
 def import_json(Json_name):
-    with open(Json_name , "r", encoding="utf-8") as file:
+    with open(Json_name, "r", encoding="utf-8") as file:
         return json.loads(file.read())
 
+
 def output_json(Json_name, Json_data):
-    with open(Json_name , "w", encoding="utf-8") as file:
-        file.write(json.dumps(Json_data, indent=4, separators=(",", ":"), ensure_ascii=False))
+    with open(Json_name, "w", encoding="utf-8") as file:
+        file.write(
+            json.dumps(Json_data, indent=4, separators=(",", ":"), ensure_ascii=False)
+        )
+
 
 # 數據輸入
 class DataImport:
@@ -21,32 +28,32 @@ class DataImport:
         self.path = data_location()
 
     def get_website_data(self, web: str):
-        data_path = os.path.join(self.path, f"{web}_default")
+        data_path = self.path / f"{web}_default"
 
-        if os.path.exists(data_path):
+        if Path(data_path).exists():
             return data_path
         else:
             self.create_folder(data_path)
             return data_path
 
     def get_website_cookie(self, web: str):
-        data_path = os.path.join(self.path, f"{web}_default\\{web}_cookies.json")
+        data_path = self.path / f"{web}_default/{web}_cookies.json"
 
-        if os.path.exists(data_path):
+        if Path(data_path).exists():
             return import_json(data_path)
         else:
             return None
-        
+
     def get_json(self, path: str):
-        if os.path.exists(path):
+        if Path(path).exists():
             return import_json(path)
         else:
             return "Error Path"
 
     def get_acc(self):
-        data_path = os.path.join(os.getcwd(), "Account.json")
+        data_path = "Account.json"
 
-        if os.path.exists(data_path):
+        if Path(data_path).exists():
             Account = import_json(data_path)
             return Account
         else:
@@ -54,26 +61,27 @@ class DataImport:
                 "Genshin_account": "",
                 "Genshin_password": "",
                 "StarRail_account": "",
-                "StarRail_password": ""
+                "StarRail_password": "",
             }
             output_json(data_path, Format)
             return None
-        
+
     def create_folder(self, name):
         os.mkdir(name)
+
 
 # 數據輸出
 class DataOutput:
     def __init__(self):
         self.path = data_location()
         self.cookie_save = []
-        
+
     def json_record(self, path, name, record):
-        output_json(f"{path}\\{name}.json", record)
+        output_json(f"{path}/{name}.json", record)
 
     def json_cookie(self, cookies: dict, web: str):
         self.cookie_save.clear()
-        data_path = os.path.join(self.path, f"{web}_default")
+        data_path = self.path / f"{web}_default"
 
         for cookie in cookies:
             cookie_dict = {}
@@ -81,11 +89,12 @@ class DataOutput:
             cookie_dict["value"] = cookie["value"]
             self.cookie_save.append(cookie_dict)
 
-        output_json(f"{data_path}\\{web}_cookies.json", self.cookie_save)
+        output_json(f"{data_path}/{web}_cookies.json", self.cookie_save)
 
     def pkl_cookie(self, cookies: dict, web: str):
-        data_path = os.path.join(self.path, f"{web}_default")
-        pickle.dump(cookies, open(f"{data_path}\\{web}_cookies.pkl","wb"))
+        data_path = self.path / f"{web}_default"
+        pickle.dump(cookies, open(f"{data_path}/{web}_cookies.pkl", "wb"))
+
 
 DI = DataImport()
 DO = DataOutput()
