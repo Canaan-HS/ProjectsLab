@@ -86,16 +86,16 @@ class AutomationRequest:
     
     def AGCookie(self, url: str, json: str):
         """
-    自動請求 Cookie
-    >>> 參數
+        自動請求 Cookie
+        >>> 參數
 
-    *   url  請求的連結
-    *   json 請求成功後創建的 .json 名稱 (不需要打.json)
+        *   url  請求的連結
+        *   json 請求成功後創建的 .json 名稱 (不需要打.json)
 
-    >>> 說明
+        >>> 說明
 
-    *   回傳 True / False 為請求成功狀態
-    *   預設有 30 秒的超時時間 , 超過這時間沒有請求到 , 將會回傳 False
+        *   回傳 True / False 為請求成功狀態
+        *   預設有 30 秒的超時時間 , 超過這時間沒有請求到 , 將會回傳 False
         """
         print("嘗試獲取 Cookie ==>")
         try:
