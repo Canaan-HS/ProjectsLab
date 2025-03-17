@@ -34,7 +34,7 @@ import os
         * 設置完成後啟用程式 即可自動擷取剪貼簿 擷取完成透過熱鍵 觸發請求下載
 
         ? 更新說明:
-        * 使用 3.12 運行時, 有不知原因的 BUG, 沒有任何錯誤訊息, 暫時無法正常使用
+        * 許久沒維護 大概無法正常運行
 """
 
 os.chdir(Path(__file__).parent)
@@ -207,7 +207,7 @@ class NHentaidownloader(Validation):
         # Todo [ 生成網址輪替數據 ]
         self.shunt = ["i", "i2", "i3", "i5", "i7"] # 分流
         self.server = itertools.cycle(self.shunt) # 循環迭代器
-        self.extension = ["jpg", "png", "gif"] # 擴展名
+        self.extension = ["jpg", "png", "gif", "jpeg", "webp"] # 擴展名
         # Todo [ 下載參數設置 ]
         self.TitleFormatting = None
         self.ProtectionDelay = None # 下載的延遲
@@ -472,12 +472,13 @@ class NHentaidownloader(Validation):
         directory = os.path.dirname(path)
         if not os.path.exists(directory):
             os.mkdir(directory)
+            
+        end = "\r\n"
         with open(path, "a+", newline="") as csvfile:
-            end = ", "
             csvfile.seek(0) #* 回到開頭讀取
             try: #* 當空數據時會出例外
                 if csvfile.readlines()[-1].count(",") == 19: #* 取得最後一行數據量(每 20 筆就換行)
-                    end = ",\r\n"
+                    end = "\r\n"
             except:pass
             #* 設置數據格式
             csvwriter = csv.writer(
@@ -502,11 +503,11 @@ class NHentaidownloader(Validation):
     #? [ 下載重試 ]
     def error_download_try_again(self, path, link):
 
-        domain = link.rsplit(".", 1)[0] #* 域名拆分
+        domain = re.sub(r'//[^/\.]+(?=\.)', r'//#', link.rsplit(".", 1)[0]) #* 域名拆分
 
         for server in self.shunt:
             for expand in self.extension:
-                download_link = f"{domain.replace(link[8:10], server)}.{expand}"
+                download_link = f"{domain.replace("#", server)}.{expand}"
                 tryerror = self.get(download_link, "none")
 
                 if tryerror.status_code == 200:
