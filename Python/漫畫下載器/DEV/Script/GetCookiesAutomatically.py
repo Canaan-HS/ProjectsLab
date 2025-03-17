@@ -12,6 +12,7 @@ class Chrome(uc.Chrome):
         except:
             pass
 
+#! 較新的 Python 不支援以下語法, 此實現已經很久沒維護
 class AutomationRequest:
     def __init__(self):
         self.driver_path = rf"{os.path.dirname(os.path.abspath(__file__))}\driver\chromedriver.exe"
@@ -25,9 +26,9 @@ class AutomationRequest:
 
     def browser_reset(self):
         """
-    !   注意
-    *   此重置方法將會關閉 Google 瀏覽器
-    *   接著會重裝相關依賴庫
+        !   注意
+        *   此重置方法將會關閉 Google 瀏覽器
+        *   接著會重裝相關依賴庫
         """
         print("重置中請稍後...")
         # 關閉 Google
