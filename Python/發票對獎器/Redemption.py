@@ -40,10 +40,10 @@ class WinningInstructions:
 class DataProcessing:
     def __init__(self) -> None:
         self.Redemption_Data = None
-        self.client = httpx.Client(http2=True)
+        self.client = httpx.Client(http2=True, verify=False)
         self.Headers = {
             "Cache-Control": "no-cache",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
         }
 
     def __Get_Data(self, Uri) -> etree.Element:
@@ -53,7 +53,7 @@ class DataProcessing:
                 return etree.HTML(data.text)
             else:
                 raise Exception()
-        except:
+        except Exception as e:
             os.system("cls")
             print("網站連接失敗, 檢查網路或伺服器")
             os._exit(0)
