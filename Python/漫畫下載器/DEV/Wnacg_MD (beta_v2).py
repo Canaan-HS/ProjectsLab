@@ -1,10 +1,7 @@
 from Script.AutomaticCapture import AutoCapture
 from collections import OrderedDict
-# 主要使用 concurrent.futures 的進程池和線程池加速處理下載
 from concurrent.futures import *
-# multiprocessing 的 Pool 進程池創建只能在主模塊使用
 from multiprocessing import *
-# 網址中文字解析
 from urllib.parse import *
 from lxml import etree
 from tqdm import tqdm
@@ -57,7 +54,7 @@ def DomainName():
     return "https://www.wnacg.com"
 
 # 下載路徑設置
-dir = os.path.abspath("R:/")
+dir = "R:/"
 os.chdir(dir)
 
 # 精準處理下載
