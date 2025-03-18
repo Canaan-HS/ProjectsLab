@@ -267,7 +267,7 @@ class GUI(DataProcessing, TkinterDnD.Tk):
                     for index, text in enumerate(TexT): # 使用線程池 以多線程進行轉換
                         change = executor.submit(self.Text_conversion, text).result() + ("" if index == length else "\n")
                         scrapbook += change # 結果合併成一個字串
-                        self.Console.insert("end", f"{change}\n") # 結果插入文本框 (獨立調用插入)
+                        self.Console.insert("end", change) # 結果插入文本框 (獨立調用插入)
                     pyperclip.copy(scrapbook) # 將結果添加到使用者 剪貼簿
 
             # 焦點狀態
