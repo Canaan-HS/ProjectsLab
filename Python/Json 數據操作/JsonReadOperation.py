@@ -2,6 +2,7 @@ import json
 import time
 import os
 
+
 class ReadJson:
     def __init__(self):
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -18,14 +19,16 @@ class ReadJson:
 
     def __read_json(self):
         try:
-            with open(self.Json_name , "r" , encoding="utf-8") as file:
+            with open(self.Json_name, "r", encoding="utf-8") as file:
                 self.Json_data = json.loads(file.read())
             return True
         except:
             print("找不到設置的 Json 文件")
             return False
 
-    def open_url(self, JsonName: str, StopLine: int, Location: int=0, OutPut: bool=False):
+    def open_url(
+        self, JsonName: str, StopLine: int, Location: int = 0, OutPut: bool = False
+    ):
         """
         讀取 Json 值中的 URL , 並開啟網址的方法
         * JsonName 設置要開啟的 Json 檔全名 例 : Test.json
@@ -54,7 +57,9 @@ class ReadJson:
                             self.Calculate = 0
                             amount -= self.Stop_Line
 
-                            n = input(f"按下Enter繼續測試 [剩餘:{amount}] [輸入 0 結束] : ")
+                            n = input(
+                                f"按下Enter繼續測試 [剩餘:{amount}] [輸入 0 結束] : "
+                            )
                             if n == "0":
                                 self.Operation_Pass = False
                         else:
@@ -74,7 +79,9 @@ class ReadJson:
         except ValueError:
             print("Location 只有 0 和 1")
 
-    def cookie_parsing(self, JsonName: str, ShowDict: bool=False, OutPut: bool=False):
+    def cookie_parsing(
+        self, JsonName: str, ShowDict: bool = False, OutPut: bool = False
+    ):
         """
         讀取 Json 格式的 Cookie , 並分類出有用的部份
         * JsonName 設置要開啟的 Json 檔全名 例 : Test.json
@@ -97,7 +104,9 @@ class ReadJson:
             if OutPut:
                 self.__output(self.Json_Operation_A)
 
-    def cookie_parsing_2(self, JsonName: str, ShowDict: bool=False, OutPut: bool=False):
+    def cookie_parsing_2(
+        self, JsonName: str, ShowDict: bool = False, OutPut: bool = False
+    ):
         """
         讀取 Json 格式的 Cookie , 保留原數據格式解析方法
         * JsonName 設置要開啟的 Json 檔全名 例 : Test.json
@@ -121,7 +130,7 @@ class ReadJson:
             if OutPut:
                 self.__output(self.Json_special)
 
-    def json_to_txt(self, JsonName: str, Location: int=0, Delete: bool=False):
+    def json_to_txt(self, JsonName: str, Location: int = 0, Delete: bool = False):
         """
         將 Json 檔 Key 或 Value 的值 , 變成 txt 文字輸出
         * JsonName 設置要開啟的 Json 檔全名 例 : Test.json
@@ -136,15 +145,17 @@ class ReadJson:
             state = self.__read_json()
 
             if state:
-                with open(self.Json_name.replace(".json", ".txt"), "w", encoding="utf-8") as file:
-                    for index , (key , value) in enumerate(self.Json_data.items()):
+                with open(
+                    self.Json_name.replace(".json", ".txt"), "w", encoding="utf-8"
+                ) as file:
+                    for index, (key, value) in enumerate(self.Json_data.items()):
                         if Location == 0:
                             file.write(key)
                         elif Location == 1:
                             file.write(value)
-                        elif Location == 2: 
+                        elif Location == 2:
                             file.write(f"[{key}] : [{value}]")
-                        if index != len(self.Json_data) - 1: # 最後一行以前都換行
+                        if index != len(self.Json_data) - 1:  # 最後一行以前都換行
                             file.write("\n")
                 if Delete:
                     os.system(f"del /f /s /q {self.Json_name} >nul 2>&1")
@@ -154,13 +165,20 @@ class ReadJson:
         except ValueError:
             print("Location 範圍 0 ~ 2")
 
-    def json_str_split(self, JsonName: str, Location: int=0, Split: list=[], FilterMode: bool=False, Delete: bool=False):
+    def json_str_split(
+        self,
+        JsonName: str,
+        Location: int = 0,
+        Split: list = [],
+        FilterMode: bool = False,
+        Delete: bool = False,
+    ):
         """
         [此方法是以含有指定類型的文字進行分割]
         將 Json 檔 Key 或 Value 的值 , 作為判斷的基準 , 根據 Split 參數進行分割
         * JsonName 設置要開啟的 Json 檔全名 例 : Test.json
         * Location 設置轉換的值 [0 使用 Key , 1 使用 Value]
-        * Split 設置要分割的 list , 會找出含有該 list 內字串的項目進行分割 
+        * Split 設置要分割的 list , 會找出含有該 list 內字串的項目進行分割
         * FilterMode 過濾模式 , 啟用後就不是分割 , 而是過濾掉設置的 Split 項目
         * Delete 是否將原始的 Json 檔案刪除
         """
@@ -176,7 +194,7 @@ class ReadJson:
 
             if state:
                 judge_str = None
-                for key , value in self.Json_data.items():
+                for key, value in self.Json_data.items():
                     judge_bool = False
 
                     if Location == 0:
@@ -194,10 +212,16 @@ class ReadJson:
                         self.Json_Operation_B[key] = value
 
                 if FilterMode:
-                    self.__split_output(f"[Filter]_{JsonName}", self.Json_Operation_B, Delete)
+                    self.__split_output(
+                        f"[Filter]_{JsonName}", self.Json_Operation_B, Delete
+                    )
                 else:
-                    self.__split_output(f"[ClassA]_{JsonName}", self.Json_Operation_B, Delete)
-                    self.__split_output(f"[ClassB]_{JsonName}", self.Json_Operation_A, Delete)
+                    self.__split_output(
+                        f"[ClassA]_{JsonName}", self.Json_Operation_B, Delete
+                    )
+                    self.__split_output(
+                        f"[ClassB]_{JsonName}", self.Json_Operation_A, Delete
+                    )
 
         except ValueError:
             print("Location 只有 0 和 1")
@@ -206,22 +230,22 @@ class ReadJson:
 
     def __output(self, data):
         if len(data) > 0:
-            with open(self.Json_name , "w" , encoding="utf-8") as file:
-                file.write(json.dumps(data, indent=4, separators=(',',':')))
+            with open(self.Json_name, "w", encoding="utf-8") as file:
+                file.write(json.dumps(data, indent=4, separators=(",", ":")))
             print("輸出完成...")
 
     def __output_delete(self, data):
         if len(data) > 0:
-            with open(self.Json_name , "w" , encoding="utf-8") as file:
-                file.write(json.dumps(data, indent=4, separators=(',',':')))
+            with open(self.Json_name, "w", encoding="utf-8") as file:
+                file.write(json.dumps(data, indent=4, separators=(",", ":")))
             print("輸出完成...")
         else:
             os.system(f"del /f /s /q {self.Json_name} >nul 2>&1")
             print(f"已刪除 {self.Json_name}")
 
     def __split_output(self, name, data, delete):
-        with open(name , "w" , encoding="utf-8") as file:
-            file.write(json.dumps(data, indent=4, separators=(',',':')))
+        with open(name, "w", encoding="utf-8") as file:
+            file.write(json.dumps(data, indent=4, separators=(",", ":")))
         print(f"{name} => 輸出完成")
 
         if delete:
@@ -229,15 +253,16 @@ class ReadJson:
                 os.system(f"del /f /s /q {self.Json_name} >nul 2>&1")
                 print(f"已刪除 {self.Json_name}")
 
+
 if __name__ == "__main__":
     rj = ReadJson()
     # 開啟網頁連結
-    rj.open_url("範圍401-999.json", 10, OutPut=True)
+    # rj.open_url("範圍401-999.json", 10, OutPut=True)
 
     # 解析 cookie (只保留數值)
     # rj.cookie_parsing("Cookies.json",OutPut=True)
 
-    # 解析 cookie (保留 name 和 value 的 key 值)
+    # 解析 cookie (保留 name 和 value 的值)
     # rj.cookie_parsing_2("Cookies.json",OutPut=True)
 
     # 將 Json 文件內容轉成 txt
