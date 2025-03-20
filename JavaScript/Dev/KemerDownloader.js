@@ -1066,7 +1066,7 @@
 
                                         if (Json) {
                                             const Post = Json.post;
-                                            const Title = Post.title.trim();
+                                            const Title = Post.title.trim() || `Untitled_${String(index + 1).padStart(2, "0")}`;
 
                                             // 對下載連結進行分類
                                             const File = this.AdvancedCategorize(Json.attachments);
@@ -1121,7 +1121,7 @@
                                         throw new Error("Request Failed");
                                     }
                                 } catch (error) {
-                                    Syn.Log(error, { title: title, url: url }, { dev: Config.Dev, type: "error", collapsed: false });
+                                    Syn.Log(error, { index: index, title: title, url: url }, { dev: Config.Dev, type: "error", collapsed: false });
                                     await this.TooMany_TryAgain(url); // 錯誤等待
                                     this.Worker.postMessage({ index: index, title: title, url: url });
                                 }
