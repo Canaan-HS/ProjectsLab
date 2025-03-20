@@ -1,3 +1,6 @@
+// npm install playwright
+// npx playwright install
+
 const { chromium } = require('playwright');
 
 (async () => {
