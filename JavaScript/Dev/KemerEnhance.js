@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.49-Beta7
+// @version      0.0.49-Beta8
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -965,21 +965,45 @@
                 Syn.WaitElem("aside", null, {object: document, timeout: 5}).then(aside => aside.remove());
             },
             BlockAds: async (Config) => { /* (阻止/封鎖)廣告 */
+                const cookieString = document.cookie;
+                const required = ["ts_popunder", "ts_popunder-cnt"];
+                const hasCookies = required.every(name => new RegExp(`(?:^|;\\s*)${name}=`).test(cookieString));
+
+                if (!hasCookies) {
+                    const now = new Date();
+                    now.setFullYear(now.getFullYear() + 1);
+                    const expires = now.toUTCString();
+
+                    const cookies = {
+                        [required[0]]: now,
+                        [required[1]]: 1
+                    };
+
+                    for (const [key, value] of Object.entries(cookies)) {
+                        document.cookie = `${key}=${value}; domain=.${Syn.Device.Host}; path=/; expires=${expires};`;
+                    }
+                };
+
                 Syn.AddStyle(`
-                    .ipprtcnt, .root--ujvuu, .ad-container {display: none !important}
+                    .root--ujvuu, [id^="ts_ad_native_"], [id^="ts_ad_video_"] {display: none !important}
                 `, "Ad-blocking-style", false);
-                Syn.AddScript(`
+                Syn.AddScript(String.raw`
+                    const domains = [
+                        "go.mnaspm.com", "go.reebr.com",
+                        "creative.reebr.com", "tsyndicate.com", "tsvideo.sacdnssedge.com"
+                    ];
+                    const adRegex = new RegExp("(?:" + domains.join("|").replace(/\./g, "\\.") + ")");
                     const XMLRequest = XMLHttpRequest.prototype.open;
                     const Ad_observer = new MutationObserver(() => {
                         XMLHttpRequest.prototype.open = function(method, Url) {
-                            if (Url.endsWith(".m3u8") || Url === "https://s.magsrv.com/v1/Syn.php") {return}
+                            if (Url.endsWith(".m3u8") || adRegex.test(Url)) { return; }
                             XMLRequest.apply(this, arguments);
                         };
-                        document.querySelector("div.ex-over-btn")?.click();
-                        document.querySelector(".root--ujvuu button")?.click();
+                        // document.querySelector("div.ex-over-btn")?.click();
+                        // document.querySelector(".root--ujvuu button")?.click();
                     });
                     Ad_observer.observe(document.head, {childList: true, subtree: true});
-                `, "Ad-blocking-script", false);
+                `, "Ad-blocking-script", false);                
             },
             TextToLink: async (Config) => { /* 連結文本轉連結 */
                 if (!DLL.IsContent() && !DLL.IsAnnouncement()) return;
