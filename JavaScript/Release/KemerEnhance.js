@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.49-Beta7
+// @version      0.0.49-Beta8
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -19,7 +19,7 @@
 // @match        *://*.coomer.su/*
 // @match        *://*.nekohouse.su/*
 
-// @license      MIT
+// @license      MPL-2.0
 // @namespace    https://greasyfork.org/users/989635
 // @icon         https://cdn-icons-png.flaticon.com/512/2566/2566449.png
 
@@ -39,7 +39,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.14.0/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1496879/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1551581/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js
 
@@ -51,11 +51,11 @@
     /*! mode: 某些功能可以設置模式 (輸入數字), enable: 是否啟用該功能 (布林) !*/
     const User_Config = {
         Global: {
-            BlockAds: {mode: 0, enable: true}, // 阻擋廣告
-            BackToTop: {mode: 0, enable: true}, // 翻頁後回到頂部
-            KeyScroll: {mode: 1, enable: true}, // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的)
-            DeleteNotice: {mode: 0, enable: true}, // 刪除上方公告
-            SidebarCollapse: {mode: 0, enable: true}, // 側邊攔摺疊
+            BlockAds: { mode: 0, enable: true }, // 阻擋廣告
+            BackToTop: { mode: 0, enable: true }, // 翻頁後回到頂部
+            KeyScroll: { mode: 1, enable: true }, // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的)
+            DeleteNotice: { mode: 0, enable: true }, // 刪除上方公告
+            SidebarCollapse: { mode: 0, enable: true }, // 側邊攔摺疊
             FixArtist: { // 修復作者名稱
                 mode: 0,
                 enable: true,
@@ -72,9 +72,9 @@
             },
         },
         Preview: {
-            CardZoom: {mode: 2, enable: true}, // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
-            CardText: {mode: 2, enable: true}, // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
-            QuickPostToggle: {mode: 0, enable: true}, // 快速切換帖子 (部份網站失效)
+            CardZoom: { mode: 2, enable: true }, // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
+            CardText: { mode: 2, enable: true }, // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
+            QuickPostToggle: { mode: 0, enable: true }, // 快速切換帖子 (部份網站失效)
             NewTabOpens: { // 預覽頁面的帖子都以新分頁開啟 (部份網站失效)
                 mode: 0,
                 enable: true,
@@ -83,10 +83,10 @@
             },
         },
         Content: {
-            ExtraButton: {mode: 0, enable: true}, // 額外的下方按鈕 (存在 Bug)
-            LinkBeautify: {mode: 0, enable: true}, // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容, 並移除多餘的字串
-            CommentFormat: {mode: 0, enable: true}, // 評論區重新排版
-            VideoBeautify: {mode: 1, enable: true}, // 影片美化 [mode: 1 = 複製下載節點 , 2 = 移動下載節點] (有啟用 LinkBeautify, 會與原始狀態不同)
+            ExtraButton: { mode: 0, enable: true }, // 額外的下方按鈕 (存在 Bug)
+            LinkBeautify: { mode: 0, enable: true }, // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容, 並移除多餘的字串
+            CommentFormat: { mode: 0, enable: true }, // 評論區重新排版
+            VideoBeautify: { mode: 1, enable: true }, // 影片美化 [mode: 1 = 複製下載節點 , 2 = 移動下載節點] (有啟用 LinkBeautify, 會與原始狀態不同)
             OriginalImage: { // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
                 mode: 1,
                 enable: true,
@@ -968,21 +968,44 @@
                 `, "Collapse_Effects", false);
             },
             DeleteNotice: async Config => {
-                Syn.$$("body > div.content-wrapper.shifted > a")?.remove();
+                Syn.WaitElem("aside", null, {
+                    object: document,
+                    timeout: 5
+                }).then(aside => aside.remove());
             },
             BlockAds: async Config => {
+                const cookieString = document.cookie;
+                const required = ["ts_popunder", "ts_popunder-cnt"];
+                const hasCookies = required.every(name => new RegExp(`(?:^|;\\s*)${name}=`).test(cookieString));
+                if (!hasCookies) {
+                    const now = new Date();
+                    now.setFullYear(now.getFullYear() + 1);
+                    const expires = now.toUTCString();
+                    const cookies = {
+                        [required[0]]: now,
+                        [required[1]]: 1
+                    };
+                    for (const [key, value] of Object.entries(cookies)) {
+                        document.cookie = `${key}=${value}; domain=.${Syn.Device.Host}; path=/; expires=${expires};`;
+                    }
+                }
                 Syn.AddStyle(`
-                    .ipprtcnt, .root--ujvuu, .ad-container {display: none !important}
+                    .root--ujvuu, [id^="ts_ad_native_"], [id^="ts_ad_video_"] {display: none !important}
                 `, "Ad-blocking-style", false);
-                Syn.AddScript(`
+                Syn.AddScript(String.raw`
+                    const domains = [
+                        "go.mnaspm.com", "go.reebr.com",
+                        "creative.reebr.com", "tsyndicate.com", "tsvideo.sacdnssedge.com"
+                    ];
+                    const adRegex = new RegExp("(?:" + domains.join("|").replace(/\./g, "\\.") + ")");
                     const XMLRequest = XMLHttpRequest.prototype.open;
                     const Ad_observer = new MutationObserver(() => {
                         XMLHttpRequest.prototype.open = function(method, Url) {
-                            if (Url.endsWith(".m3u8") || Url === "https://s.magsrv.com/v1/Syn.php") {return}
+                            if (Url.endsWith(".m3u8") || adRegex.test(Url)) { return; }
                             XMLRequest.apply(this, arguments);
                         };
-                        document.querySelector("div.ex-over-btn")?.click();
-                        document.querySelector(".root--ujvuu button")?.click();
+                        // document.querySelector("div.ex-over-btn")?.click();
+                        // document.querySelector(".root--ujvuu button")?.click();
                     });
                     Ad_observer.observe(document.head, {childList: true, subtree: true});
                 `, "Ad-blocking-script", false);
@@ -1102,7 +1125,7 @@
                         }
                     });
                 } else if (DLL.IsContent()) {
-                    Syn.WaitMap(["h1 span:nth-child(2)", ".post__user-name, .scrape__user-name"], null, {
+                    Syn.WaitElem(["h1 span:nth-child(2)", ".post__user-name, .scrape__user-name"], null, {
                         raf: true,
                         timeout: 15
                     }).then(found => {
@@ -1340,6 +1363,10 @@
                 if (!this.LinkBeautify_Cache) {
                     this.LinkBeautify_Cache = async function ShowBrowse(Browse) {
                         const URL = DLL.IsNeko ? Browse.href : Browse.href.replace("posts", "api/v1/posts");
+                        Browse.style.position = "relative";
+                        Syn.$$(".View", {
+                            root: Browse
+                        })?.remove();
                         GM_xmlhttpRequest({
                             method: "GET",
                             url: URL,
@@ -1462,6 +1489,7 @@
                 Syn.AddStyle(`
                     .View {
                         top: -10px;
+                        z-index: 1;
                         padding: 10%;
                         display: none;
                         overflow: auto;
@@ -1489,7 +1517,6 @@
                         link.textContent = link.textContent.replace("Download", "").trim();
                         const Browse = link.nextElementSibling;
                         if (!Browse) continue;
-                        Browse.style.position = "relative";
                         ShowBrowse(Browse);
                     }
                 });
