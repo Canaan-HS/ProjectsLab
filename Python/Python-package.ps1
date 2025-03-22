@@ -9,119 +9,179 @@ if (-not(IsAdmin)) {
     exit
 }
 
+<# 額外工具安裝
+
+pip install --user pipx
+pipx ensurepath
+
+#>
+
 # 安裝包
 $Package = @(
-    <# Py 封裝 exe - 將 Python 程式封裝為可執行檔案 #>
-    "pyinstaller" # 支援多平臺的 Python 程式打包工具
-    "cx_Freeze" # 另一個將 Python 程式打包成獨立可執行檔案的工具
+    <# 封裝與分發 - 將 Python 程式轉為可執行檔或分發包裝 #>
+    "pyinstaller" # 多平臺外帶工具，支援豐富的自訂選項與鉤子函數，最廣泛使用
+    #! "cython" # 將 Python 代碼轉譯為 C，可與其他外帶工具結合提高性能與保護源碼
+    #! "nuitka" # Python 轉 C++ 編譯器，生成真正的二進制執行檔，執行速度更快且難以反編譯
+    #! "cx_Freeze" # 跨平臺凍結工具，生成的檔案較小，支援 Python 模組與第三方庫外帶
+    #! "pyarmor" # 提供代碼加密與授權保護，防止逆向工程，支援多種外帶工具整合
 
-    "pytest" # Python 的單元測試框架
+    <# 測試與程式碼品質 - 測試框架與程式碼規範工具 #>
+    "pytest" # 功能豐富的測試框架，支援參數化測試、夾具與插件系統
+    "faker" # 測試數據生成器，產生各類假數據
+    "flake8" # 代碼風格檢查工具，結合多種檢查器
+    "black" # 自動代碼格式化工具，統一代碼風格
+    "mypy" # 靜態類型檢查器，驗證類型註解
 
-    <# 加密 - 資料加密和解密 #>
-    "tinyaes" # 輕量級 AES 加密庫，適用於簡單的加密需求
-    "pycryptodome" # Python 中強大的加密庫，提供 AES、DES 等加密演算法
+    <# 安全與加密 - 數據保護與安全分析工具 #>
+    "pycryptodome" # 全面的加密庫，提供對稱/非對稱加密、雜湊與數字簽名
+    "cryptography" # 現代加密庫，提供高層次接口，符合最佳實踐
+    "argon2-cffi" # Argon2 密碼雜湊算法實現，最新密碼學推薦
+    "bandit" # 安全性導向的 Python 代碼分析工具
 
-    <# 解密反編譯 - 反編譯工具，用於解碼編譯後的 Python 程式碼 #>
-    "uncompyle6" # 將編譯後的 Python 位元組碼反編譯為原始碼
+    <# 惡意軟體分析 #>
+    #! "yara-python" # 惡意軟體模式匹配引擎
+    #! "pyvex" # 用於中間表示(IR)轉換的庫
+    #! "volatility3" # 內存取證框架
+    #! "capa" # 自動識別惡意軟體功能的工具
 
-    <# 逆向調式 #>
-    #! "winappdbg" # 適用較舊的 Windows，支持進程控制、內存操作、設置斷點等
-    #! "pydbg" # Windows 平台的動態分析和逆向工程，可以進行進程控制、內存讀寫、設置斷點等
+    <# 反編譯與代碼分析 - Python 字節碼與二進制分析工具 #>
+    "uncompyle6" # Python 字節碼反編譯器，支援多種 Python 版本
+    "decompyle3" # Python 3.7+ 字節碼反編譯工具
+    "ast" # 標準庫的抽象語法樹模組，用於代碼分析
+    "dis" # Python 標準庫的字節碼反彙編模組
+    "radon" # 代碼複雜度分析工具
+
+    <# 逆向工程與利用 - 二進制分析與漏洞利用工具 #>
     "pwntools" # 漏洞利用、逆向工程、滲透測試等高級攻擊模擬，支持動態內存操作和注入代碼
     "frida" # 動態分析，進程注入，內存操作、API hook、記錄系統調用等
+    "capstone" # 多架構反彙編引擎，支持多種CPU架構
+    "LIEF" # 二進制格式解析庫，支持PE/ELF/Mach-O
+    "yara-python" # 惡意軟體模式匹配引擎
+    "volatility3" # 內存取證框架
+    "capa" # 自動識別惡意軟體功能的工具
 
-    <# 請求/爬蟲 - 處理 HTTP 請求和網路爬蟲的工具 #>
-    "httpx[http2]" # 非同步 HTTP 客戶端，支援 HTTP/1.1 和 HTTP/2
-    "requests" # 最流行的同步 HTTP 客戶端，易於使用
-    "grequests" # 基於 requests 的非同步請求庫
-    "Scrapy" # 功能強大的爬蟲框架，適合大規模資料抓取
-    "urllib3" # 低階 HTTP 客戶端庫，requests 的依賴之一
+    <# 程式分析與符號執行 #>
+    #! "angr" # 強大的二進制分析框架，結合靜態分析和符號執行
+    #! "z3-solver" # 微軟的約束求解器，是符號執行的基礎組件
+    #! "triton" # 動態二進制分析框架，專注於動態符號執行
+    #! "manticore" # 另一個符號執行工具，支持智能合約分析
 
-    <# 爬蟲資料解析 #>
-    "lxml" # XML 和 HTML 解析庫，支援 XPath
-    "beautifulsoup4" # 解析和處理 HTML 和 XML 文件的工具
+    <# Web 請求與 HTTP - HTTP 通訊與基礎請求處理 #>
+    "requests" # 同步 HTTP 客戶端的標準庫，支援 Cookie、表單、代理等基本功能
+    "requests_toolbelt" # requests 增強工具集，提供多部分表單、流式上傳、自訂驗證等
+    "httpx[http2]" # 現代化 HTTP 客戶端，支援 HTTP/2、異步請求、連接池優化
+    #! "urllib3" # 低階 HTTP 庫，提供連接池管理、SSL/TLS 驗證、重試策略
 
-    <# 處理反爬蟲 - 繞過反爬蟲機制的工具 #>
-    "scrapy-crawlera" # 為 Scrapy 提供智慧代理輪換的中介軟體
-    "cloudscraper" # 繞過 Cloudflare 的反爬蟲檢測(免費版)
-    "undetected-chromedriver2" # 用於 Selenium 的反檢測 Chrome 驅動
-    "requests-html" # 提供 HTML 渲染和處理動態網站內容的工具
+    <# Web 爬蟲與解析 - 網頁數據提取與處理框架 #>
+    "lxml" # 高效能 XML/HTML 解析器，支援 XPath、XSLT，速度最快
+    "beautifulsoup4" # 直覺易用的 HTML/XML 解析器，容錯能力強，適合處理不規範網頁
+    "Scrapy" # 完整爬蟲框架，提供請求排程、中介軟體、管道處理、分散式支援
+    "requests-html" # 結合 requests 與解析功能，支援 JavaScript 渲染與 CSS 選擇器
 
-    <# 非同步操作 - 非同步 I/O 操作的庫 #>
-    "aiohttp" # 非同步 HTTP 客戶端，適合大規模併發請求
-    "aiofiles" # 非同步檔案操作庫
+    <# 網路與協定分析 - 網路封包與協議操作工具 #>
+    "scapy" # 網路封包操作工具，可分析、構建、發送自訂封包
+    "paramiko" # SSH 協議實現，用於自動化 SSH 連接與操作
 
-    <# 自動化操作 - 瀏覽器自動化和測試的工具 #>
-    "selenium" # 自動化瀏覽器操作的工具
-    "chromedriver_autoinstaller" # 自動下載和安裝 Chrome 驅動
+    <# 異步程式設計 - 高併發與非同步處理工具 #>
+    "aiohttp" # 異步 HTTP 客戶端/伺服器，支援 WebSockets、大規模併發請求
+    "aiofiles" # 異步檔案 I/O 操作，適合與 aiohttp 搭配存儲爬取結果
 
-    <# 影音處理 - 處理和處理影音檔案的工具 #>
+    <# 瀏覽器自動化 - 模擬瀏覽器行為與動態網頁處理 #>
+    "selenium" # 跨瀏覽器自動化工具，支援完整瀏覽器操作與 JavaScript 執行
+    "playwright-python" # 微軟開發的現代瀏覽器自動化庫，更難被檢測，支援多標籤頁
+    "chromedriver_autoinstaller" # 自動下載安裝匹配 Chrome 版本的驅動程式
+    "webdriver_manager" # 管理多種瀏覽器驅動，支援 Chrome、Firefox、Edge 等
+    #! "browser-cookie3" # 從已安裝瀏覽器提取 cookies，用於模擬登入狀態
+
+    <# 反爬蟲對抗與代理管理 - 繞過限制與匿名化工具 #>
+    "selenium-stealth" # Selenium 隱身套件，消除自動化指紋特徵
+    "selenium-wire" # Selenium 增強版，可攔截/修改 HTTP 請求與響應
+    "cloudscraper" # 專門繞過 Cloudflare 防護的工具，處理 JavaScript 挑戰
+    "fake-useragent" # 隨機產生真實的 User-Agent 標頭
+    "undetected_chromedriver" # 防檢測 Chrome 驅動，修改 WebDriver 特徵
+    #! "undetected-chromedriver2" # 防檢測 Chrome 驅動，修改 WebDriver 特徵 (新版本 Python 基本無法使用)
+    "fingerprint-randomizer" # 瀏覽器指紋隨機化工具，修改 Canvas、WebGL 等特徵
+
+    <# 驗證碼處理 - 自動化驗證突破 #>
+    "captcha-solver" # 多種驗證碼解決方案整合工具，支援圖像與互動式驗證碼
+
+    <# 代理與 IP 管理 - 防止 IP 封鎖 #>
+    #! "rotating-free-proxies" # 自動搜尋並使用免費代理伺服器
+    #! "stem" # Tor 控制器，用於 IP 匿名化與輪換
+    #! "browsermob-proxy" # 可編程代理伺服器，允許修改 HTTP 請求/響應
+    #! "mitmproxy" # 中間人代理工具，支援 HTTPS 流量檢查與修改
+
+    <# 影音處理 - 音頻與視頻處理工具 #>
     "ffmpeg-python" # 處理和處理影音檔案的工具
+    "pyaudio" # 處理音訊流，支援錄音和播放
+    "SpeechRecognition" # 語音識別庫，將語音轉換為文字
 
-    <# 文字處理 - 處理和分析文字資料的工具 #>
-    "feedparser" # 解析 RSS 和 Atom feeds
-    "chardet" # 字元編碼檢測工具，支援多種編碼
-    "opencc" # 簡繁體中文轉換
-    "fuzzywuzzy" # 模糊字串匹配工具
-    "python-Levenshtein" # 提供高效的 Levenshtein 編輯距離演算法
+    <# 文字與自然語言處理 - 文本分析與語言處理工具 #>
+    "opencc" # 中文簡繁轉換工具，支援多種轉換模式
+    "nltk" # 自然語言處理工具包，提供分詞、詞性標註、語法分析等功能
+    "spaCy" # 工業級自然語言處理庫，速度快且準確
+    "transformers" # Hugging Face 的 NLP 模型庫，支援 BERT、GPT 等
+    "fuzzywuzzy" # 字符串模糊匹配庫，支援相似度比較
+    "jieba" # 中文分詞庫，支援自定義詞典
+    "dateparser" # 強大的日期解析庫，支援多語言和相對時間
 
-    <# 系統資訊與操作 #>
-    "psutil" # 進程監控，支持 CPU、內存、磁碟、網絡等信息的讀取，並能夠操作進程
-    "GPUtil" # 獲取 GPU 資訊和監控 GPU 資源
+    <# 系統監控 - 監控與管理系統資源 #>
+    "psutil" # 跨平台系統監控庫，獲取 CPU、內存、磁盤等信息
+    "GPUtil" # NVIDIA GPU 監控工具，獲取使用率和內存信息
+    #! "glances" # 系統監控工具，提供 Web 界面和 API
+    #! "memory_profiler" # 內存使用分析工具，監控 Python 程式內存
 
-    <# 日程安排和版本管理 #>
+    <# 日程安排 與 版本管理 #>
     "schedule" # 簡單的任務排程庫
+    "APScheduler" # 高級任務調度庫，支援 cron 表達式
     "packaging" # 版本比較和語義化版本號解析
-    "wget" # 用於下載檔案的簡單工具
+
+    <# 系統操作工具 #>
+    "pynput" # 鍵盤鼠標監控與控制庫，全平台支援
+    "keyboard" # 全局鍵盤監聽與模擬庫，特別適合 Windows
+    "pyautogui" # 跨平台 GUI 自動化工具，控制鼠標和鍵盤
     "pyperclip" # 操作剪貼簿內容
-    "playsound" # 播放音訊檔案的簡易庫
-
-    <# 進度條 - 終端顯示進度條的工具 #>
-    "rich" # 豐富的終端輸出工具，支援彩色文字、進度條、表格等
-    "tqdm" # 進度條庫，支援命令列和 Jupyter Notebook
-    "progress" # 簡單的進度條顯示工具
-    "progressbar" # 進度條顯示工具
-    "progressbar2" # progressbar 的升級版，增加了更多功能
-    "alive-progress" # 動態進度條庫，支援複雜的進度顯示
-
-    <# 資料操作 - 資料分析和科學計算工具 #>
-    "numpy" # 數值分析庫，支援多維陣列和矩陣運算
-    "pandas" # 強大的資料操作和分析工具，支援 DataFrame 資料結構
-    "scipy" # 科學計算庫，提供高等數學、統計、訊號處理等功能
-    "matplotlib" # 資料視覺化工具，生成靜態、動畫和互動式圖形
-    "scikit-learn" # 機器學習和資料探勘庫，支援多種演算法
-    "pyyaml" # 處理 YAML 檔案的庫，適用於配置檔案解析
-    #! "torch" # 深度學習框架，支援 CPU 和 GPU 計算
-    # (GPU版) https://pytorch.org/get-started/locally/
-
-    <# 系統操作與自動化 #>
-    "pynput" # 控制和監控輸入裝置(鍵盤和滑鼠)
-    "keyboard" # 處理鍵盤操作的庫，支援全域性熱鍵
     "pymem" # 讀寫程序記憶體的工具，常用於遊戲修改
     "pywin32" # 訪問 Windows API 的工具集
-    "mss" # 截圖和螢幕錄製工具
-    "SpeechRecognition" # 語音識別庫，將語音轉換為文字
-    "pyaudio" # 處理音訊流，支援錄音和播放
 
-    <# GUI 開發 - 圖形使用者介面工具 #>
-    "PyQt5" # 強大的 GUI 開發工具包
+    <# 終端工具 - 終端介面美化與進度顯示 #>
+    "rich" # 強大的終端格式化庫，支援顏色、表格、語法高亮
+    "tqdm" # 快速、可擴展的進度條庫，支援嵌套和並行
+    "progress" # 簡單的進度條顯示工具
+    "progressbar2" # progressbar 的升級版，增加了更多功能
+    "alive-progress" # 動態進度條庫，支援複雜的進度顯示
+    "tabulate" # 表格數據美觀列印工具
+    #! "art" # ASCII 藝術文本生成庫
+    #! "asciichartpy" # ASCII 字符圖表生成庫
+
+    <# 影像處理 - 圖像與視覺處理工具 #>
+    "mss" # 截圖和螢幕錄製工具
+    "pillow" # Python 圖像處理庫，支援多種圖像格式
+    #! "opencv-python" # 計算機視覺庫，支援圖像處理與分析 (CPU 版本)
+
+    <# GUI 開發 - 圖形使用者介面開發工具 #>
+    "tkinterdnd2" # 增強 tkinter 的拖曳功能
     "PyQt6" # PyQt5 的升級版，支援更多特性和更新的 Qt 版本
     "PySide6" # PyQt 的開源替代品，由 Qt 官方維護
     "pystray" # 建立系統托盤圖示和選單
-    "PyAutoGUI" # 自動化 GUI 操作的工具，支援滑鼠鍵盤控制
-    "Pillow" # 影像處理庫，支援影像的開啟、操作和儲存
-    "tkinterdnd2" # 增強 tkinter 的拖曳功能
 
-    <# 網頁開發 #>
+    <# Web 開發 - Web 應用與模板工具 #>
     "Jinja2" # 模板引擎，常用於生成 HTML 內容
-    #! "flask" # 輕量級 Web 應用框架
-    #! "fastapi" # 高效能 Web 框架，適合構建 API
+    "flask" # 輕量級 Web 應用框架
+    "fastapi" # 高效能 Web 框架，適合構建 API
 
-    <# discord 開發 - 開發 Discord 相關工具 #>
-    #! "discord_webhook" # 簡化向 Discord 傳送訊息的操作
-
-    <# 視覺與影像處理 - 影像和影片處理工具 #>
-    #! "opencv-python" # 開源計算機視覺庫，支援影像和影片處理(CPU 版本)
+    <# 資料科學 - 數據分析與機器學習工具 #>
+    "numpy" # 數值計算基礎庫，提供高效數組操作
+    "pandas" # 數據分析與處理庫，提供 DataFrame 結構
+    "polars" # 高性能數據操作庫，類似 pandas 但速度更快
+    "scipy" # 科學計算庫，提供高等數學、統計、訊號處理等功能
+    "matplotlib" # 經典數據可視化庫，支援多種圖表類型
+    "scikit-learn" # 機器學習庫，提供分類、回歸、聚類等算法
+    "pyyaml" # 處理 YAML 檔案的庫，適用於配置檔案解析
+    #! "vaex" # 處理大數據的 DataFrame 庫，支援內存外計算
+    #! "numba" # JIT 編譯器，加速 NumPy 數組操作
+    #! "torch" # 深度學習框架，支援 CPU 和 GPU 計算
+    # (GPU版) https://pytorch.org/get-started/locally/
 
     <# 編譯 opencv - gpu版本 =>
         顯卡算力 https://developer.nvidia.com/cuda-gpus#compute
