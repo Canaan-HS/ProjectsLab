@@ -124,6 +124,7 @@
      */
     const FetchSet = {
         AdvancedFetch: true, // 進階獲取 (如果只需要 圖片和影片連結, 關閉該功能獲取會快很多)
+        ToLinkTxt: true, // 啟用後輸出為只有連結的 txt, 用於 IDM 導入下載
         UseFormat: false, // 這裡為 false 下面兩項就不生效
         Mode: "FilterMode",
         Format: ["Timestamp", "TypeTag"],
@@ -665,7 +666,7 @@
     }
 
     class FetchData {
-        constructor(AdvancedFetch) {
+        constructor(AdvancedFetch, ToLinkTxt) {
             this.MetaDict = {}; // 保存元數據
             this.DataDict = {}; // 保存最終數據
 
@@ -680,6 +681,7 @@
             this.FinalPages = 10; // 預設最終抓取的頁數
             this.Progress = 0; // 用於顯示當前抓取進度
             this.OnlyMode = false; // 判斷獲取數據的模式
+            this.ToLinkTxt = ToLinkTxt; // 判斷是否輸出為連結文本
             this.AdvancedFetch = AdvancedFetch; // 判斷是否往內抓數據
 
             // 內部連結的 API 模板
@@ -1015,7 +1017,7 @@
                             ? Url.replace(/\?o=(\d+)$/, (match, number) => `?o=${+number + 50}`)
                             : `${Url}?o=50`
                     )
-                    : this.ToJson();
+                    : this.ToLinkTxt ? this.ToTxt() : this.ToJson();
             }
         };
 
@@ -1183,6 +1185,26 @@
 
         /* ===== 輸出生成 ===== */
 
+        async ToTxt() {
+            let Content = "";
+            for (const value of Object.values(this.DataDict)) {
+                for (const link of Object.values(Object.assign({},
+                    value[Lang.Transl("圖片連結")],
+                    value[Lang.Transl("影片連結")],
+                    value[Lang.Transl("下載連結")]
+                ))) {
+                    Content += `${link}\n`;
+                }
+            }
+            if (Content.endsWith('\n')) Content = Content.slice(0, -1); // 去除末行空白
+
+            Syn.OutputTXT(Content, this.MetaDict[Lang.Transl("作者")], () => {
+                lock = false;
+                this.Worker.terminate();
+                document.title = this.TitleCache; 
+            })
+        };
+
         async ToJson() {
             // 合併數據
             const Json_data = Object.assign(
@@ -1192,7 +1214,6 @@
             );
 
             Syn.OutputJson(Json_data, this.MetaDict[Lang.Transl("作者")], () => {
-                // 狀態恢復
                 lock = false;
                 this.Worker.terminate();
                 document.title = this.TitleCache;
@@ -1340,7 +1361,7 @@
                         func: () => {
                             if (!lock) {
                                 let Instantiate = null;
-                                Instantiate = new FetchData(FetchSet.AdvancedFetch);
+                                Instantiate = new FetchData(FetchSet.AdvancedFetch, FetchSet.ToLinkTxt);
                                 FetchSet.UseFormat && Instantiate.FetchConfig(FetchSet.Mode, FetchSet.Format);
                                 Instantiate.FetchInit();
                             }
