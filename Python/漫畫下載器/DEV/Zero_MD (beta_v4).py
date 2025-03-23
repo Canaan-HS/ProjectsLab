@@ -43,6 +43,7 @@ request = Reques()
 console = Console()
 print = lambda *args, **kwargs: console.print(*args, **kwargs)
 
+
 # ? 獲取漫畫元數據
 def GetMeta(Url: str):
     print("\n[獲取漫畫元數據]\n", style="bold magenta")
@@ -78,10 +79,13 @@ def GetMeta(Url: str):
                 "RequesState": True,
                 "MangaName": MangaName,
                 "MangaChapter": MangaChapter,
-                "ImgLink": ImgLink.rsplit("/", 2)
+                "ImgLink": ImgLink.rsplit("/", 2),
             }
 
-            print(f"[獲取完成] 耗時 %.3f 秒\n[漫畫名稱] {MangaName}\n" % ((time.time() - StartTime)), style="bold")
+            print(
+                f"[獲取完成] 耗時 %.3f 秒\n[漫畫名稱] {MangaName}\n" % ((time.time() - StartTime)),
+                style="bold",
+            )
         except Exception as e:
             print(f"域名錯誤 , 或是伺服器問題! {e}", style="bold red")
     else:
@@ -89,6 +93,7 @@ def GetMeta(Url: str):
 
     # ! 回傳結果
     return Result
+
 
 # ? 處理下載任務
 class DownloadTask:
@@ -119,7 +124,12 @@ class DownloadTask:
     def task_trial_error(self, Page: str, Url: str):
         for Mantissa in range(1, 6):  # 試錯尾數最多 5 位數
             for Extension in [
-                "jpg", "png", "jpeg", "webp", "gif", "avif", # 資源競爭問題, 該列表必須在函數內宣告
+                "jpg",
+                "png",
+                "jpeg",
+                "webp",
+                "gif",
+                "avif",  # 資源競爭問題, 該列表必須在函數內宣告
             ]:
                 test_link = f"{Url}/{Page.zfill(Mantissa)}.{Extension}"
 
@@ -141,7 +151,7 @@ class DownloadTask:
 
         with ThreadPoolExecutor(max_workers=500) as executor:
 
-            #! 為了可下載需 Vip 權限的, 因此使用模糊請求
+            # ! 為了可下載需 Vip 權限的, 因此使用模糊請求
             for index in range(1, 1001):
                 ImgLink = None
                 Page = f"{index}".zfill(
@@ -149,7 +159,7 @@ class DownloadTask:
                 )  # 生成頁數 (生成錯誤不會報錯, 會直接結束程式)
 
                 # ? 生成下載連結
-                if IsSpecial:  #! 特別話 的網址類型可能變更
+                if IsSpecial:  # ! 特別話 的網址類型可能變更
                     ImgLink = f"{self.ImgDomain}/{Chapter}sheng/{Page}.{self.Extension}"
                 else:
                     ImgLink = f"{self.ImgDomain}/{Chapter}/{Page}.{self.Extension}"
@@ -162,19 +172,20 @@ class DownloadTask:
                     self.task_download, FolderName, ImgSavePath, ImgLink
                 ).result()
 
-                #! 自動試錯不提供選擇 (自動使用)
+                # ! 自動試錯不提供選擇 (自動使用)
                 if TaskStatus != 200:
                     TrialLink = self.task_trial_error(
                         str(index), ImgLink.rsplit("/", 1)[0]
                     )  # 將尾部移除, 傳參給試錯組合
                     if TrialLink is not None:
                         self.task_download(FolderName, ImgSavePath, TrialLink)
-                    else:  #! 因為是模糊請求, 當試錯都失敗直接跳出迴圈 (所以根據試錯的邏輯, 可能會缺頁面)
+                    else:  # ! 因為是模糊請求, 當試錯都失敗直接跳出迴圈 (所以根據試錯的邏輯, 可能會缺頁面)
                         break
 
                 PageCount += 1
 
         print(f"第 {Chapter} 章節 [共 {PageCount} 頁] - 下載完成", style="bold green")
+
 
 # ? 下載器入口點
 class ZeroDownloader(DownloadTask):
@@ -191,17 +202,22 @@ class ZeroDownloader(DownloadTask):
         if isinstance(Chapter, list):
             return Chapter
         elif isinstance(Chapter, int) or isinstance(Chapter, str):
-            return [int(Chapter)] # 是字串的話要轉換
+            return [int(Chapter)]  # 是字串的話要轉換
         else:
             return Default
 
     # ? 創建下載任務
     def CreateTask(
-        self, Url: str, Chapter: object=None, Mantissa: int=None, Exten: str=None, Special: bool=False
+        self,
+        Url: str,
+        Chapter: object = None,
+        Mantissa: int = None,
+        Exten: str = None,
+        Special: bool = False,
     ):
-        Meta = GetMeta(Url) # ! 取得漫畫元數據
+        Meta = GetMeta(Url)  # ! 取得漫畫元數據
 
-        if Meta["RequesState"]: # ! 請求狀態為 True 才處理
+        if Meta["RequesState"]:  # ! 請求狀態為 True 才處理
             MangaName = Meta["MangaName"]  # 取的漫畫名稱
             MangaSavePath = rf"{Config['DownloadPath']}{MangaName}"  # 生成漫畫保存路徑
             self.create_folder(MangaSavePath)  # 直接創建資料夾
@@ -209,7 +225,9 @@ class ZeroDownloader(DownloadTask):
             self.ImgDomain = Meta["ImgLink"][0]  # 取得圖片請求域名 (初始化賦予)
             End = Meta["ImgLink"][2].split(".")  # 取得圖片對象, 進行分割
 
-            self.Mantissa = Mantissa if isinstance(Mantissa, int) else len(End[0])  # 取得尾數 長度 (初始化賦予)
+            self.Mantissa = (
+                Mantissa if isinstance(Mantissa, int) else len(End[0])
+            )  # 取得尾數 長度 (初始化賦予)
             self.Extension = Exten if isinstance(Exten, str) else End[1]  # 取得擴展名 (初始化賦予)
 
             # ? 處理漫畫頁數, 生成下載任務
@@ -234,8 +252,9 @@ class ZeroDownloader(DownloadTask):
                     executor.submit(self.task_process, FolderName, Chapter, IsSpecial)
                     time.sleep(self.TaskDelay)
 
+
 if __name__ == "__main__":
-    CustomRange = lambda start, end: [chapter for chapter in range(start, end+1)]
+    CustomRange = lambda start, end: [chapter for chapter in range(start, end + 1)]
     AutoCapture.settings(Config["RequestDomain"])
 
     """
@@ -249,7 +268,8 @@ if __name__ == "__main__":
         * 副檔名 Exten - 設置正確的副檔名 (字串) -> ("jpg" or "png" ...)
         * 特別章節 Special - 開啟後可以下載特別章節 (全彩中文/全彩生肉/無修正/...) 這類的特別章節 (bool)
     """
-    Download = ZeroDownloader(True) # ? 實例時可選下載是否合併到同一資料夾, 沒有合併就是每章節一個資料夾 (預設)
+    # ? 實例時可選下載是否合併到同一資料夾, 沒有合併就是每章節一個資料夾 (預設)
+    Download = ZeroDownloader(True)
 
     # Todo -> 下方創建方式擇一使用, 使用其中一個時, 將另一個註解
 
