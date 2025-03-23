@@ -405,7 +405,9 @@ class Main {
                 Print ""
                 Print "  更新資訊:"
                 Print ""
-                Print "   1. IDM 授權依賴更新"
+                Print "   1. 移除 自動配置 DNS 延遲過高 Dns"
+                Print ""
+                Print "   2. 降低 自動配置 DNS 併發數量"
                 Print "----------------------------------"
                 $this.WaitBack()
             }
@@ -1349,8 +1351,6 @@ class Main {
                         @{name="IBM"; dns="9.9.9.10"; doh="https://dns.quad9.net/dns-query"},
                         @{name="Control D"; dns="76.76.2.0"; doh="https://dns.controld.com/dns-query"},
                         @{name="Control D"; dns="76.76.10.0"; doh="https://dns.controld.com/dns-query"},
-                        @{name="Alternate"; dns="76.76.19.19"; doh=$null},
-                        @{name="Alternate"; dns="76.223.122.150"; doh=$null},
                         @{name="AdGuard"; dns="94.140.14.14"; doh="https://dns.adguard.com/dns-query"},
                         @{name="AdGuard"; dns="94.140.15.15"; doh="https://dns.adguard.com/dns-query"},
                         @{name="Open"; dns="208.67.222.222"; doh="https://doh.opendns.com/dns-query"},
@@ -1389,11 +1389,12 @@ class Main {
                 $testServers = $dnsServers.Global + $dnsServers[$area]
 
                 Print "===== 開始測試延遲 ======`n"
+                Clear-DnsClientCache # 清除 DNS 緩存
                 $pingResults = @{} # 存儲每個 DNS 伺服器的平均延遲
                 $testDomains = @("google.com", "youtube.com", "facebook.com", "x.com", "microsoft.com")
 
                 $jobs = @() # 存儲 job 物件
-                $maxThreads = 4 # 設定最大並行線程數
+                $maxThreads = 2 # 設定最大並行線程數
 
                 # 創建 Runspace Pool
                 $runspacePool = [runspacefactory]::CreateRunspacePool(1, $maxThreads)
