@@ -15,7 +15,7 @@ function Read(Path) {
             for (const [key, value] of Object.entries(JSON.parse(data))) {
 
                 if (key === "元數據") continue;
-                
+
                 for (const item of Object.values(value)) {
                     for (const link of Object.values(Object.assign({}, item["圖片連結"], item["影片連結"], item["下載連結"]))) {
                         Cache += `${link}\n`;
