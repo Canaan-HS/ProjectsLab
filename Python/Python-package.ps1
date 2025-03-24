@@ -161,6 +161,7 @@ $Package = @(
 
     <# GUI 開發 - 圖形使用者介面開發工具 #>
     "tkinterdnd2" # 增強 tkinter 的拖曳功能
+    "wxPython" # 跨平台 GUI 開發工具
     "PyQt6" # PyQt5 的升級版，支援更多特性和更新的 Qt 版本
     "PySide6" # PyQt 的開源替代品，由 Qt 官方維護
     "pystray" # 建立系統托盤圖示和選單
