@@ -238,9 +238,9 @@ class ZeroDownloader(DownloadTask):
 
                     if Special or Chapter == self.Cache:  # 判斷是否為特別章節
                         IsSpecial = True
-                        FolderName = f"{MangaSavePath}/第 {Chapter} 特別章節"
+                        FolderName = f"{MangaSavePath}/Special-{Chapter.replace('-', '~')}"
                     else:
-                        FolderName = f"{MangaSavePath}/第 {Chapter} 章節"
+                        FolderName = f"{MangaSavePath}/{Chapter.replace('-', '~')}"
 
                     self.Cache = Chapter
 
