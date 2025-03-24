@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ObjectSyntax
-// @version      2025/03/11
+// @version      2025/03/24
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Object Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -620,12 +620,41 @@ const Syn = (() => {
         },
 
         /**
+         * * { 輸出 TXT 檔案 }
+         *
+         * @param {*} Data      - 任意格式數據, 會被轉成文本
+         * @param {string} Name - 輸出的檔名 (不用打副檔名)
+         * @param {function} Success   - 選擇是否回傳輸出狀態
+         *
+         * @example
+         * OutputTXT(Data, "MyTXT", Success=> {
+         *      console.log(Success);
+         * })
+         */
+        OutputTXT: async (Data, Name, Success = null) => {
+            try {
+                Name = typeof Name !== "string" ? "Anonymous.txt" : Name.endsWith(".txt") ? Name : `${Name}.txt`;
+
+                const Text = new Blob([Data], { type: "text/plain" });
+                const Link = document.createElement("a");
+                Link.href = URL.createObjectURL(Text);
+                Link.download = Name;
+                Link.click();
+
+                URL.revokeObjectURL(Link.href);
+                Link.remove();
+
+                Success && Success({ State: true });
+            } catch (error) { Success && Success({ State: false, Info: error }) }
+        },
+
+        /**
          * * { 輸出 Json 檔案 }
          *
          * @param {*} Data      - 可轉成 Json 格式的數據
          * @param {string} Name - 輸出的檔名 (不用打副檔名)
          * @param {function} Success   - 選擇是否回傳輸出狀態
-         * 
+         *
          * @example
          * OutputJson(JsonData, "MyJson", Success=> {
          *      console.log(Success);
@@ -634,15 +663,17 @@ const Syn = (() => {
         OutputJson: async (Data, Name, Success = null) => {
             try {
                 Data = typeof Data !== "string" ? JSON.stringify(Data, null, 4) : Data;
-                Name = typeof Name !== "string" ? "Anonymous" : Name.replace(".json", "");
+                Name = typeof Name !== "string" ? "Anonymous.json" : Name.endsWith(".json") ? Name : `${Name}.json`;
 
-                const Json = document.createElement("a");
-                Json.href = `data:application/json;charset=utf-8,${encodeURIComponent(Data)}`;
-                Json.download = `${Name}.json`;
-                Json.click();
+                const Json = new Blob([Data], { type: "application/json" });
+                const Link = document.createElement("a");
+                Link.href = URL.createObjectURL(Json);
+                Link.download = Name;
+                Link.click();
 
-                await new Promise(resolve => setTimeout(resolve, 100));
-                Json.remove();
+                URL.revokeObjectURL(Link.href);
+                Link.remove();
+
                 Success && Success({ State: true });
             } catch (error) { Success && Success({ State: false, Info: error }) }
         },
