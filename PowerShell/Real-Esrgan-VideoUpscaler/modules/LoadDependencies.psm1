@@ -11,11 +11,11 @@ function FetchModel {
     $modelList = @{}
 
     # 檢查內部是否有文件夾
-    $foldersToCheck = Get-ChildItem -Path $modelFolder -Recurse -Directory
+    $foldersToCheck = Get-ChildItem -LiteralPath $modelFolder -Recurse -Directory
 
     if ($foldersToCheck.Count -gt 0) {
         foreach ($folder in $foldersToCheck) {
-            $filesInFolder = Get-ChildItem -Path $folder.FullName | 
+            $filesInFolder = Get-ChildItem -LiteralPath $folder.FullName | 
                 Where-Object { $_.Extension -in '.bin', '.param' } | # 篩選 .bin 和 .param
                 Group-Object { $_.BaseName } | # 按檔案基礎名稱分組
                 Where-Object { $_.Group.Count -eq 2 } # 只保留擁有兩個檔案的組
@@ -26,7 +26,7 @@ function FetchModel {
             }
         }
     } else {
-        Get-ChildItem -Path $modelFolder | 
+        Get-ChildItem -LiteralPath $modelFolder | 
             Where-Object { $_.Extension -in '.bin', '.param' } | # 篩選 .bin 和 .param
             Group-Object { $_.BaseName } | # 按檔案基礎名稱分組
             Where-Object { $_.Group.Count -eq 2 } | # 只保留擁有兩個檔案的組
