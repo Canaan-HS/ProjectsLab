@@ -6,7 +6,7 @@
 
 // @match        *://schaledb.com/*
 
-// @license      MIT
+// @license      MPL-2.0
 // @namespace    https://greasyfork.org/users/989635
 // @icon         https://schaledb.com/favicon.svg?v=1
 
