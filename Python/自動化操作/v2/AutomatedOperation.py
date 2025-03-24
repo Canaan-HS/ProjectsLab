@@ -3,7 +3,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from Script.Parameters import paramet
-from Script import paramet, DO , DI
+from Script import paramet, DO, DI
 from selenium import webdriver
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -14,28 +14,35 @@ import math
 import time
 import os
 
+
 class JKF:
     def __init__(self):
         self.driver = None
 
     def click_operate(self, Driver, Xpath, Wait=10):
-        button =  WebDriverWait(Driver, Wait).until(EC.element_to_be_clickable((By.XPATH, Xpath)))
+        button = WebDriverWait(Driver, Wait).until(EC.element_to_be_clickable((By.XPATH, Xpath)))
         button.click()
 
     def JKF_Login_Confirm(self, Jump):
         self.driver = webdriver.Chrome(options=paramet.AddSet("Jkf"))
         self.driver.get("https://www.jkforum.net/forum.php?mod=forum")
-        self.driver.execute_script('Object.defineProperty(navigator, "webdriver", {get: () => undefined})')
+        self.driver.execute_script(
+            'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
+        )
 
         try:
-            WebDriverWait(self.driver, 3).until(EC.presence_of_element_located((By.XPATH, "//span[@class='circleHead']/img")))
+            WebDriverWait(self.driver, 3).until(
+                EC.presence_of_element_located((By.XPATH, "//span[@class='circleHead']/img"))
+            )
         except:
             try:
                 for cookie in DI.get_website_cookie("jkf"):
                     self.driver.add_cookie(cookie)
                 self.driver.refresh()
 
-                WebDriverWait(self.driver, 3).until(EC.presence_of_element_located((By.XPATH, "//span[@class='circleHead']/img")))
+                WebDriverWait(self.driver, 3).until(
+                    EC.presence_of_element_located((By.XPATH, "//span[@class='circleHead']/img"))
+                )
             except:
                 input("等待自行登入完成(Enter) : ")
                 DO.json_cookie(self.driver.get_cookies(), "Jkf")
@@ -51,19 +58,31 @@ class JKF:
     def jkf_use_props(self):
         self.JKF_Login_Confirm("https://www.jkforum.net/material/my_item")
 
-        #self.driver.execute_script("document.querySelector('.p-3').scrollBy(0, 200)") 滾動
+        # self.driver.execute_script("document.querySelector('.p-3').scrollBy(0, 200)") 滾動
         try:
-            WebDriverWait(self.driver, 8).until(EC.presence_of_element_located((By.XPATH, "//a[@class='router-link-active router-link-exact-active block lv-2-tab']")))
+            WebDriverWait(self.driver, 8).until(
+                EC.presence_of_element_located(
+                    (
+                        By.XPATH,
+                        "//a[@class='router-link-active router-link-exact-active block lv-2-tab']",
+                    )
+                )
+            )
         except:
             pass
 
-        Content = self.driver.page_source.encode('utf-8').strip()
-        html = BeautifulSoup(Content, 'html.parser')
+        Content = self.driver.page_source.encode("utf-8").strip()
+        html = BeautifulSoup(Content, "html.parser")
 
-        try: # 使用小型體力藥水
-            self.click_operate(self.driver, "//div[contains(@class, 'item-wrap') and .//div[contains(text(), '小型體力藥水')]]//button[contains(text(), '查看')]")
+        try:  # 使用小型體力藥水
+            self.click_operate(
+                self.driver,
+                "//div[contains(@class, 'item-wrap') and .//div[contains(text(), '小型體力藥水')]]//button[contains(text(), '查看')]",
+            )
 
-            SmallPotionQuantity = html.select_one("div.item-wrap:-soup-contains('小型體力藥水') div.text-white.absolute.bottom-0.right-3.CENnO4Uu4CssJR9PLmCG").text
+            SmallPotionQuantity = html.select_one(
+                "div.item-wrap:-soup-contains('小型體力藥水') div.text-white.absolute.bottom-0.right-3.CENnO4Uu4CssJR9PLmCG"
+            ).text
             Quantity = int(SmallPotionQuantity.split("x")[1])
 
             if Quantity < 1:
@@ -71,14 +90,22 @@ class JKF:
 
             for _ in range(Quantity):
                 self.click_operate(self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH px-4']", 5)
-                self.click_operate(self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH px-4'][text()='確認']", 5)
+                self.click_operate(
+                    self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH px-4'][text()='確認']", 5
+                )
 
-        except:pass
+        except:
+            pass
 
-        try: # 使用中型藥水
-            self.click_operate(self.driver, "//div[contains(@class, 'item-wrap') and .//div[contains(text(), '中型體力藥水')]]//button[contains(text(), '查看')]")
+        try:  # 使用中型藥水
+            self.click_operate(
+                self.driver,
+                "//div[contains(@class, 'item-wrap') and .//div[contains(text(), '中型體力藥水')]]//button[contains(text(), '查看')]",
+            )
 
-            MediumPotionQuantity = html.select_one("div.item-wrap:-soup-contains('中型體力藥水') div.text-white.absolute.bottom-0.right-3.CENnO4Uu4CssJR9PLmCG").text
+            MediumPotionQuantity = html.select_one(
+                "div.item-wrap:-soup-contains('中型體力藥水') div.text-white.absolute.bottom-0.right-3.CENnO4Uu4CssJR9PLmCG"
+            ).text
             Quantity = int(MediumPotionQuantity.split("x")[1])
 
             if Quantity < 1:
@@ -86,9 +113,12 @@ class JKF:
 
             for _ in range(Quantity):
                 self.click_operate(self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH px-4']", 5)
-                self.click_operate(self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH px-4'][text()='確認']", 5)
+                self.click_operate(
+                    self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH px-4'][text()='確認']", 5
+                )
 
-        except:pass
+        except:
+            pass
 
         self.driver.quit()
 
@@ -97,16 +127,23 @@ class JKF:
         self.JKF_Login_Confirm("https://www.jkforum.net/material/mining")
 
         try:
-            WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, "//a[@class='router-link-active router-link-exact-active block lv-2-tab']")))
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located(
+                    (
+                        By.XPATH,
+                        "//a[@class='router-link-active router-link-exact-active block lv-2-tab']",
+                    )
+                )
+            )
         except:
             pass
-            
+
         location = {
             "巨龍巢穴": 1,
             "精靈峽谷": 2,
             "廢棄礦坑": 3,
         }
-        
+
         consume = {
             "巨龍巢穴": 10,
             "精靈峽谷": 5,
@@ -114,23 +151,40 @@ class JKF:
         }
 
         # 根據選擇的區域,點選開始挖礦
-        self.click_operate(self.driver, f"//div[@class='pt-10'][{location[Point]}] //div[@class='OvtXIlmLtXEE_eWpy1jH YOKk3zC9K8EXQZUZPFiy'][text()='開始挖礦']")
+        self.click_operate(
+            self.driver,
+            f"//div[@class='pt-10'][{location[Point]}] //div[@class='OvtXIlmLtXEE_eWpy1jH YOKk3zC9K8EXQZUZPFiy'][text()='開始挖礦']",
+        )
 
         try:
             # 先點選5次畫布,因為使用相對位置找不到,所以用絕對位置,可能之後需要修改
-            mining = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[1]/div/div/div[2]/div/div[1]/div[2]/div[2]/div/div[2]/div[2]/div/div[2]/div/div[2]/canvas")))
+            mining = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable(
+                    (
+                        By.XPATH,
+                        "/html/body/div[1]/div/div/div[2]/div/div[1]/div[2]/div[2]/div/div[2]/div[2]/div/div[2]/div/div[2]/canvas",
+                    )
+                )
+            )
             for _ in range(5):
                 self.driver.execute_script("arguments[0].click();", mining)
 
-            self.click_operate(self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH'][text()='再挖一次']")
-            stamina = self.driver.execute_script("return document.querySelector('.inline-block.px-1').nextSibling.textContent")
+            self.click_operate(
+                self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH'][text()='再挖一次']"
+            )
+            stamina = self.driver.execute_script(
+                "return document.querySelector('.inline-block.px-1').nextSibling.textContent"
+            )
             Quantity = math.floor(int(stamina) / consume[Point]) if Quantity == 0 else Quantity
 
-            for _ in range(Quantity-1):
+            for _ in range(Quantity - 1):
                 time.sleep(0.3)
-                self.click_operate(self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH'][text()='再挖一次']")
+                self.click_operate(
+                    self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH'][text()='再挖一次']"
+                )
 
-        except:pass
+        except:
+            pass
 
         self.driver.quit()
 
@@ -139,7 +193,14 @@ class JKF:
         self.JKF_Login_Confirm("https://www.jkforum.net/material/terrain_exploration")
 
         try:
-            WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, "//a[@class='router-link-active router-link-exact-active block lv-2-tab']")))
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located(
+                    (
+                        By.XPATH,
+                        "//a[@class='router-link-active router-link-exact-active block lv-2-tab']",
+                    )
+                )
+            )
         except:
             pass
 
@@ -158,26 +219,44 @@ class JKF:
         # 刪除那個會擋到按鈕的白痴NPC
         self.driver.execute_script('document.querySelector("img.w-full.h-auto").remove();')
 
-        self.click_operate(self.driver, f"//div[@class='pt-10'][{location[Point]}] //div[@class='OvtXIlmLtXEE_eWpy1jH YOKk3zC9K8EXQZUZPFiy'][text()='開始探索']")
+        self.click_operate(
+            self.driver,
+            f"//div[@class='pt-10'][{location[Point]}] //div[@class='OvtXIlmLtXEE_eWpy1jH YOKk3zC9K8EXQZUZPFiy'][text()='開始探索']",
+        )
 
         try:
-            explore = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[1]/div/div/div[2]/div/div[1]/div[2]/div[2]/div/div[2]/div[2]/div/div[2]/div/div[2]/canvas")))
+            explore = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable(
+                    (
+                        By.XPATH,
+                        "/html/body/div[1]/div/div/div[2]/div/div[1]/div[2]/div[2]/div/div[2]/div[2]/div/div[2]/div/div[2]/canvas",
+                    )
+                )
+            )
             for _ in range(5):
                 self.driver.execute_script("arguments[0].click();", explore)
 
-            self.click_operate(self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH'][text()='再挖一次']")
-            stamina = self.driver.execute_script("return document.querySelector('.inline-block.px-1').nextSibling.textContent")
+            self.click_operate(
+                self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH'][text()='再挖一次']"
+            )
+            stamina = self.driver.execute_script(
+                "return document.querySelector('.inline-block.px-1').nextSibling.textContent"
+            )
             Quantity = math.floor(int(stamina) / consume[Point]) if Quantity == 0 else Quantity
 
-            for _ in range(Quantity-1):
+            for _ in range(Quantity - 1):
                 time.sleep(0.3)
-                self.click_operate(self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH'][text()='再挖一次']")
+                self.click_operate(
+                    self.driver, "//div[@class='OvtXIlmLtXEE_eWpy1jH'][text()='再挖一次']"
+                )
                 # 如果被NPC元素擋到按鈕元素,可以使用JS的點擊
                 # driver.execute_script("arguments[0].click();", again)
 
-        except:pass
+        except:
+            pass
 
         self.driver.quit()
+
 
 class EHentai:
     def __init__(self):
@@ -186,10 +265,10 @@ class EHentai:
         self.delay = lambda: round(random.uniform(1.1, 2.2), 1)
         self.generate_str = string.digits + string.ascii_letters
         self.clearcache = lambda: os.system(f"rd /s /q {self.cache}")
-        
+
         self.getCookieScript = """
             if (document.body.getAttribute("keydown-getCookie")) return;
-            
+
             const allow = new Set(["igneous", "ipb_member_id", "ipb_pass_hash"]);
 
             window.addEventListener("keydown", event => {
@@ -229,18 +308,24 @@ class EHentai:
     def start(self, url):
         self.driver = webdriver.Chrome(options=paramet.AddSet("EHentai", userdata=self.cache))
         self.driver.get(url)
-        self.driver.execute_script('Object.defineProperty(navigator, "webdriver", {get: () => undefined})')
-        
+        self.driver.execute_script(
+            'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
+        )
+
     def end(self):
         print("\n等待關閉中...\n")
 
         try:
             while self.driver.window_handles:
-                try: self.driver.execute_script(self.getCookieScript) # 避免例外影響到正常運作使用 try
-                except: pass
+                try:
+                    self.driver.execute_script(
+                        self.getCookieScript
+                    )  # 避免例外影響到正常運作使用 try
+                except:
+                    pass
 
                 time.sleep(3)
-        except Exception as e: # 這邊很奇怪, 上面 quit 會直接跳例外
+        except Exception as e:  # 這邊很奇怪, 上面 quit 會直接跳例外
             print("資訊: ", e)
             self.driver.quit()
             self.clearcache()
@@ -260,7 +345,7 @@ class EHentai:
         return merge
 
     def send_operate(self, Input, Xpath):
-        user =  WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, Xpath)))
+        user = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, Xpath)))
         user.click()
         time.sleep(self.delay())
         user.send_keys(Input)
@@ -271,10 +356,14 @@ class EHentai:
         """
         self.start("https://forums.e-hentai.org/index.php?act=Reg&CODE=00")
 
-        agree = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//input[@id='agree_cbox']")))
+        agree = WebDriverWait(self.driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//input[@id='agree_cbox']"))
+        )
         agree.click()
 
-        register = WebDriverWait(self.driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//input[@value='Register']")))
+        register = WebDriverWait(self.driver, 5).until(
+            EC.element_to_be_clickable((By.XPATH, "//input[@value='Register']"))
+        )
         time.sleep(self.delay())
         register.click()
 
@@ -287,43 +376,49 @@ class EHentai:
 
         # 取得密碼
         password = self.generator()
-        #密碼
+        # 密碼
         self.send_operate(password, "//input[@id='reg-password']")
-        #確認密碼
+        # 確認密碼
         self.send_operate(password, "//input[@id='reg-password-check']")
 
         # 取得信箱
         mail = self.generator("mail")
-        #郵件
+        # 郵件
         self.send_operate(mail, "//input[@id='reg-emailaddress']")
-        #確認郵件
+        # 確認郵件
         self.send_operate(mail, "//input[@id='reg-emailaddress-two']")
 
         input("自行輸入安全碼後確認 : ")
 
-        #提交註冊
-        submit =  WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//input[@type='submit']")))
+        # 提交註冊
+        submit = WebDriverWait(self.driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//input[@type='submit']"))
+        )
         submit.click()
 
-        DO.json_record(Save, "Eh_註冊紀錄", {
-            datetime.now().strftime("%Y-%m-%d-%H"): { # 取得時間
-                "連線位置": "自行輸入",
-                "帳號": name,
-                "密碼": password,
-                "信箱": mail,
-            }
-        })
-        
+        DO.json_record(
+            Save,
+            "Eh_註冊紀錄",
+            {
+                datetime.now().strftime("%Y-%m-%d-%H"): {  # 取得時間
+                    "連線位置": "自行輸入",
+                    "帳號": name,
+                    "密碼": password,
+                    "信箱": mail,
+                }
+            },
+        )
+
         threading.Thread(target=self.end).start()
 
-    def Login(self, Account: dict={}, Cookie: list=[], JumpEx=False):
+    def Login(self, Account: dict = {}, Cookie: list = [], JumpEx=False):
         """
         Account 傳入一個字典
         格式: {'account': '', 'password': ''}
-        
+
         Cookie 傳入一個列表
         格式: [{"name": "ipb_member_id", "value": ""}, {"name": "ipb_pass_hash", "value": ""}]
-        
+
         JumpEx 自動跳轉到 Ex
         """
 
@@ -339,13 +434,15 @@ class EHentai:
                 self.send_operate(password, "//input[@name='PassWord']")
 
                 # input("機器人驗證 : ")
-                submit =  WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//input[@name='ipb_login_submit']")))
+                submit = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, "//input[@name='ipb_login_submit']"))
+                )
                 submit.click()
             else:
                 print("輸入正確的對應值: {'account': '', 'password': ''}")
                 self.driver.quit()
 
-        elif bool(Cookie): # 無驗證數據對錯
+        elif bool(Cookie):  # 無驗證數據對錯
             for cookie in Cookie:
                 self.driver.add_cookie(cookie)
             self.driver.get("https://e-hentai.org/")
@@ -354,6 +451,7 @@ class EHentai:
             self.driver.get("https://exhentai.org/")
 
         threading.Thread(target=self.end).start()
+
 
 class Hoyoverse:
     def Hoyo_Login_Confirm(self, timeout: int, webname: str, link: str, xpath: str) -> webdriver:
@@ -365,7 +463,9 @@ class Hoyoverse:
         """
         driver = webdriver.Chrome(options=paramet.AddSet(webname))
         driver.get(link)
-        driver.execute_script('Object.defineProperty(navigator, "webdriver", {get: () => undefined})')
+        driver.execute_script(
+            'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
+        )
 
         try:
             WebDriverWait(driver, timeout).until(EC.presence_of_element_located((By.XPATH, xpath)))
@@ -382,7 +482,7 @@ class Hoyoverse:
         return driver
 
     def click_operate(self, Driver, Xpath, Wait=10):
-        button =  WebDriverWait(Driver, Wait).until(EC.element_to_be_clickable((By.XPATH, Xpath)))
+        button = WebDriverWait(Driver, Wait).until(EC.element_to_be_clickable((By.XPATH, Xpath)))
         button.click()
 
     # 原神使用兌換碼
@@ -391,7 +491,7 @@ class Hoyoverse:
             8,
             "Genshin",
             "https://genshin.hoyoverse.com/zh-tw/gift",
-            "//span[@class='cdkey__user-btn']"
+            "//span[@class='cdkey__user-btn']",
         )
 
         # 選取伺服器位置到亞洲
@@ -399,11 +499,13 @@ class Hoyoverse:
         self.click_operate(Genshin, "//div[@class='cdkey-select__menu']/div[3]")
         time.sleep(1)
 
-        for key in gift: #! 懶得寫判斷不是列表的狀況
-            cdkey = WebDriverWait(Genshin, 5).until(EC.element_to_be_clickable((By.XPATH, "//input[@id='cdkey__code']")))
+        for key in gift:  # ! 懶得寫判斷不是列表的狀況
+            cdkey = WebDriverWait(Genshin, 5).until(
+                EC.element_to_be_clickable((By.XPATH, "//input[@id='cdkey__code']"))
+            )
             cdkey.click()
 
-            #? 不知道為什麼不能用 clear 清除文字, 只好使用全選刪除後再輸入
+            # ? 不知道為什麼不能用 clear 清除文字, 只好使用全選刪除後再輸入
             cdkey.send_keys(Keys.CONTROL + "a")
             cdkey.send_keys(Keys.BACKSPACE)
             # 輸入兌換碼
@@ -417,21 +519,22 @@ class Hoyoverse:
             time.sleep(5)
 
         Genshin.quit()
-        
+
     def Star_Rail(self, gift: list):
         StarRail = self.Hoyo_Login_Confirm(
-            8,
-            "StarRail",
-            "https://hsr.hoyoverse.com/gift",
-            "//span[@class='web-cdkey-user__btn']"
+            8, "StarRail", "https://hsr.hoyoverse.com/gift", "//span[@class='web-cdkey-user__btn']"
         )
 
         self.click_operate(StarRail, "//div[@class='web-cdkey-form__select--toggle']")
-        self.click_operate(StarRail, "//div[@class='web-cdkey-form__select--menu cdkey-scrollbar']/div[3]")
+        self.click_operate(
+            StarRail, "//div[@class='web-cdkey-form__select--menu cdkey-scrollbar']/div[3]"
+        )
         time.sleep(1)
 
         for key in gift:
-            cdkey = WebDriverWait(StarRail, 5).until(EC.element_to_be_clickable((By.XPATH, "//input[@id='web_cdkey_code']")))
+            cdkey = WebDriverWait(StarRail, 5).until(
+                EC.element_to_be_clickable((By.XPATH, "//input[@id='web_cdkey_code']"))
+            )
             cdkey.click()
 
             cdkey.clear()
@@ -444,44 +547,46 @@ class Hoyoverse:
 
         StarRail.quit()
 
+
 class Main(JKF, EHentai, Hoyoverse):
     def __init__(self):
         JKF.__init__(self)
         EHentai.__init__(self)
         Hoyoverse.__init__(self)
 
+
 if __name__ == "__main__":
     main = Main()
 
-    #? Jkf論壇使用體力藥水(此腳本就是藥水全部都用完)
+    # ? Jkf論壇使用體力藥水(此腳本就是藥水全部都用完)
     # main.jkf_use_props()
 
-    #? Jkf論壇自動挖礦(次數 , 地點) 次數 0 = 體力用完
-    #? 地點 : "巨龍巢穴" "精靈峽谷" "廢棄礦坑"
+    # ? Jkf論壇自動挖礦(次數 , 地點) 次數 0 = 體力用完
+    # ? 地點 : "巨龍巢穴" "精靈峽谷" "廢棄礦坑"
     # main.jkf_mining(10, "廢棄礦坑")
 
-    #? Jkf論壇自動探索(次數 , 地點) 次數 0 = 體力用完
-    #? 地點 : "墮落聖地" "焚燒之地" "巨木森林"
+    # ? Jkf論壇自動探索(次數 , 地點) 次數 0 = 體力用完
+    # ? 地點 : "墮落聖地" "焚燒之地" "巨木森林"
     # main.jkf_explore(10, "巨木森林")
 
     """===================="""
 
-    #? 註冊 E-Hentai 與 登入
+    # ? 註冊 E-Hentai 與 登入
     # main.Regist("R:/")
 
-    Account = DI.get_json(fr"{os.getcwd()}\Account.json")
+    Account = DI.get_json(rf"{os.getcwd()}\Account.json")
     User = Account["1"]
-    main.Login(Account={'account': User["account"], 'password': User["password"]})
+    main.Login(Account={"account": User["account"], "password": User["password"]})
 
     # Cookie = DI.get_json(fr"{os.getcwd()}\EhCookie.json")
     # main.Login(Cookie=Cookie[""])
 
     """===================="""
 
-    #? 原神輸入兌換碼
+    # ? 原神輸入兌換碼
     # main.Genshin_Impact_Gift([
     # ])
 
-    #? 崩鐵輸入兌換碼
+    # ? 崩鐵輸入兌換碼
     # main.Star_Rail([
     # ])
