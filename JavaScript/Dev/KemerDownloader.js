@@ -39,7 +39,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/529004/1548656/JSZip_min.js
-// @require      https://update.greasyfork.org/scripts/495339/1551581/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1558818/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 
 // @resource     json-processing https://cdn-icons-png.flaticon.com/512/2582/2582087.png
@@ -124,7 +124,7 @@
      */
     const FetchSet = {
         AdvancedFetch: true, // 進階獲取 (如果只需要 圖片和影片連結, 關閉該功能獲取會快很多)
-        ToLinkTxt: true, // 啟用後輸出為只有連結的 txt, 用於 IDM 導入下載
+        ToLinkTxt: false, // 啟用後輸出為只有連結的 txt, 用於 IDM 導入下載
         UseFormat: false, // 這裡為 false 下面兩項就不生效
         Mode: "FilterMode",
         Format: ["Timestamp", "TypeTag"],
@@ -1048,10 +1048,7 @@
                         };
                     }
 
-
                     const Results = Json.results;
-
-                    /* ----- 進階抓取數據 ----- */
                     if (this.AdvancedFetch) {
                         const Tasks = [];
                         const resolvers = new Map(); // 用於存儲每個 Promise
@@ -1357,7 +1354,7 @@
 
             } else if (this.Page.Preview) {
                 Syn.Menu({
-                    [Lang.Transl("📑 獲取 Json 數據")]: {
+                    [Lang.Transl("📑 獲取帖子數據")]: {
                         func: () => {
                             if (!lock) {
                                 let Instantiate = null;
@@ -1380,7 +1377,7 @@
             },
             Simplified: {
                 "🔁 切換下載模式": "🔁 切换下载模式",
-                "📑 獲取 Json 數據": "📑 获取 Json 数据",
+                "📑 獲取帖子數據": "📑 获取帖子数据",
                 "📃 開啟當前頁面帖子": "📃 打开当前页面帖子",
                 "📥 強制壓縮下載": "📥 强制压缩下载",
                 "⛔️ 終止下載": "⛔️ 终止下载",
@@ -1414,7 +1411,7 @@
             },
             Japan: {
                 "🔁 切換下載模式": "🔁 ダウンロードモードの切り替え",
-                "📑 獲取 Json 數據": "📑 Json データの取得",
+                "📑 獲取帖子數據": "📑 投稿データを取得",
                 "📃 開啟當前頁面帖子": "📃 現在のページの投稿を開く",
                 "📥 強制壓縮下載": "📥 強制的に圧縮してダウンロード",
                 "⛔️ 終止下載": "⛔️ ダウンロードを中止",
@@ -1448,10 +1445,10 @@
             },
             English: {
                 "🔁 切換下載模式": "🔁 Switch Download Mode",
-                "📑 獲取 Json 數據": "📑 Get Json Data",
+                "📑 獲取帖子數據": "📑 Get Post Data",
                 "📃 開啟當前頁面帖子": "📃 Open Current Page Post",
                 "📥 強制壓縮下載": "📥 Force Compress Download",
-                "⛔️ 終止下載": "⛔️ Terminate download",
+                "⛔️ 終止下載": "⛔️ Terminate Download",
                 "壓縮下載模式": "Compress Download Mode",
                 "單圖下載模式": "Single Image Download Mode",
                 "壓縮下載": "Compress Download",
