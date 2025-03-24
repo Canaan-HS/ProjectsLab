@@ -30,8 +30,11 @@ from rich.console import Console
 """
 
 console = Console()
+
+
 def print(*args, **kwargs):
     console.print(*args, **kwargs)
+
 
 class Read(tk.Tk):
     def __init__(self):
@@ -39,8 +42,8 @@ class Read(tk.Tk):
         self.Folder_Path = None
         self.Complete_Data = None
 
-        self.withdraw() # 隱藏主視窗
-        self.attributes('-topmost', True) # 置頂主視窗
+        self.withdraw()  # 隱藏主視窗
+        self.attributes("-topmost", True)  # 置頂主視窗
 
     # 選擇開啟資料夾
     def __Open_Folder(self):
@@ -56,7 +59,7 @@ class Read(tk.Tk):
         # 保存選擇資料夾後讀取的所有數據
         Read_Data = {}
 
-        for Root, _, Files in os.walk(self.Folder_Path): # 路徑 , 資料夾 , 檔名
+        for Root, _, Files in os.walk(self.Folder_Path):  # 路徑 , 資料夾 , 檔名
             Read_Data[Root] = Files
 
         return Read_Data
@@ -64,7 +67,7 @@ class Read(tk.Tk):
     # 解析開啟的路徑數據
     def Analysis(self, Path=None):
 
-        self.Folder_Path = Path # 可直接給予測試用路徑
+        self.Folder_Path = Path  # 可直接給予測試用路徑
         Data = self.__Read_All_Files() if Path else self.__Open_Folder()
 
         # 緩存處理擴展名
@@ -77,11 +80,11 @@ class Read(tk.Tk):
         Complete_Data = []
 
         for Path, FileBox in Data.items():
-            if len(FileBox) != 0: # 當他是 0 帶表示空資料夾
+            if len(FileBox) != 0:  # 當他是 0 帶表示空資料夾
                 for name in FileBox:
                     try:
                         File_Extension = name.rsplit(".", 1)[1].strip()
-                    except Exception: # 可能有例外
+                    except Exception:  # 可能有例外
                         pass
 
                     try:
@@ -89,7 +92,7 @@ class Read(tk.Tk):
 
                         File_Type.add(LowExtension)
                         Type_Quantity.append(LowExtension)
-                        Complete_Data.append(f"{Path}/{name}".replace("\\","/"))
+                        Complete_Data.append(f"{Path}/{name}".replace("\\", "/"))
                     except Exception:
                         print("無可分類檔案", style="bold red")
                         os._exit(0)
@@ -97,9 +100,11 @@ class Read(tk.Tk):
         self.Complete_Data = Complete_Data
         return File_Type, Counter(Type_Quantity)
 
+
 # 自訂例外
 class DataEmptyError(Exception):
     pass
+
 
 # 輸出
 class Output:
@@ -112,12 +117,14 @@ class Output:
         self.Save_Path = None
         self.Output_Data = None
         self.Move_Output = lambda Source_Path, Output_Path: shutil.move(Source_Path, Output_Path)
-        self.Copy_Output = lambda Source_Path, Output_Path: shutil.copyfile(Source_Path, Output_Path)
+        self.Copy_Output = lambda Source_Path, Output_Path: shutil.copyfile(
+            Source_Path, Output_Path
+        )
 
     # 複製處理
     def __Process_Task(self):
         Work_State = []
-        Record_Output = set() # 用於紀錄已輸出的文件, 避免重複輸出
+        Record_Output = set()  # 用於紀錄已輸出的文件, 避免重複輸出
 
         for Copy_Path in self.Output_Data:
 
@@ -142,9 +149,12 @@ class Output:
             Work.start()
 
         WorkLoad = len(Work_State)
-        Progress_Bar = [ # 進度條樣式配置
-            ' ', progressbar.Bar(marker='■', left='[', right=']'),
-            ' ', progressbar.Counter(), f'/{WorkLoad}',
+        Progress_Bar = [  # 進度條樣式配置
+            " ",
+            progressbar.Bar(marker="■", left="[", right="]"),
+            " ",
+            progressbar.Counter(),
+            f"/{WorkLoad}",
         ]
 
         with progressbar.ProgressBar(widgets=Progress_Bar, max_value=WorkLoad) as bar:
@@ -169,6 +179,7 @@ class Output:
         except Exception:
             self.__Process_Task()
 
+
 class TypeSelection(Read, Output):
     def __init__(self):
         Read.__init__(self)
@@ -190,36 +201,44 @@ class TypeSelection(Read, Output):
                     print(f"你選擇了 : 全部\n", style="bold green")
                     Selected = "ALL"
 
-                    self.Output_Data = self.Complete_Data # 將完整數據賦予給輸出數據
+                    self.Output_Data = self.Complete_Data  # 將完整數據賦予給輸出數據
                 else:
-                    Type = self.Task_List[Select-1][0] # 根據索引取出選擇則字串
+                    Type = self.Task_List[Select - 1][0]  # 根據索引取出選擇則字串
                     Selected = Type
 
                     print(f"你選擇了 : {Type}\n", style="bold green")
 
                     # 根據選擇類型, 取出完整數據中符合該副檔名的文件
-                    self.Output_Data = [Item for Item in self.Complete_Data if Item.endswith(f".{Type}")]
+                    self.Output_Data = [
+                        Item for Item in self.Complete_Data if Item.endswith(f".{Type}")
+                    ]
 
                 # 生成保存路徑
-                self.Save_Path = f"{self.Folder_Path}/{os.path.basename(self.Folder_Path)} ({Selected})" if self.Type_Folder else self.Folder_Path
+                self.Save_Path = (
+                    f"{self.Folder_Path}/{os.path.basename(self.Folder_Path)} ({Selected})"
+                    if self.Type_Folder
+                    else self.Folder_Path
+                )
 
                 # 創建輸出任務
                 self.CreateTask()
 
-                if not self.Repeat_Task: break
+                if not self.Repeat_Task:
+                    break
 
             except Exception as e:
-                Select = None # 選擇錯誤, 需要重置, 不然會無限迴圈
+                Select = None  # 選擇錯誤, 需要重置, 不然會無限迴圈
                 print(f"錯誤: {e}", style="bold red")
 
-    def Select(self,
-               Copy: bool=True,
-               Repeat: bool=False,
-               ReSelect: bool=False,
-               SaveOpen: bool=False,
-               AddSource: bool=False,
-               CreateTypeFolder: bool=True
-            ):
+    def Select(
+        self,
+        Copy: bool = True,
+        Repeat: bool = False,
+        ReSelect: bool = False,
+        SaveOpen: bool = False,
+        AddSource: bool = False,
+        CreateTypeFolder: bool = True,
+    ):
         """
         選擇輸出類型文件
 
@@ -236,13 +255,13 @@ class TypeSelection(Read, Output):
         self.Repeat_Task = Repeat
         self.Attach_Source = AddSource
         self.Type_Folder = CreateTypeFolder
-        self.Task_Mode = self.Copy_Output if Copy else self.Move_Output # 選擇任務模式
+        self.Task_Mode = self.Copy_Output if Copy else self.Move_Output  # 選擇任務模式
 
         while True:
-            Default_Choose = None # 預設選擇類型
-            File_Type, Type_Quantity = self.Analysis() # 獲取解析數據
+            Default_Choose = None  # 預設選擇類型
+            File_Type, Type_Quantity = self.Analysis()  # 獲取解析數據
 
-            if len(File_Type) > 1: # 如果有多檔案類型才建立選擇
+            if len(File_Type) > 1:  # 如果有多檔案類型才建立選擇
                 # 展示用數據建立
                 Show_Table = []
                 Show_Table.append(["[0]", "ALL", f"{len(self.Complete_Data)}"])
@@ -253,7 +272,7 @@ class TypeSelection(Read, Output):
                 # 使用數量由大到小排序
                 self.Task_List = sorted(Sort_Cache.items(), key=itemgetter(1), reverse=True)
                 for Index, (Type, Count) in enumerate(self.Task_List):
-                    Show_Table.append([f"[{Index+1}]", Type, Count])
+                    Show_Table.append([f"[{Index + 1}]", Type, Count])
 
                 # 顯示選擇
                 print("{:<6} {:<8} {}".format("代號", "檔案類型", "類型數量"), style="bold magenta")
@@ -264,9 +283,11 @@ class TypeSelection(Read, Output):
                 self.Task_List = [[File_Type.pop()]]
 
             self.__Choose(Default_Choose)
-            if not ReSelect: break
+            if not ReSelect:
+                break
 
-        self.destroy() # 結束後消除視窗
+        self.destroy()  # 結束後消除視窗
+
 
 if __name__ == "__main__":
-    TypeSelection().Select(False)
+    TypeSelection().Select(True, AddSource=True)
