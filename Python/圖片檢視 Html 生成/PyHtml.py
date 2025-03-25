@@ -5,6 +5,7 @@ from tkinter import filedialog
 
 from jinja2 import Template
 
+
 class ImageDataImport:
     def __init__(self):
         os.chdir(Path(__file__).parent.resolve())
@@ -23,6 +24,7 @@ class ImageDataImport:
                 data_box.append(file.relative_to(create_path).as_posix())
             return create_path, create_name, data_box
 
+
 class TemplateGeneration(ImageDataImport):
     def __init__(self):
         super().__init__()
@@ -32,8 +34,10 @@ class TemplateGeneration(ImageDataImport):
         self.template = None
 
     def Get_data(self):
-        try:self.create_path, self.create_name, self.data_box = self.Read_folder()
-        except:pass
+        try:
+            self.create_path, self.create_name, self.data_box = self.Read_folder()
+        except:
+            pass
 
     def Create_Template(self):
         template = """
@@ -172,16 +176,18 @@ class TemplateGeneration(ImageDataImport):
     def Generate_Save_HTML(self):
         self.Get_data()
 
-        if self.create_path != None:
+        if self.create_path is not None:
             # 創建模板
             self.Create_Template()
 
             # 傳遞創建模板參數
-            html = self.template.render({
-                "title": self.create_name,
-                "bg": "rgb(110, 110, 110)",
-                "data": self.data_box,
-            })
+            html = self.template.render(
+                {
+                    "title": self.create_name,
+                    "bg": "rgb(110, 110, 110)",
+                    "data": self.data_box,
+                }
+            )
 
             # 文件名稱
             name = Path(self.create_path) / f"{self.create_name}.html"
@@ -190,6 +196,7 @@ class TemplateGeneration(ImageDataImport):
             print("輸出完成")
 
             os.startfile(name)
+
 
 if __name__ == "__main__":
     TG = TemplateGeneration()
