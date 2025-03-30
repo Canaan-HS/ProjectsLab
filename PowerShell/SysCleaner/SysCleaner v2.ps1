@@ -197,7 +197,7 @@ Delete @(
 
 # ===== 掃描清理緩存類型文件 =====
 $findFolders = @($Roaming, $Local, $LocalLow)
-$cacheFolders = @(
+$cacheFolders = @( # 會把 Vs Code 清理壞, 不知道為什麼, 但重新安裝就好了 (不用重新設定)
     'Temp', 'Cache', 'GPUCache', 'Code Cache', 'media_cache', 'MediaCache',
     'DawnCache', 'INetCache', 'ShaderCache', 'GrShaderCache', 'ScriptCache',
     'Service Worker', 'extensions_crx_cache','Crashpad', 'blob_storage',
@@ -214,6 +214,7 @@ foreach ($find in $findFolders) {
 # ===== 調用系統清理 並檢查錯誤 =====
 Start-Process cleanmgr.exe -ArgumentList "/sagerun:99"
 
+Clear-Host
 Print "`n安全移除系統內隱藏檔案(這需要花一段時間)`n" 'Yellow'
 
 # 清理不再需要的系統組件和臨時文件
