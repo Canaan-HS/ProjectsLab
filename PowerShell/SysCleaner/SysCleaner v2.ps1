@@ -93,6 +93,7 @@ ipconfig /renew # 更新 IP 配置
 Stop-Service -Name bits, wuauserv, cryptSvc, msiserver -Force
 
 Delete @(
+    "$Windows\System32\catroot2"
     "$Windows\System32\catroot2.old"
     "$Windows\SoftwareDistribution.old"
 )
@@ -146,9 +147,7 @@ Delete @(
     "$Program\Package Cache\"
     "$Windows\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization"
 
-    "$User\Local"
     "$User\Intel"
-    "$User\source"
     "$C\Program Files\Temp"
 
     "$C\AMD\"
@@ -179,36 +178,41 @@ Delete @(
 
 # ===== 第三方軟體緩存 =====
 Delete @(
+    # Surfshark
     "$Local\Surfshark\Updates"
+    # nikke
     "$Roaming\nikke_launcher\tbs_cache"
+    # LINE
+    "$Local\LINE\bin\old"
+    # Telegram
     "$Roaming\Telegram Desktop\tdata\user_data"
-    "$Program\IObit\Driver Booster\Download"
+    # NVIDIA
     "$LocalLow\NVIDIA\PerDriverVersion\DXCache"
+    # IObit
+    "$Program\IObit\Driver Booster\Download"
     "$Roaming\IObit\Software Updater\Log\*.dbg"
     "$Roaming\IObit\Software Updater\AutoLog\*.dbg"
-
+    # VSCode
     "$Roaming\Code\logs"
     "$Roaming\Code\CachedData"
     "$Roaming\Code\User\History"
-    "$Local\Microsoft\vscode-cpptools"
-
-    "$Local\LINE\bin\old"
 )
 
 # ===== 掃描清理緩存類型文件 =====
 $findFolders = @($Roaming, $Local, $LocalLow)
-$cacheFolders = @( # 會把 Vs Code 清理壞, 不知道為什麼, 但重新安裝就好了 (不用重新設定)
-    'Temp', 'Cache', 'GPUCache', 'Code Cache', 'media_cache', 'MediaCache',
-    'DawnCache', 'INetCache', 'ShaderCache', 'GrShaderCache', 'ScriptCache',
-    'Service Worker', 'extensions_crx_cache','Crashpad', 'blob_storage',
-    'IndexedDB', 'History', 'INetHistory', 'webcache', 'LocalCache'
+$cacheFolders = @(
+    'Temp', 'Logs', 'Crashpad', 'Session Storage', 'History', 'INetHistory',  'CrashDumps',
+    'Cache', 'lru-cache', 'librarycache', 'GPUCache', 'Code Cache', 'media_cache','MediaCache', 'DawnCache',
+    'INetCache', 'ShaderCache', 'GrShaderCache', 'ScriptCache', 'CacheStorage', 'extensions_crx_cache', 'webcache', 'LocalCache'
 )
 
 foreach ($find in $findFolders) {
-    foreach ($cache in $cacheFolders) {
-        $found = Get-ChildItem -Path $find -Filter $cache -Recurse -ErrorAction SilentlyContinue
-        if ($found) { Delete $found }
-    }
+    $found = Get-ChildItem -Path $find -Recurse -Directory -ErrorAction SilentlyContinue |
+        Where-Object {
+            $cacheFolders.ToLower() -contains $_.Name.ToLower()
+        }
+
+    if ($found) { Delete $found }
 }
 
 # ===== 調用系統清理 並檢查錯誤 =====
