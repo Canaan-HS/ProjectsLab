@@ -29,25 +29,20 @@ function Delete {
         [Object]$RemoveObject
     )
 
-    if ($RemoveObject -is [string]) {
-        if (Test-Path $RemoveObject) {
+    foreach ($path in @($RemoveObject)) {
+        # 判斷是否為多層通配
+        $isMultiWildcard = $path -match '\\[^\\]*\*[^\\]*\\'
+
+        # 展開多層通配或直接處理
+        $targets = $isMultiWildcard ? (Get-ChildItem -Path $path -Directory -ErrorAction SilentlyContinue) : ((Test-Path $path) ? @($path) : @())
+
+        foreach ($item in $targets) {
             try {
-                Remove-Item -Path $RemoveObject -Recurse -Force -ErrorAction SilentlyContinue
-                Print "清理成功: $RemoveObject" 'Green'
+                $targetPath = if ($item -is [System.IO.FileSystemInfo]) { $item.FullName } else { $item }
+                Remove-Item -Path $targetPath -Recurse -Force -ErrorAction SilentlyContinue
+                Print "清理成功: $targetPath" 'Green'
             } catch {
                 Print "清理失敗: $_" 'Red'
-            }
-        }
-    } elseif ($RemoveObject -is [Object]) {
-        $RemoveObject | ForEach-Object {
-            if (Test-Path $_) {
-                try {
-                    Remove-Item -Path $_ -Recurse -Force -ErrorAction SilentlyContinue
-                    Print "清理成功: $_" 'Green'
-                } catch {
-                    Print "清理失敗: $_" 'Red'
-                }
-                
             }
         }
     }
@@ -69,7 +64,6 @@ Print "-------------------------------------------------------------------------
 Input "輸入任意鍵..."
 
 # 取得路徑
-$Temp = $env:Temp
 $C = $env:systemdrive
 $Windows = $env:windir
 $Roaming = $env:AppData
@@ -95,6 +89,7 @@ Stop-Service -Name bits, wuauserv, cryptSvc, msiserver -Force
 Delete @(
     "$Windows\System32\catroot2"
     "$Windows\System32\catroot2.old"
+    "$Windows\SoftwareDistribution"
     "$Windows\SoftwareDistribution.old"
 )
 
@@ -110,58 +105,53 @@ Delete @(
     "$Program\Microsoft\Windows\WER\"
     "$Windows\PCHealth\ERRORREP\QSIGNOFF\"
     "$Program\Microsoft\Diagnosis\ETLLogs\AutoLogger\"
+    "$Windows\Sys*\config\systemprofile\AppData\Local\CrashDumps"
 
     # ASP.NET 應用程序的臨時編譯文件
-    "$Windows\Microsoft.NET\Framework\v1.1.4322\Temporary ASP.NET Files\"
-    "$Windows\Microsoft.NET\Framework\v2.0.50727\Temporary ASP.NET Files\"
-    "$Windows\Microsoft.NET\Framework\v4.0.30319\Temporary ASP.NET Files\"
+    "$Windows\Microsoft.NET\Framework*\*\Temporary ASP.NET Files"
 
     # 舊版瀏覽器緩存
-    "$Roaming\Mozilla\Firefox\Profiles\*\cache2\"
     "$Local\Microsoft\Windows\Explorer\thumbcache*"
 
     # 緩存數據
-    "$Temp\"
     "$C\*.tmp"
     "$C\*._mp"
     "$C\*.log"
     "$C\*.gid"
     "$C\*.chk"
     "$C\*.dlf"
-    "$C\recycled\"
-    "$Windows\Temp\"
-    "$LocalLow\Temp\"
-    "$Windows\KB*.log"
-    "$Windows\*.bak"
-    "$Windows\HELP\"
-    "$Windows\prefetch\"
-    "$User\recent\"
-    "$User\cookies\"
-    "$Windows\SystemTemp"
-    "$User\Local Settings\Temp\"
-    "$Local\Microsoft\Windows\Caches\"
-    "$Windows\SoftwareDistribution\Download\"
-    "$User\Local Settings\Temporary Internet Files\"
-
-    "$User\RecycleBin\"
-    "$Program\Package Cache\"
-    "$Windows\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization"
-
-    "$User\Intel"
-    "$C\Program Files\Temp"
-
     "$C\AMD\"
     "$C\INTEL\"
     "$C\NVIDIA\"
+    "$C\recycled\"
     "$C\OneDriveTemp"
+    "$C\Program Files\Temp"
+
+    "$Windows\Temp\"
+    "$Windows\*.bak"
+    "$Windows\HELP\"
+    "$Windows\KB*.log"
+    "$Windows\prefetch\"
+    "$Windows\SystemTemp"
     "$Windows\logs\*.log"
     "$Windows\Panther\*.log"
     "$Windows\Logs\MoSetup\*.log"
     "$Windows\Logs\CBS\CbsPersist*.log"
+    "$Windows\SoftwareDistribution\Download\"
+    "$Windows\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization"
 
+    # 刪除有風險
+    "$Program\Package Cache\"
+
+    "$User\Intel"
     "$User\.cache"
     "$User\.Origin"
+    "$User\recent\"
+    "$User\cookies\"
+    "$User\RecycleBin\"
     "$User\.QtWebEngineProcess"
+    "$User\Local Settings\Temp\"
+    "$User\Local Settings\Temporary Internet Files\"
 )
 
 # ===== 清除防火牆紀錄 =====
@@ -201,8 +191,8 @@ Delete @(
 # ===== 掃描清理緩存類型文件 =====
 $findFolders = @($Roaming, $Local, $LocalLow)
 $cacheFolders = @(
-    'Temp', 'Logs', 'Crashpad', 'Session Storage', 'History', 'INetHistory',  'CrashDumps',
-    'Cache', 'lru-cache', 'librarycache', 'GPUCache', 'Code Cache', 'media_cache','MediaCache', 'DawnCache',
+    'Temp', 'Logs', 'Crashpad', 'History', 'INetHistory',  'CrashDumps',
+    'Cache', 'Caches', 'lru-cache', 'librarycache', 'GPUCache', 'Code Cache', 'media_cache','MediaCache', 'DawnCache',
     'INetCache', 'ShaderCache', 'GrShaderCache', 'ScriptCache', 'CacheStorage', 'extensions_crx_cache', 'webcache', 'LocalCache'
 )
 
