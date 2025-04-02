@@ -405,9 +405,7 @@ class Main {
                 Print ""
                 Print "  更新資訊:"
                 Print ""
-                Print "   1. 移除 自動配置 DNS 延遲過高 Dns"
-                Print ""
-                Print "   2. 降低 自動配置 DNS 併發數量"
+                Print "   1. 調整 IDM 授權文件取得方式"
                 Print "----------------------------------"
                 $this.WaitBack()
             }
@@ -1106,6 +1104,14 @@ class Main {
                 # https://github.com/Coporton/IDM-Activation-Script (目前使用)
                 # https://github.com/lstprjct/IDM-Activation-Script
                 # https://github.com/kamrullab/idm
+
+                $this.Authorize(
+                    "IDM-Script.zip",
+                    "https://github.com/Coporton/IDM-Activation-Script/releases/download/v2.5.0/IDM-Activation-Script-main.zip",
+                    "IDM-Activation-Script-main/IASL.cmd"
+                )
+
+                <#
                 $this.Authorize(
                     "$($this.MD5("IASL")).cmd",
                     "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/IASL.cmd",
@@ -1117,6 +1123,7 @@ class Main {
                         @("src\registry.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/registry.bin")
                     )
                 )
+                #>
             }
             (index) { # Windows 啟用授權
                 # https://github.com/massgravel/Microsoft-Activation-Scripts
