@@ -176,9 +176,9 @@ function VideoUpscaler {
 
         Write-Host "`n===== 幀數提取 =====>`n"
         if ($processFormat -eq "webp") {
-            & $Dep.ffmpeg -v quiet -hwaccel cuda -i "$InputMedia" -an -vsync vfr -vf "fps=$fps,scale=iw:ih:flags=lanczos,unsharp=$sharpness" -c:v libwebp -lossless 1 -threads 0 -cpu-used 6 "$cachePath\%0$($imgFormat)d.$processFormat" -y
+            & $Dep.ffmpeg -v quiet -hwaccel cuda -i "$InputMedia" -an -vsync vfr -vf "fps=$fps,scale=iw:ih:flags=lanczos,unsharp=$sharpness" -c:v libwebp -lossless 1 -threads 0 "$cachePath\%0$($imgFormat)d.$processFormat" -y
         } else {
-            & $Dep.ffmpeg -v quiet -hwaccel cuda -i "$InputMedia" -an -vsync vfr -vf "fps=$fps,scale=iw:ih:flags=lanczos,unsharp=$sharpness" -q:v 1 -threads 0 -cpu-used 6 "$cachePath\%0$($imgFormat)d.$processFormat" -y
+            & $Dep.ffmpeg -v quiet -hwaccel cuda -i "$InputMedia" -an -vsync vfr -vf "fps=$fps,scale=iw:ih:flags=lanczos,unsharp=$sharpness" -q:v 1 -threads 0 "$cachePath\%0$($imgFormat)d.$processFormat" -y
         }
 
         if ($srmdProcess) {
@@ -243,7 +243,7 @@ function VideoUpscaler {
                         Remove-Item $pngPath -Force # 刪除原始 png
     
                         $tempPath = ($webpPath -replace ".webp", "_temp.webp")
-                        & $Dep.ffmpeg -hwaccel cuda -i "$webpPath" -an -vf "scale=$($scaled):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($scaled):(ow-iw)/2:(oh-ih)/2:black,unsharp=$sharpness" -q:v 100 -threads 0 -cpu-used 6 "$tempPath" -y
+                        & $Dep.ffmpeg -hwaccel cuda -i "$webpPath" -an -vf "scale=$($scaled):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($scaled):(ow-iw)/2:(oh-ih)/2:black,unsharp=$sharpness" -q:v 100 -threads 0 "$tempPath" -y
                         Remove-Item $webpPath -Force # 刪除原始 webp, 替代為壓縮圖片
                         Rename-Item $tempPath $webpPath
                     })
@@ -311,9 +311,9 @@ function VideoUpscaler {
         # 使用圖片合併成影片，音軌來自原始影片
         try {
             if ($merge -eq "slow") {
-                & $Dep.ffmpeg -framerate $fps -i "$cachePath\%0$($imgFormat)d.$processFormat" -i "$InputMedia" -c:v libx265 -b:v "$($bitrate)M" -vf "$vfConfig" -preset slow -tune animation -threads 0 -cpu-used 6 -c:a copy -shortest "$upscaled_Path" -y
+                & $Dep.ffmpeg -framerate $fps -i "$cachePath\%0$($imgFormat)d.$processFormat" -i "$InputMedia" -c:v libx265 -b:v "$($bitrate)M" -vf "$vfConfig" -preset slow -tune animation -threads 0 -c:a copy -shortest "$upscaled_Path" -y
             } else {
-                & $Dep.ffmpeg -hwaccel cuda -framerate $fps -i "$cachePath\%0$($imgFormat)d.$processFormat" -i "$InputMedia" -c:v hevc_nvenc -profile main10 -rc vbr -b:v "$($bitrate)M" -vf "$vfConfig" -preset p7 -rc-lookahead 32 -spatial-aq 1 -aq-strength 10 -temporal-aq 1 -threads 0 -cpu-used 6 -c:a copy -shortest "$upscaled_Path" -y
+                & $Dep.ffmpeg -hwaccel cuda -framerate $fps -i "$cachePath\%0$($imgFormat)d.$processFormat" -i "$InputMedia" -c:v hevc_nvenc -profile main10 -rc vbr -b:v "$($bitrate)M" -vf "$vfConfig" -preset p7 -rc-lookahead 32 -spatial-aq 1 -aq-strength 10 -temporal-aq 1 -threads 0 -c:a copy -shortest "$upscaled_Path" -y
             }
 
             Remove-Item $cachePath -Recurse -Force
