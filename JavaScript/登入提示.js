@@ -14,10 +14,7 @@
 // @description:ko     自動登入器
 // @description:en     自動登入器
 
-// @match        *://*/*login*
-// @match        *://*/*Login*
-// @match        *://*/*signin*
-// @match        *://*/*Signin*
+// @match        *://*/*
 
 // @license      MPL-2.0
 // @namespace    https://greasyfork.org/users/989635
@@ -46,7 +43,7 @@
  * 範例密碼: password
  */
 
-(function() {
+(function () {
     class AutoLogin {
         constructor() {
             this.Domain = Syn.Device.Host;
@@ -64,13 +61,13 @@
 
             // 這個監聽動態變化並不始終有效
             this.OBL = (element, value) => {
-                Syn.Observer(element, ()=> {
+                Syn.Observer(element, () => {
                     element.value != value && (element.value = value);
-                }, {subtree: false, childList: false}, ()=> {
+                }, { subtree: false, childList: false }, () => {
                     element.value = value;
-                });
+                })
             };
-            
+
             // 加解密算法
             this.Algorithm = {
                 UTF16LE: {
@@ -90,20 +87,20 @@
                     const Encrypted_1 = CryptoJS.AES.encrypt(
                         this.UTF16LE.Parse(Text),
                         SHA3_Key,
-                    {
-                        iv: IV,
-                        mode: CryptoJS.mode.CBC,
-                        padding: CryptoJS.pad.Iso97971
-                    }).toString();
+                        {
+                            iv: IV,
+                            mode: CryptoJS.mode.CBC,
+                            padding: CryptoJS.pad.Iso97971
+                        }).toString();
                     // 第二次加密
                     const Encrypted_2 = CryptoJS.AES.encrypt(
                         this.UTF16LE.Parse(Encrypted_1),
                         this.SHA512_KEY(IV),
-                    {
-                        iv: this.IV(SHA3_Key),
-                        mode: CryptoJS.mode.CBC,
-                        padding: CryptoJS.pad.Iso97971
-                    }).toString();
+                        {
+                            iv: this.IV(SHA3_Key),
+                            mode: CryptoJS.mode.CBC,
+                            padding: CryptoJS.pad.Iso97971
+                        }).toString();
 
                     return Encrypted_2; // 傳回加密字串
                 },
@@ -178,10 +175,12 @@
 
         async Main() {
             Syn.Menu({
-                "📝 添加登入資訊": {func: ()=> this.Save()},
-                "🚮 刪除登入資訊": {func: ()=> {
-                    Syn.Store("d", this.Domain);
-                }}
+                "📝 添加登入資訊": { func: () => this.Save() },
+                "🚮 刪除登入資訊": {
+                    func: () => {
+                        Syn.Store("d", this.Domain);
+                    }
+                }
             });
 
             // 檢測登入資訊中, 是否含有當前網址
@@ -196,13 +195,18 @@
                     Password = this.Algorithm.Decrypt(Password, `${this.Domain}@Default_Password@`);
                 }
 
-                Syn.WaitElem("input[type='password']", PasswordEnter=> {
+                Syn.WaitElem("input[type='password']", PasswordEnter => {
                     const click = new MouseEvent("click", { // 創建點擊事件, 避免有被阻止的情況
                         bubbles: true,
                         cancelable: true
                     });
 
-                    const AccountEnter = Syn.$$("input[type='text'], input[type='email']", {all: true}); // [name*="acc"] 不能處理大小寫差異
+                    const LoginRegex = /acc|login|log|user|name|email|mail|id|ident|oninput|auth/i;
+                    const AccountEnter = [...document.querySelectorAll("input:not([type='password']):not([type='search'])")]
+                        .filter(input => {
+                            return [...input.attributes].some(attr => LoginRegex.test(attr.value));
+                        });
+
                     Syn.Log("自動登入資訊", { // 除錯資訊
                         AccountObject: AccountEnter,
                         PasswordObject: PasswordEnter
@@ -212,25 +216,20 @@
                     if (AccountEnter.length == 1) {
                         this.OBL(AccountEnter[0], Account);
                     } else { // 多個帳號輸入類型, 暴力解法 全部都輸入
-                        AccountEnter.forEach(account => {
-                            if (
-                                /acc|log|user|email/i.test(account.getAttribute("name")) // 多數類型
-                                || account.getAttribute("oninput") // B 站類型
-                            ) {
-                                this.OBL(account, Account); // 動態輸入帳號
-                            }
+                        AccountEnter.forEach(Enter => {
+                            this.OBL(Enter, Account); // 動態輸入帳號
                         });
                     }
                     this.OBL(PasswordEnter, Password); // 動態輸入密碼
 
                     if (Info.Autologin == "true") { // 自動登入 (目前保存方式的 true, 會是一個字串)
-                        setTimeout(()=> {
-                            const submit = Syn.$$("input[type='submit'], button[type='submit']", {all: true});
+                        setTimeout(() => {
+                            const submit = Syn.$$("input[type='submit'], button[type='submit']", { all: true });
                             submit[0]?.dispatchEvent(click);
                         }, 500);
                     }
 
-                }, {raf: true});
+                }, { raf: true });
             };
         }
     }
