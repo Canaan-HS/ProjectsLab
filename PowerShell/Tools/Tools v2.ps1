@@ -1432,8 +1432,8 @@ class Main {
                         }
                     })
 
-                    $runspace.AddParameter("server", $server) # 將參數傳遞給腳本塊
-                    $runspace.AddParameter("testDomains", $testDomains) # 將參數傳遞給腳本塊
+                    $runspace.AddArgument($server)
+                    $runspace.AddArgument($testDomains)
 
                     $jobs += [PSCustomObject]@{ # 存儲 job 物件
                         Runspace = $runspace
