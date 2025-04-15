@@ -405,7 +405,7 @@ class Main {
                 Print ""
                 Print "  更新資訊:"
                 Print ""
-                Print "   1. 調整 IDM 授權文件取得方式"
+                Print "   1. IDM 授權更新"
                 Print "----------------------------------"
                 $this.WaitBack()
             }
@@ -1107,7 +1107,7 @@ class Main {
 
                 $this.Authorize(
                     "IDM-Script.zip",
-                    "https://github.com/Coporton/IDM-Activation-Script/releases/download/v2.5.0/IDM-Activation-Script-main.zip",
+                    "https://github.com/Coporton/IDM-Activation-Script/releases/download/v2.5.1/IDM-Activation-Script-main.zip",
                     "IDM-Activation-Script-main/IASL.cmd"
                 )
 
