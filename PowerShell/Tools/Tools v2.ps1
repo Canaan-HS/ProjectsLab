@@ -1110,10 +1110,11 @@ class Main {
                     "$($this.MD5("IASL")).cmd",
                     "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/IASL.cmd",
                     @(
-                        @("src\Registry.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/Registry.bin"),
                         @("src\banner_art.txt", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/banner_art.txt"),
                         @("src\data.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/data.bin"),
-                        @("src\extensions.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/extensions.bin")
+                        @("src\dataHlp.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/dataHlp.bin"),
+                        @("src\extensions.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/extensions.bin"),
+                        @("src\registry.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/registry.bin")
                     )
                 )
             }
