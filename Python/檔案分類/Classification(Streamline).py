@@ -192,18 +192,20 @@ class TypeSelection(Read, Output):
     # 選擇輸出類型
     def __Choose(self, Select: None):
 
+        # ! 懶得處理細節判斷
+        # ! 使用 Repeat_Task 如果不是複製文件, 就不要選擇已經操作過的類型, 因為沒有根據選擇清理 Task_List, 重新選擇可能會導致找不到文件報錯
         while True:
             try:
                 Selected = None
-                Select = Select or int(input("\n選擇輸出類型 (代號) : "))
+                SelectCode = Select or int(input("\n選擇輸出類型 (代號) : "))
 
-                if Select == 0:
+                if SelectCode == 0:
                     print(f"你選擇了 : 全部\n", style="bold green")
                     Selected = "ALL"
 
                     self.Output_Data = self.Complete_Data  # 將完整數據賦予給輸出數據
                 else:
-                    Type = self.Task_List[Select - 1][0]  # 根據索引取出選擇則字串
+                    Type = self.Task_List[SelectCode - 1][0]  # 根據索引取出選擇則字串
                     Selected = Type
 
                     print(f"你選擇了 : {Type}\n", style="bold green")
@@ -223,12 +225,12 @@ class TypeSelection(Read, Output):
                 # 創建輸出任務
                 self.CreateTask()
 
+                # 非重複選擇直接跳出
                 if not self.Repeat_Task:
                     break
 
             except Exception as e:
-                Select = None  # 選擇錯誤, 需要重置, 不然會無限迴圈
-                print(f"錯誤: {e}", style="bold red")
+                print(f"選擇錯誤: {e}", style="bold red")
 
     def Select(
         self,
@@ -290,4 +292,4 @@ class TypeSelection(Read, Output):
 
 
 if __name__ == "__main__":
-    TypeSelection().Select(True, AddSource=True)
+    TypeSelection().Select(True)
