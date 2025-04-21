@@ -361,7 +361,7 @@ class Main {
         $P_
         Print "   授權操作 :" Cyan
         $P_
-        Print "   $(Index) RAR 授權     $(Index) IDM 授權    $(Index) Windows 啟用授權    $(Index) Office 啟用授權`n" White
+        Print "   $(Index) RAR 授權     $(Index) IDM 授權    $(Index) Windows/Office 啟用授權`n" White
         $P_
         Print "   進程操作 :" Cyan
         $P_
@@ -406,6 +406,8 @@ class Main {
                 Print "  更新資訊:"
                 Print ""
                 Print "   1. IDM 授權更新"
+                Print ""
+                Print "   2. Windows/Office 授權工具合併"
                 Print "----------------------------------"
                 $this.WaitBack()
             }
@@ -1125,18 +1127,11 @@ class Main {
                 )
                 #>
             }
-            (index) { # Windows 啟用授權
+            (index) { # Windows/Office 啟用授權
                 # https://github.com/massgravel/Microsoft-Activation-Scripts
                 $this.Authorize(
                     "$($this.MD5("MAS_AIO")).cmd",
                     "https://raw.githubusercontent.com/massgravel/Microsoft-Activation-Scripts/refs/heads/master/MAS/All-In-One-Version-KL/MAS_AIO.cmd", $null
-                )
-            }
-            (index) { # Office 啟用授權 (他會導致回到菜單時歪掉)
-                # https://github.com/abbodi1406/KMS_VL_ALL_AIO
-                $this.Authorize(
-                    "$($this.MD5("KMS_VL_ALL_AIO")).cmd",
-                    "https://raw.githubusercontent.com/abbodi1406/KMS_VL_ALL_AIO/refs/heads/master/KMS_VL_ALL_AIO.cmd", $null
                 )
             }
             (index) { # Google 結束進程
