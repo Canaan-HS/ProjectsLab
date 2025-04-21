@@ -1106,8 +1106,8 @@ class Main {
                 # https://github.com/kamrullab/idm
 
                 $this.Authorize(
-                    "IDM-Script.zip",
-                    "https://github.com/Coporton/IDM-Activation-Script/releases/download/v2.5.1/IDM-Activation-Script-main.zip",
+                    "IDM-Activation-Script-main.zip",
+                    "https://github.com/Coporton/IDM-Activation-Script/releases/download/v2.5.3/IDM-Activation-Script-main.zip",
                     "IDM-Activation-Script-main/IASL.cmd"
                 )
 
