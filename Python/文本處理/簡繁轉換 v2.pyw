@@ -46,15 +46,16 @@ import pyperclip
         & 功能基本同上, 只是變成選擇單個檔案, 但也會受到 SupportFile 的允許類型影響
 """
 
+
 class DataProcessing:
     def __init__(self):
-        self.Output_Name = None # 保存輸出名
-        self.Output_Rename = None # 保存更改後名
-        self.Save = queue.Queue() # 保存轉換後要輸出的數據
-        self.Work = queue.Queue() # 保存要進行轉換的工作路徑
+        self.Output_Name = None  # 保存輸出名
+        self.Output_Rename = None  # 保存更改後名
+        self.Save = queue.Queue()  # 保存轉換後要輸出的數據
+        self.Work = queue.Queue()  # 保存要進行轉換的工作路徑
         self.lock = threading.Lock()
 
-        self.Converter = opencc.OpenCC("s2twp.json") # 調用 簡體 轉 繁體
+        self.Converter = opencc.OpenCC("s2twp.json")  # 調用 簡體 轉 繁體
 
         # 計算完成結束時間
         self.ET = lambda start_time: round(time.time() - start_time, 3)
@@ -64,19 +65,33 @@ class DataProcessing:
 
         # 支援的檔案類型
         self.SupportFile = {
-            "po", "py", "js", "txt", "srt", "ass", "ssa", "lng", "lua",
-            "lang", "conf", "json", "yaml", "xml", "ini", "md"
+            "po",
+            "py",
+            "js",
+            "txt",
+            "srt",
+            "ass",
+            "ssa",
+            "lng",
+            "lua",
+            "lang",
+            "conf",
+            "json",
+            "yaml",
+            "xml",
+            "ini",
+            "md",
         }
         # 支持類型字串
         self.SupportStr = ";".join([f"*.{ext}" for ext in self.SupportFile])
 
         # 支援的編碼
         self.Decode = lambda Btext, Encoding: Btext.decode(Encoding).splitlines()
-        self.SupportEncod = { #! 等待後續修正
+        self.SupportEncod = {  # ! 等待後續修正
             "utf-8": lambda Btext: self.Decode(Btext, "utf-8"),
             "ascii": lambda Btext: self.Decode(Btext, "utf-8"),
             "utf-8-sig": lambda Btext: self.Decode(Btext, "utf-8-sig"),
-            "utf-16": lambda Btext: self.Decode(Btext, "utf-16"), # 只能處理 LE 類型
+            "utf-16": lambda Btext: self.Decode(Btext, "utf-16"),  # 只能處理 LE 類型
             "big5": lambda Btext: self.Decode(Btext.decode("big5").encode("utf-8"), "utf-8"),
             "gbk": lambda Btext: self.Decode(Btext, "gb18030"),
             "gb2312": lambda Btext: self.Decode(Btext, "gb18030"),
@@ -88,17 +103,26 @@ class DataProcessing:
         if data.rsplit(".", 1)[-1] in self.SupportFile:
             self.Work.put(os.path.join(path, data).replace("\\", "/"))
 
+
 class GUI(DataProcessing, TkinterDnD.Tk):
-    __slots__ = ( # 寫好玩的
-        "Output_Name", "Output_Rename", 
-        "Save", "Work", "lock", "ET",
-        "Converter", "SupportFile", "SupportStr", "SupportEncod", "Decode",
+    __slots__ = (  # 寫好玩的
+        "Output_Name",
+        "Output_Rename",
+        "Save",
+        "Work",
+        "lock",
+        "ET",
+        "Converter",
+        "SupportFile",
+        "SupportStr",
+        "SupportEncod",
+        "Decode",
         "Text_conversion",
         "Scrollbar_style",
         "Button_style",
         "Content_items",
     )
-    
+
     def __init__(self):
         DataProcessing.__init__(self)
         TkinterDnD.Tk.__init__(self, className="文本簡繁轉換器 V2")
@@ -115,20 +139,27 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         self.Win_Cur_Height = lambda: self.winfo_screenheight()
 
         # 設置窗口大小與位置
-        self.geometry(f"{self.Win_Width}x{self.Win_Height}+{int((self.Win_Cur_Width() - self.Win_Width) / 2)}+{int((self.Win_Cur_Height() - self.Win_Height) / 2)}")
+        self.geometry(
+            f"{self.Win_Width}x{self.Win_Height}+{int((self.Win_Cur_Width() - self.Win_Width) / 2)}+{int((self.Win_Cur_Height() - self.Win_Height) / 2)}"
+        )
 
         # 設置顏色
         self.buttontext = "#FDF4F5"
         self.buttontrigger = "#C0DBEA"
         self.buttonbackground = "#E8A0BF"
-        self.configure(background="#BA90C6") # 介面背景色
+        self.configure(background="#BA90C6")  # 介面背景色
 
         # 內容顯示框架
         self.Console_frame = tk.Frame(self, width=1060, height=605)
-        self.Console_frame.pack_propagate(False) # 禁止大小變動
+        self.Console_frame.pack_propagate(False)  # 禁止大小變動
 
         self.Console = scrolledtext.ScrolledText(
-            self.Console_frame, font=("KaiTi", 24), fg=self.buttontext, bg=self.buttonbackground, state="disabled", cursor="arrow"
+            self.Console_frame,
+            font=("KaiTi", 24),
+            fg=self.buttontext,
+            bg=self.buttonbackground,
+            state="disabled",
+            cursor="arrow",
         )
 
         # 設置標籤 (顯示顏色)
@@ -136,20 +167,33 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         self.Console.tag_configure("Failure", foreground="#FF2D2D")
 
         Button_style = {
-            "height": 1, "width": 12, "border": 2,
-            "cursor": "hand2", "font": ("Arial Bold", 22),
-            "relief": "groove", "fg": self.buttontext, "bg": self.buttonbackground
+            "height": 1,
+            "width": 12,
+            "border": 2,
+            "cursor": "hand2",
+            "font": ("Arial Bold", 22),
+            "relief": "groove",
+            "fg": self.buttontext,
+            "bg": self.buttonbackground,
         }
 
-        self.Text_button = tk.Button(self, Button_style, text="文本轉換", command=lambda: self.Display_Data(True))
-        self.Document_button = tk.Button(self, Button_style, text="單獨轉換", command=self.Select_Document)
+        self.Text_button = tk.Button(
+            self, Button_style, text="文本轉換", command=lambda: self.Display_Data(True)
+        )
+        self.Document_button = tk.Button(
+            self, Button_style, text="單獨轉換", command=self.Select_Document
+        )
         self.File_button = tk.Button(self, Button_style, text="批量轉換", command=self.Select_File)
         self.Input_Button_box = [self.Text_button, self.Document_button, self.File_button]
 
-        Button_style.update({ "width": 10, "font": ("Arial Bold", 20) }) # 更新樣式
+        Button_style.update({"width": 10, "font": ("Arial Bold", 20)})  # 更新樣式
         self.Reset = tk.Button(self, Button_style, text="重新選擇", command=self.UI_Reset)
-        self.Create_button = tk.Button(self, Button_style, text="新建輸出", command=lambda: self.Conversion_Trigger("create"))
-        self.Override_button = tk.Button(self, Button_style, text="覆蓋輸出", command=lambda: self.Conversion_Trigger("override"))
+        self.Create_button = tk.Button(
+            self, Button_style, text="新建輸出", command=lambda: self.Conversion_Trigger("create")
+        )
+        self.Override_button = tk.Button(
+            self, Button_style, text="覆蓋輸出", command=lambda: self.Conversion_Trigger("override")
+        )
         self.Output_Button_box = [self.Create_button, self.Override_button]
 
         # 用於文本輸入時, 自動清除內容
@@ -157,13 +201,13 @@ class GUI(DataProcessing, TkinterDnD.Tk):
 
     # 運行創建
     def __call__(self):
-        self.Text_button.place(x=27, y=15) # 文本選擇
-        self.Document_button.place(x=27, y=85) # 單獨選擇
-        self.File_button.place(x=27, y=155) # 批量選擇
+        self.Text_button.place(x=27, y=15)  # 文本選擇
+        self.Document_button.place(x=27, y=85)  # 單獨選擇
+        self.File_button.place(x=27, y=155)  # 批量選擇
         self.mainloop()
 
     # 取得文本數據
-    def GetText(self, DEL: bool=True, END: str="end-1c"):
+    def GetText(self, DEL: bool = True, END: str = "end-1c"):
         Text = self.Console.get("1.0", END)
         Exist = bool(Text.strip())
 
@@ -180,19 +224,20 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         self.Console.yview("end")
         self.Console.config(state="disabled")
 
-    # 開啟資料夾    
+    # 開啟資料夾
     def Select_File(self):
         try:
             self.File_button.config(fg=self.buttontrigger, bg=self.buttonbackground)
             data = filedialog.askdirectory(title="選擇資料夾")
 
-            if not data:raise FileNotFoundError
+            if not data:
+                raise FileNotFoundError
 
-            analyze = {} # 遍歷所有數據
+            analyze = {}  # 遍歷所有數據
             for dirpath, dirnames, filenames in os.walk(data):
                 analyze[dirpath] = filenames
 
-            self.Data_Analysis(analyze, self.File_button) 
+            self.Data_Analysis(analyze, self.File_button)
 
         except FileNotFoundError:
             self.File_button.config(fg=self.buttontext, bg=self.buttonbackground)
@@ -200,13 +245,16 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         except Exception as e:
             print(f"Exception: {e}")
 
-    # 開啟檔案    
+    # 開啟檔案
     def Select_Document(self):
         try:
             self.Document_button.config(fg=self.buttontrigger, bg=self.buttonbackground)
-            data = filedialog.askopenfilename(title="選擇單獨檔案", filetypes=[("支援格式", self.SupportStr)])
+            data = filedialog.askopenfilename(
+                title="選擇單獨檔案", filetypes=[("支援格式", self.SupportStr)]
+            )
 
-            if not data:raise FileNotFoundError
+            if not data:
+                raise FileNotFoundError
 
             analyze = {}
             analyze[os.path.dirname(data)] = os.path.basename(data)
@@ -247,7 +295,9 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         # 變更窗口大小
         Win_Width = self.Win_Width * 4
         Win_Height = (self.Win_Height - 55) * 4
-        self.geometry(f"{Win_Width}x{Win_Height}+{int((self.Win_Cur_Width() - Win_Width) / 2)}+{int((self.Win_Cur_Height() - Win_Height ) / 2)}")
+        self.geometry(
+            f"{Win_Width}x{Win_Height}+{int((self.Win_Cur_Width() - Win_Width) / 2)}+{int((self.Win_Cur_Height() - Win_Height ) / 2)}"
+        )
 
         # 刪除選擇按鈕
         for button in self.Input_Button_box:
@@ -258,23 +308,26 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         # 顯示文本
         self.Console.pack(fill=tk.BOTH, expand=True)
 
-        if direct: # 針對文本轉換
-            def trigger(event): # 觸發後先讀取文本
+        if direct:  # 針對文本轉換
+
+            def trigger(event):  # 觸發後先讀取文本
                 TexT = self.GetText()
                 with ThreadPoolExecutor(max_workers=1000) as executor:
                     scrapbook = ""
-                    length = len(TexT) - 1 # 取得結尾得長度
-                    for index, text in enumerate(TexT): # 使用線程池 以多線程進行轉換
-                        change = executor.submit(self.Text_conversion, text).result() + ("" if index == length else "\n")
-                        scrapbook += change # 結果合併成一個字串
-                        self.Console.insert("end", change) # 結果插入文本框 (獨立調用插入)
-                    pyperclip.copy(scrapbook) # 將結果添加到使用者 剪貼簿
+                    length = len(TexT) - 1  # 取得結尾得長度
+                    for index, text in enumerate(TexT):  # 使用線程池 以多線程進行轉換
+                        change = executor.submit(self.Text_conversion, text).result() + (
+                            "" if index == length else "\n"
+                        )
+                        scrapbook += change  # 結果合併成一個字串
+                        self.Console.insert("end", change)  # 結果插入文本框 (獨立調用插入)
+                    pyperclip.copy(scrapbook)  # 將結果添加到使用者 剪貼簿
 
             # 焦點狀態
             def focus_in(event):
                 if self.WaitClear:
                     self.WaitClear = False
-                    self.GetText() # 清除內容
+                    self.GetText()  # 清除內容
 
             # 離開焦點
             def focus_out(event):
@@ -285,7 +338,7 @@ class GUI(DataProcessing, TkinterDnD.Tk):
 
             self.Console.bind("<FocusIn>", focus_in)
             self.Console.bind("<FocusOut>", focus_out)
-            self.bind("<Control-v>", trigger) # 貼上觸發
+            self.bind("<Control-v>", trigger)  # 貼上觸發
         else:
             # 新建輸出按鈕
             self.Create_button.place(x=520, y=645)
@@ -322,7 +375,7 @@ class GUI(DataProcessing, TkinterDnD.Tk):
     # 轉換後輸出
     def Conversion_output(self, index, work, OutType):
 
-        self.lock.acquire() # 線程鎖
+        self.lock.acquire()  # 線程鎖
         Start = time.time()
 
         Directory = os.path.dirname(work)
@@ -330,7 +383,9 @@ class GUI(DataProcessing, TkinterDnD.Tk):
 
         if OutType == "create":
             self.Output_Name = os.path.join(Directory, f"(繁體轉換) {FileName}")
-            self.Output_Rename = os.path.join(Directory, f"(繁體轉換) {self.Text_conversion(FileName)}")
+            self.Output_Rename = os.path.join(
+                Directory, f"(繁體轉換) {self.Text_conversion(FileName)}"
+            )
         elif OutType == "override":
             self.Output_Name = work
             self.Output_Rename = os.path.join(Directory, self.Text_conversion(FileName))
@@ -338,16 +393,16 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         try:
             encode = None
             decode_text = None
-            with open(work, "rb") as file: # 以二進制讀取
-                text = file.read() # 獲取文本
-                encode = chardet.detect(text)["encoding"].lower() # 解析編碼類型
+            with open(work, "rb") as file:  # 以二進制讀取
+                text = file.read()  # 獲取文本
+                encode = chardet.detect(text)["encoding"].lower()  # 解析編碼類型
 
                 with ThreadPoolExecutor(max_workers=1000) as executor:
                     supported = self.SupportEncod.get(encode)
 
                     if supported:
                         decode_text = supported(text)
-                    else: # @ 是輸出格式化用的分割符號
+                    else:  # @ 是輸出格式化用的分割符號
                         raise UnicodeDecodeError(f"@不支援的編碼: {encode}@", b"", 0, 1, "")
 
                     # 解碼完成後進行轉換
@@ -359,24 +414,29 @@ class GUI(DataProcessing, TkinterDnD.Tk):
                 while not self.Save.empty():
                     output.write(self.Save.get() + ("\n" if not self.Save.empty() else ""))
 
-            self.InsertText(f"({index}) {os.path.basename(work)} => [轉換完成: {self.ET(Start)} 秒]", "Success")
+            self.InsertText(
+                f"({index}) {os.path.basename(work)} => [轉換完成: {self.ET(Start)} 秒]", "Success"
+            )
             # 檔名轉換
             os.rename(self.Output_Name, self.Output_Rename)
 
         except UnicodeDecodeError as e:
-            self.InsertText(f"({index}) {os.path.basename(work)} => [{str(e).split("@")[1]}]", "Failure")
+            self.InsertText(
+                f"({index}) {os.path.basename(work)} => [{str(e).split("@")[1]}]", "Failure"
+            )
         except Exception as e:
             self.InsertText(f"(Exception) => {e}", "Failure")
 
-        self.lock.release() # 線程鎖釋放
+        self.lock.release()  # 線程鎖釋放
 
     # 重置選擇
     def UI_Reset(self):
         # 清除子物件
         # [widget.destroy() for widget in self.winfo_children()]
 
-        self.destroy() # 清除所有物件
-        GUI().__call__() # 重新實例化
+        self.destroy()  # 清除所有物件
+        GUI().__call__()  # 重新實例化
+
 
 if __name__ == "__main__":
     GUI().__call__()
