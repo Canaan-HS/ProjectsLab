@@ -296,7 +296,7 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         Win_Width = self.Win_Width * 4
         Win_Height = (self.Win_Height - 55) * 4
         self.geometry(
-            f"{Win_Width}x{Win_Height}+{int((self.Win_Cur_Width() - Win_Width) / 2)}+{int((self.Win_Cur_Height() - Win_Height ) / 2)}"
+            f"{Win_Width}x{Win_Height}+{int((self.Win_Cur_Width() - Win_Width) / 2)}+{int((self.Win_Cur_Height() - Win_Height) / 2)}"
         )
 
         # 刪除選擇按鈕
