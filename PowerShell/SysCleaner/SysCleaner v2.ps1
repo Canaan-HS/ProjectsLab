@@ -182,7 +182,7 @@ Delete @(
     "$Program\IObit\Driver Booster\Download"
     "$Roaming\IObit\Software Updater\Log\*.dbg"
     "$Roaming\IObit\Software Updater\AutoLog\*.dbg"
-    # VSCode
+    # VSCode (刪除後會損壞部份功能)
     "$Roaming\Code\logs"
     "$Roaming\Code\CachedData"
     "$Roaming\Code\User\History"
