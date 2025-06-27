@@ -6,16 +6,20 @@ import random
 import time
 import os
 
+
 # 檢查使用庫
 def Library_installation_detection(lib):
     try:
         importlib.import_module(lib)
     except:
         subprocess.check_call(["pip", "install", lib])
+
+
 for check in ["undetected_chromedriver2"]:
     Library_installation_detection(check)
 
 import undetected_chromedriver2 as uc
+
 
 class Chrome(uc.Chrome):
     def __del__(self):
@@ -23,6 +27,7 @@ class Chrome(uc.Chrome):
             self.service.process.kill()
         except:
             pass
+
 
 class TestBrowser:
     def __init__(self):
@@ -33,20 +38,20 @@ class TestBrowser:
 
     def Setting_Options(self):
         self.Settings.add_argument("--incognito")
-        self.Settings.add_argument('--log-level=3')
-        self.Settings.add_argument('--no-first-run')
+        self.Settings.add_argument("--log-level=3")
+        self.Settings.add_argument("--no-first-run")
         self.Settings.add_argument("--headless=new")
-        self.Settings.add_argument('--disable-infobars')
+        self.Settings.add_argument("--disable-infobars")
         self.Settings.add_argument("--disable-extensions")
-        self.Settings.add_argument('--no-service-autorun')
+        self.Settings.add_argument("--no-service-autorun")
         self.Settings.add_argument("--disable-file-system")
         self.Settings.add_argument("--disable-geolocation")
-        self.Settings.add_argument('--disable-notifications')
+        self.Settings.add_argument("--disable-notifications")
         self.Settings.add_argument("--disable-popup-blocking")
-        self.Settings.add_argument('--password-store=disabled')
-        self.Settings.add_argument('--no-default-browser-check')
+        self.Settings.add_argument("--password-store=disabled")
+        self.Settings.add_argument("--no-default-browser-check")
         self.Settings.add_argument("--profile-directory=Default")
-        self.Settings.add_argument('--disable-blink-features=AutomationControlled')
+        self.Settings.add_argument("--disable-blink-features=AutomationControlled")
         self.Settings.add_argument(f"--remote-debugging-port={random.randint(1024, 65535)}")
         return self.Settings
 
@@ -55,17 +60,19 @@ class TestBrowser:
             lambda driver: driver.execute_script("return document.readyState") == "complete"
         )
 
-    def Enable_browsing(self, url:str ="https://www.google.com.tw/"):
+    def Enable_browsing(self, url: str = "https://www.google.com.tw/"):
         self.driver = Chrome(
             version_main=133,
             advanced_elements=True,
             options=self.Setting_Options(),
-            driver_executable_path=self.driver_path
+            driver_executable_path=self.driver_path,
         )
 
         self.LoadWait()
         self.driver.delete_all_cookies()
-        self.driver.execute_script('Object.defineProperty(navigator, "webdriver", {get: () => undefined})')
+        self.driver.execute_script(
+            'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
+        )
 
         self.driver.get(url)
 

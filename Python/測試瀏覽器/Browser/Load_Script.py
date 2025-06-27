@@ -1,13 +1,14 @@
 import time
 import threading
 
+
 class LoadScript:
     def __init__(self, driver):
         self.driver = driver
         self.current_url = driver.current_url
 
         self.DarkModeState = False
-        
+
         threading.Thread(target=self.__ListenChange).start()
 
     def __ListenChange(self):
@@ -15,11 +16,12 @@ class LoadScript:
             try:
                 current_url = self.driver.current_url
                 if current_url != self.current_url:
-                    if self.DarkModeState: self.DarkMode()
+                    if self.DarkModeState:
+                        self.DarkMode()
                 time.sleep(1)
             except:
                 break
-            
+
     def __RunScript(self, script):
         try:
             self.driver.execute_script(script)
@@ -66,7 +68,7 @@ class LoadScript:
             Observer.observe(document, Option);
         """
 
-        #! 進階板目前沒有很好的展示效果
+        # ! 進階板目前沒有很好的展示效果
         AdvancedScript = r"""
             function Debounce(func, delay=100) {
                 let timer = null;
@@ -89,7 +91,7 @@ class LoadScript:
                     if (element.getAttribute("DarkMode")) continue;
 
                     const elementColor = window.getComputedStyle(element);
- 
+
                     const colorRGB = rgbToGrayValue(elementColor.color);
                     const backgroundRGB = rgbToGrayValue(elementColor.background);
 

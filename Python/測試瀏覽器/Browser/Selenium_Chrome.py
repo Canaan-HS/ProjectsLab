@@ -69,13 +69,10 @@ class Browser(Settings):
 
     def LoadWait(self):
         WebDriverWait(self.Driver, 10).until(
-            lambda driver: driver.execute_script("return document.readyState")
-            == "complete"
+            lambda driver: driver.execute_script("return document.readyState") == "complete"
         )
 
-    def Enable_Browsing(
-        self, Url: str = "https://www.google.com.tw/", UserDat: str = None
-    ):
+    def Enable_Browsing(self, Url: str = "https://www.google.com.tw/", UserDat: str = None):
         if (
             UserDat
         ):  # 自訂緩存路徑 (可指定預設瀏覽器路徑: C:\Users\...\AppData\Local\Google\Chrome\User Data)

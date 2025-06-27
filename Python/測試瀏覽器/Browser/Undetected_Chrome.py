@@ -35,16 +35,13 @@ class TestBrowser:
 
     def __init__(self):
         self.Driver = None
-        self.DriverPath = (
-            rf"{os.path.dirname(os.path.abspath(__file__))}\driver\chromedriver.exe"
-        )
+        self.DriverPath = rf"{os.path.dirname(os.path.abspath(__file__))}\driver\chromedriver.exe"
         self.CachePath = "R:/UndetectedCache"
         self.Chrome = uc.ChromeOptions()
 
     def LoadWait(self):
         WebDriverWait(self.Driver, 10).until(
-            lambda driver: driver.execute_script("return document.readyState")
-            == "complete"
+            lambda driver: driver.execute_script("return document.readyState") == "complete"
         )
 
     def Options(self):
@@ -64,16 +61,12 @@ class TestBrowser:
         self.Chrome.add_argument("--profile-directory=Default")
         self.Chrome.add_argument(f"--user-data-dir={self.CachePath}")
         self.Chrome.add_argument("--disable-blink-features=AutomationControlled")
-        self.Chrome.add_argument(
-            f"--remote-debugging-port={random.randint(1024, 65535)}"
-        )
+        self.Chrome.add_argument(f"--remote-debugging-port={random.randint(1024, 65535)}")
 
         self.Chrome.headless = False
         return self.Chrome
 
-    def Enable_browsing(
-        self, url: str = "https://www.google.com.tw/", UserDat: str = None
-    ):
+    def Enable_browsing(self, url: str = "https://www.google.com.tw/", UserDat: str = None):
         if UserDat:
             self.CachePath = UserDat
 
