@@ -40,10 +40,15 @@ LOG_UPDATE_INTERVAL = 500  # 日誌更新間隔 (毫秒)
 
 # 遊戲資料映射
 GAME_MAPS = {
+    0: "舊 SlashCo 總部",
     "SlashCoHQ": "舊 SlashCo 總部",
+    1: "馬龍斯農場",
     "MalonesFarmyard": "馬龍斯農場",
+    2: "飛利浦韋斯特伍德高中",
     "PhilipsWestwoodHighSchool": "飛利浦韋斯特伍德高中",
+    3: "伊斯特伍德綜合醫院",
     "EastwoodGeneralHospital": "伊斯特伍德綜合醫院",
+    4: "三角洲研究設施",
     "ResearchFacilityDelta": "三角洲研究設施",
 }
 
@@ -140,8 +145,8 @@ class SlashcoSenseMainWindow(QMainWindow):
         # 直接初始化所有屬性，避免額外的對象創建
         self.osc_client: Optional[SimpleUDPClient] = None
         self.osc_enabled = False
-        self.vrchat_log_dir = Path(__file__).parent / "test"
-        # self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
+        # self.vrchat_log_dir = Path(__file__).parent / "test"
+        self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
         self.current_log_file: Optional[Path] = None
         self.file_position = 0
 
