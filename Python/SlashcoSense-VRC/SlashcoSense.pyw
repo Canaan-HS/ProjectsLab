@@ -162,7 +162,7 @@ class SlashcoSenseMainWindow(QMainWindow):
         self._apply_dark_theme()
 
         self.initial = True  # 初始狀態標誌
-        self.type_timestamp = {}  # 紀錄每種類型的最新時間戳
+        self.record_timestamp = {}  # 紀錄每種類型的最新時間戳
 
         # 定時器設置
         self.log_timer = QTimer()
@@ -256,9 +256,9 @@ class SlashcoSenseMainWindow(QMainWindow):
         osc_layout = QHBoxLayout(osc_group)
         osc_layout.setSpacing(15)
 
-        self.osc_enabled_checkbox = QCheckBox("啟用OSC")
+        self.osc_enabled_checkbox = QCheckBox("啟用 OSC")
         self.osc_enabled_checkbox.toggled.connect(self._toggle_osc)
-        self.osc_log_enabled_checkbox = QCheckBox("顯示OSC日誌")
+        self.osc_log_enabled_checkbox = QCheckBox("顯示 OSC 日誌")
         self.osc_log_enabled_checkbox.setChecked(True)
 
         self.port_input = QLineEdit(str(DEFAULT_OSC_PORT))
@@ -327,17 +327,17 @@ class SlashcoSenseMainWindow(QMainWindow):
                 if 1 <= port <= 65535 and UDP_CLIENT_AVAILABLE:
                     self.osc_client = udp_client.SimpleUDPClient("127.0.0.1", port)
                     self.osc_enabled = True
-                    self.log_message.emit(f"OSC已啟用（埠：{port}）")
+                    self.log_message.emit(f"OSC 已啟用（埠：{port}）")
                 else:
                     self.log_message.emit("錯誤：埠號無效或OSC不可用")
                     self.osc_enabled_checkbox.setChecked(False)
             except (ValueError, Exception):
-                self.log_message.emit("錯誤：OSC啟用失敗")
+                self.log_message.emit("錯誤：OSC 啟用失敗")
                 self.osc_enabled_checkbox.setChecked(False)
         else:
             self.osc_client = None
             self.osc_enabled = False
-            self.log_message.emit("OSC已停用")
+            self.log_message.emit("OSC 已停用")
 
     def _send_osc(self, param: str, value: Any) -> bool:
         """快速發送OSC參數"""
@@ -395,16 +395,17 @@ class SlashcoSenseMainWindow(QMainWindow):
                 continue
 
             try:
-                log_timestamp = match.group(1)
-                type_timestamp = self.type_timestamp.get(data_type, log_timestamp)
+                search_key = match.group(2) if data_type == "generator" else data_type
 
-                if log_timestamp < type_timestamp:
+                log_timestamp = match.group(1)
+                record_timestamp = self.record_timestamp.get(search_key, log_timestamp)
+
+                if log_timestamp < record_timestamp:
                     continue
 
-                self.type_timestamp[data_type] = log_timestamp
+                self.record_timestamp[search_key] = log_timestamp
 
             except (ValueError, IndexError):
-                # 如果時間戳解析失敗，仍然處理該日誌
                 pass
 
             if data_type == "map":
