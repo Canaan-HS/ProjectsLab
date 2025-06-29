@@ -140,13 +140,10 @@ class SlashcoSenseMainWindow(QMainWindow):
         # 直接初始化所有屬性，避免額外的對象創建
         self.osc_client: Optional[SimpleUDPClient] = None
         self.osc_enabled = False
-        # self.vrchat_log_dir = Path(__file__).parent / "test"
-        self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
+        self.vrchat_log_dir = Path(__file__).parent / "test"
+        # self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
         self.current_log_file: Optional[Path] = None
         self.file_position = 0
-
-        # 記錄程序啟動時間，用於過濾舊日誌
-        self.start_timestamp = datetime.now()
 
         # 預分配生成器引用 - 避免字典查找
         self.gen1_progress: Optional[ProgressBar] = None
@@ -158,6 +155,9 @@ class SlashcoSenseMainWindow(QMainWindow):
 
         self._setup_ui()
         self._apply_dark_theme()
+
+        self.initial = True  # 初始狀態標誌
+        self.type_timestamp = {}  # 紀錄每種類型的最新時間戳
 
         # 定時器設置
         self.log_timer = QTimer()
@@ -371,7 +371,7 @@ class SlashcoSenseMainWindow(QMainWindow):
 
                 if new_content:
                     # 按行處理，但只進行一次文件讀取
-                    for line in new_content.splitlines():
+                    for line in reversed(new_content.splitlines()):
                         if line.strip():
                             self._process_log_line(line.strip())
         except Exception:
@@ -390,12 +390,13 @@ class SlashcoSenseMainWindow(QMainWindow):
                 continue
 
             try:
-                timestamp_str = match.group(1)
-                log_timestamp = datetime.strptime(timestamp_str, "%Y.%m.%d %H:%M:%S")
+                log_timestamp = match.group(1)
+                type_timestamp = self.type_timestamp.get(data_type, log_timestamp)
 
-                # 如果日誌時間早於程序啟動時間，跳過處理 (無法做到遊戲內, 中途啟動)
-                if log_timestamp < self.start_timestamp:
+                if log_timestamp < type_timestamp:
                     continue
+
+                self.type_timestamp[data_type] = log_timestamp
 
             except (ValueError, IndexError):
                 # 如果時間戳解析失敗，仍然處理該日誌
@@ -434,23 +435,23 @@ class SlashcoSenseMainWindow(QMainWindow):
                 self._update_generator(gen_name, var_type, new_value)
                 log_parts.append(f"{gen_name} {var_type}: {new_value}")
 
-        if reset_needed:
-            self._reset_generators()
-
         if log_parts:
             self.log_message.emit(" | ".join(log_parts))
+
+        if reset_needed and not self.initial:
+            self._reset_generators()
+        elif reset_needed and self.initial:
+            self.initial = False
 
     def _reset_generators(self):
         """重置所有發電機狀態 (不透過 _update_generator 更新, 減少性能開銷)"""
 
         # 重置發電機1
         self.gen1_progress.setValue(0)
-        self.gen1_label.setText("發電機1 燃料: 0/4")
         self.gen1_battery.setText("電池: ❌")
 
         # 重置發電機2
         self.gen2_progress.setValue(0)
-        self.gen2_label.setText("發電機2 燃料: 0/4")
         self.gen2_battery.setText("電池: ❌")
 
         # 直接發送OSC消息
@@ -461,7 +462,7 @@ class SlashcoSenseMainWindow(QMainWindow):
             self._send_osc("GENERATOR2_BATTERY", 0)
 
             if self.osc_log_enabled_checkbox.isChecked():
-                self.log_message.emit("[OSC] 重置所有發電機狀態")
+                self.log_message.emit("[OSC] 重置所有狀態")
 
     def _update_generator(self, gen_name: str, var_type: str, new_value: str):
         """發電機更新 - 直接訪問UI元素"""
@@ -473,7 +474,6 @@ class SlashcoSenseMainWindow(QMainWindow):
                 # 直接更新對應的發電機，避免字典查找
                 if gen_name == "generator1":
                     self.gen1_progress.setValue(progress)
-                    self.gen1_label.setText(f"發電機1 燃料: {filled}/4")
                     if (
                         self._send_osc("GENERATOR1_FUEL", filled)
                         and self.osc_log_enabled_checkbox.isChecked()
@@ -481,7 +481,6 @@ class SlashcoSenseMainWindow(QMainWindow):
                         self.log_message.emit(f"[OSC] 發送 GENERATOR1_FUEL: {filled}")
                 elif gen_name == "generator2":
                     self.gen2_progress.setValue(progress)
-                    self.gen2_label.setText(f"發電機2 燃料: {filled}/4")
                     if (
                         self._send_osc("GENERATOR2_FUEL", filled)
                         and self.osc_log_enabled_checkbox.isChecked()
