@@ -14,7 +14,7 @@ from Script import AutoCapture, Reques
     & Zero 漫畫下載器
 
         ? (開發/運行環境):
-        * Python 3.12.6 64-bit
+        * Python 3.12.10 64-bit
         * 個人依賴庫 -> Script 資料夾內所有文件 (AutoCapture, Reques)
 
         ? 功能說明:
@@ -24,7 +24,8 @@ from Script import AutoCapture, Reques
         * 多線程下載請求
 
         ? 使用說明:
-        * 在下方入口點有寫
+        * 配置 Config
+        * 其餘下載設置, 由下方入口點觀看
 
         ? 更新說明:
         * 修改打印樣式
@@ -33,7 +34,7 @@ from Script import AutoCapture, Reques
 
 Config = {
     "DownloadPath": "R:/",  # 路徑結尾必須為斜線
-    "RequestDomain": "https://www.zerobywrar.com/",  # 域名修正: https://zerobyw.github.io/
+    "RequestDomain": "https://www.zerobywtar.com/",  # 域名修正: https://zerobyw.github.io/
 }
 
 # ? 請求類的實例
@@ -74,12 +75,12 @@ def GetMeta(Url: str):
             for link in tree.xpath("//a[@class='uk-button uk-button-default']"):
                 MangaChapter.append(re.sub(r"[^\d.-]", "", link.xpath("./text()")[0]))
 
-            # ? 複寫數據 (圖片連結會進行拆分) ['圖片請求域名', '章節', '01.jpg']
+            # ? 複寫數據
             Result = {
                 "RequesState": True,
-                "MangaName": MangaName,
-                "MangaChapter": MangaChapter,
-                "ImgLink": ImgLink.rsplit("/", 2),
+                "MangaName": MangaName,  # 漫畫名稱
+                "MangaChapter": MangaChapter,  # 漫畫章節 ['1', '2', ...]
+                "ImgLink": ImgLink.rsplit("/", 2),  # 預覽圖連結資訊拆分 [連結, 章節編號, 檔名]
             }
 
             print(
@@ -98,10 +99,10 @@ def GetMeta(Url: str):
 # ? 處理下載任務
 class DownloadTask:
     def __init__(self):
-        self.Merge = None  # 下載完成是否合併
-        self.Mantissa = None  # 保存尾數
-        self.Extension = None  # 保存擴展名
-        self.ImgDomain = None  # 保存圖片請求域名
+        self.Merge: bool = None  # 下載完成是否合併
+        self.Mantissa: int = None  # 保存尾數
+        self.Extension: str = None  # 保存擴展名
+        self.ImgDomain: str = None  # 保存圖片請求域名
 
     # ? 創建資料夾
     def create_folder(self, Name: str):
@@ -154,9 +155,9 @@ class DownloadTask:
             # ! 為了可下載需 Vip 權限的, 因此使用模糊請求
             for index in range(1, 1001):
                 ImgLink = None
-                Page = f"{index}".zfill(
+                Page = f"{index}".zfill(  # 生成頁數 (生成錯誤不會報錯, 會直接結束程式)
                     self.Mantissa
-                )  # 生成頁數 (生成錯誤不會報錯, 會直接結束程式)
+                )
 
                 # ? 生成下載連結
                 if IsSpecial:  # ! 特別話 的網址類型可能變更
@@ -192,10 +193,10 @@ class ZeroDownloader(DownloadTask):
     def __init__(self, Merge: bool = False):
         super()
 
-        self.Merge = Merge
-        self.Cache = None  # 緩存章節數
-        self.TaskDelay = 1  # 生成任務的延遲
-        self.MaxTask = cpu_count() - 1  # 最大同時處理任務數量
+        self.Merge: bool = Merge
+        self.Cache: str = None  # 緩存章節數
+        self.TaskDelay: int = 1  # 生成任務的延遲
+        self.MaxTask: int = cpu_count() - 1  # 最大同時處理任務數量
 
     # ? 解析章節
     def __ParseChapter(self, Chapter: object, Default: list) -> object:
@@ -216,18 +217,18 @@ class ZeroDownloader(DownloadTask):
         Special: bool = False,
     ):
         Meta = GetMeta(Url)  # ! 取得漫畫元數據
-
         if Meta["RequesState"]:  # ! 請求狀態為 True 才處理
-            MangaName = Meta["MangaName"]  # 取的漫畫名稱
+
+            MangaName = Meta["MangaName"]  # 取得漫畫名稱
             MangaSavePath = rf"{Config['DownloadPath']}{MangaName}"  # 生成漫畫保存路徑
-            self.create_folder(MangaSavePath)  # 直接創建資料夾
 
+            self.create_folder(MangaSavePath)  # 創建資料夾
             self.ImgDomain = Meta["ImgLink"][0]  # 取得圖片請求域名 (初始化賦予)
-            End = Meta["ImgLink"][2].split(".")  # 取得圖片對象, 進行分割
 
-            self.Mantissa = (
+            End = Meta["ImgLink"][2].split(".")  # 取得圖片對象, 進行分割
+            self.Mantissa = (  # 取得尾數填充值 (初始化賦予) [長度命名可能錯誤, 但不影響下載]
                 Mantissa if isinstance(Mantissa, int) else len(End[0])
-            )  # 取得尾數 長度 (初始化賦予)
+            )
             self.Extension = Exten if isinstance(Exten, str) else End[1]  # 取得擴展名 (初始化賦予)
 
             # ? 處理漫畫頁數, 生成下載任務
