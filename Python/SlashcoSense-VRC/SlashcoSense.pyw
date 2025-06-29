@@ -21,8 +21,9 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QGroupBox,
 )
-from PySide6.QtCore import QTimer, Signal, Qt, QSize
-from PySide6.QtGui import QFont
+from PySide6.QtCore import QTimer, Signal, Qt, QSize, QUrl
+from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 
 try:
     from pythonosc import udp_client
@@ -53,20 +54,62 @@ GAME_MAPS = {
 }
 
 SLASHER_CHARACTERS = {
-    0: "巴巴布伊",
-    1: "席德",
-    2: "特羅勒格巨魔",
-    3: "博格梅爾",
-    4: "阿博米納特",
-    5: "口渴",
-    6: "埃爾默神父",
-    7: "觀察者",
-    8: "野獸",
-    9: "海豚人",
-    10: "伊戈爾",
-    11: "牢騷者",
-    12: "公主",
-    13: "極速奔跑者",
+    0: {  # BABABOOEY
+        "name": "巴巴布伊 【肌肉男】",
+        "icon": "https://images.steamusercontent.com/ugc/2477635226930588606/2CAE95D776EFCD7F635B7CA497C43079BB9BD71C/",
+    },
+    1: {  # SID
+        "name": "席德 【手槍怪 / 餅乾怪】",
+        "icon": "https://images.steamusercontent.com/ugc/2477635226930588312/14B6C7D2AC9E6FC21936F1F2D46CCB1F040F6764/",
+    },
+    2: {  # TROLLAG
+        "name": "特羅勒格巨魔【笑臉男】",
+        "icon": "https://images.steamusercontent.com/ugc/2477635226930589045/28AD304EBFA4C6BD7636269FE86B9CCFC4146B35/",
+    },
+    3: {  # BORGMIRE
+        "name": "博格梅爾【機器人】",
+        "icon": "https://images.steamusercontent.com/ugc/2477635226930588057/1C8DCDC50F43E8D61E4CE530DF626AA518F0E3CC/",
+    },
+    4: {  # ABOMIGNAT
+        "name": "阿博米納特【憎惡者】",
+        "icon": "https://images.steamusercontent.com/ugc/2477635226930588840/1B1FF6A54E92C5CF5A928A2F4A78A79FB8ADADB0/",
+    },
+    5: {  # THIRSTY
+        "name": "口渴 【爬行者 / 牛奶怪】",
+        "icon": "https://images.steamusercontent.com/ugc/2477635226930588405/E7E2F6CB2AC3FB6F6F9DEBE0A7ADA4AF0C8DF232/",
+    },
+    6: {  # FATHER ELMER
+        "name": "埃爾默神父 【霰彈槍 / 神父】",
+        "icon": "https://images.steamusercontent.com/ugc/2477635226930588961/75CEA25777A1E5DE316CE2B424574D14F73461B9/",
+    },
+    7: {  # THE WATCHER
+        "name": "觀察者 【高個子 / 火柴人】",
+        "icon": "https://images.steamusercontent.com/ugc/2477635226930589113/62339E95829B59B81F89C8B910B481C890D9ADEF/",
+    },
+    8: {  # THE BEAST
+        "name": "野獸 【貓貓 / 貓老太】",
+        "icon": "https://images.steamusercontent.com/ugc/2477635226930589274/ED63301BDAE54DBF266EEE88A64BF471C2E78337/",
+    },
+    9: {  # DOLPHINMAN
+        "name": "海豚人",
+        "icon": "https://images.steamusercontent.com/ugc/7412825351520453/B2177B52B026AC287C4DEF5D59CC5A41669751C0/",
+    },
+    10: {  # IGOR
+        "name": "伊戈爾",
+        "icon": "https://images.steamusercontent.com/ugc/7417357814949731/8E94E82D4DB07D7153192F36B98075B19A6ADAE5/",
+    },
+    11: {  # THE GROUCH
+        "name": "牢騷者",
+        "icon": "https://images.steamusercontent.com/ugc/7417357814868973/3AA5C51CA2AD30A62BC5F03375197ADA60BE155D/",
+    },
+    12: {  # PRINCESS
+        "name": "公主",
+        "icon": "https://images.steamusercontent.com/ugc/7421615891170424/8C80D5AC4FBC1827B4FB7EAB032303ADC334E4A4/",
+    },
+    13: {  # SPEEDRUNNER
+        "name": "極速奔跑者",
+        "icon": "https://images.steamusercontent.com/ugc/7421615891170364/29FAAF0C483A0BC133A15EAECB18C1BE19392873/",
+    },
 }
 
 # 預編譯正則表達式
@@ -87,7 +130,7 @@ LOG_PATTERNS = (
     ),
 )
 
-# 進度條顏色映射 - 避免重複計算
+# 進度條顏色映射
 PROGRESS_COLORS = {
     (0, 25): "#555555",  # 灰色
     (25, 50): "#e74c3c",  # 紅色
@@ -164,6 +207,8 @@ class SlashcoSenseMainWindow(QMainWindow):
         self.initial = True  # 初始狀態標誌
         self.record_timestamp = {}  # 紀錄每種類型的最新時間戳
 
+        self.image_cache = {}  # 圖片緩存，避免重複下載
+
         # 定時器設置
         self.log_timer = QTimer()
         self.log_timer.timeout.connect(self._monitor_logs)
@@ -174,7 +219,7 @@ class SlashcoSenseMainWindow(QMainWindow):
         """設置使用者介面"""
         self.setWindowTitle("SlashcoSense By:CanaanHS")
         self.setMinimumSize(QSize(500, 700))
-        self.resize(QSize(600, 800))
+        self.resize(QSize(800, 800))
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -182,11 +227,25 @@ class SlashcoSenseMainWindow(QMainWindow):
         main_layout.setSpacing(15)
         main_layout.setContentsMargins(15, 15, 15, 15)
 
+        # 初始化網路管理器（用於載入圖片）
+        self.network_manager = QNetworkAccessManager()
+        self.network_manager.finished.connect(self._on_image_loaded)
+
         # 遊戲狀態群組
         game_group = QGroupBox("遊戲狀態")
         game_group.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
-        game_layout = QVBoxLayout(game_group)
-        game_layout.setSpacing(8)
+
+        # 修改為水平布局，左邊是遊戲資訊，右邊是圖片
+        game_main_layout = QHBoxLayout(game_group)
+        game_main_layout.setSpacing(15)
+
+        # 左側：遊戲資訊
+        game_info_widget = QWidget()
+        game_layout = QVBoxLayout(game_info_widget)
+        game_layout.setContentsMargins(0, 0, 0, 0)
+
+        # 上方彈性空間 - 把內容推到中間
+        game_layout.addStretch()
 
         self.map_label = QLabel("地圖: 未知")
         self.slasher_label = QLabel("殺手: 未知")
@@ -195,7 +254,35 @@ class SlashcoSenseMainWindow(QMainWindow):
         font = QFont("Microsoft YaHei", 11)
         for label in [self.map_label, self.slasher_label, self.items_label]:
             label.setFont(font)
-            game_layout.addWidget(label)
+
+        # 手動添加文字和間距
+        game_layout.addWidget(self.map_label)
+        game_layout.addSpacing(20)  # 手動設置間距
+        game_layout.addWidget(self.slasher_label)
+        game_layout.addSpacing(20)  # 手動設置間距
+        game_layout.addWidget(self.items_label)
+
+        # 下方彈性空間 - 平衡上方空間
+        game_layout.addStretch()
+
+        # 右側：圖像框
+        image_widget = QWidget()
+        image_layout = QVBoxLayout(image_widget)
+        image_layout.setContentsMargins(0, 0, 10, 0)
+
+        # 圖片顯示標籤
+        self.image_label = QLabel()
+        self.image_label.setObjectName("imageDisplay")
+        self.image_label.setFixedSize(200, 200)
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_label.setText("未知")
+        self.image_label.setScaledContents(True)
+
+        image_layout.addWidget(self.image_label)
+
+        # 將左右兩側添加到主布局
+        game_main_layout.addWidget(game_info_widget, 1)  # 權重1，可以伸縮
+        game_main_layout.addWidget(image_widget, 0)  # 權重0，固定大小
 
         # 發電機狀態群組 - 直接創建，避免循環開銷
         gen_group = QGroupBox("發電機狀態")
@@ -218,7 +305,6 @@ class SlashcoSenseMainWindow(QMainWindow):
         gen1_layout.addWidget(self.gen1_label)
         gen1_layout.addWidget(self.gen1_progress)
         gen1_layout.addWidget(self.gen1_battery)
-        gen1_layout.addStretch()
 
         # 發電機2
         gen2_layout = QHBoxLayout()
@@ -235,7 +321,6 @@ class SlashcoSenseMainWindow(QMainWindow):
         gen2_layout.addWidget(self.gen2_label)
         gen2_layout.addWidget(self.gen2_progress)
         gen2_layout.addWidget(self.gen2_battery)
-        gen2_layout.addStretch()
 
         gen_widget1 = QWidget()
         gen_widget1.setLayout(gen1_layout)
@@ -246,7 +331,7 @@ class SlashcoSenseMainWindow(QMainWindow):
         gen_layout.addWidget(gen_widget2)
 
         warning = QLabel("發電機監控僅限非房主有效")
-        warning.setStyleSheet("color: #888888; font-size: 10px;")
+        warning.setObjectName("warningText")
         warning.setAlignment(Qt.AlignmentFlag.AlignCenter)
         gen_layout.addWidget(warning)
 
@@ -316,8 +401,78 @@ class SlashcoSenseMainWindow(QMainWindow):
                 background-color: #1e1e1e; border: 2px solid #3c3c3c; border-radius: 8px;
                 color: #ffffff; selection-background-color: #3498db;
             }
+            QLabel#imageDisplay {
+                border: 2px solid #555555;
+                background-color: #404040;
+                border-radius: 8px;
+                color: #888888;
+                font-size: 12px;
+            }
+            QLabel#warningText {
+                color: #888888;
+                font-size: 10px;
+            }
         """
         )
+
+    def _set_image_url(self, url: str):
+        """設置圖片URL（程式接口）"""
+        if url:
+            # 先檢查緩存
+            if url in self.image_cache:
+                # 從緩存中直接取得圖片
+                cached_pixmap = self.image_cache[url]
+                scaled_pixmap = cached_pixmap.scaled(
+                    self.image_label.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                self.image_label.setPixmap(scaled_pixmap)
+                return
+
+            # 如果緩存中沒有，才進行網路請求
+            request = QNetworkRequest(QUrl(url))
+            # 將URL存儲到請求中，方便回調時使用
+            request.setAttribute(QNetworkRequest.Attribute.User, url)
+            self.network_manager.get(request)
+            self.image_label.setText("載入中...")
+        else:
+            self.image_label.clear()
+            self.image_label.setText("未知")
+
+    def _on_image_loaded(self, reply: QNetworkReply):
+        """圖片載入完成的回調"""
+        url = reply.request().attribute(QNetworkRequest.Attribute.User)
+
+        if reply.error() == QNetworkReply.NetworkError.NoError:
+            # 成功載入圖片
+            image_data = reply.readAll()
+            pixmap = QPixmap()
+            if pixmap.loadFromData(image_data):
+                # 將原始圖片存儲到緩存中
+                if url:
+                    self.image_cache[url] = pixmap
+
+                    # 可選：限制緩存大小，避免內存過度使用
+                    if len(self.image_cache) > 50:  # 最多緩存50張圖片
+                        # 移除最舊的緩存項目（簡單的FIFO策略）
+                        oldest_url = next(iter(self.image_cache))
+                        del self.image_cache[oldest_url]
+
+                # 縮放圖片以適應標籤大小
+                scaled_pixmap = pixmap.scaled(
+                    self.image_label.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                self.image_label.setPixmap(scaled_pixmap)
+            else:
+                self.image_label.setText("格式錯誤")
+        else:
+            # 載入失敗
+            self.image_label.setText("載入失敗")
+
+        reply.deleteLater()
 
     def _toggle_osc(self, enabled: bool):
         """切換 OSC 狀態"""
@@ -411,16 +566,30 @@ class SlashcoSenseMainWindow(QMainWindow):
             if data_type == "map":
                 map_val = match.group(2).strip()
                 map_name = GAME_MAPS.get(map_val, map_val)
-                self.map_label.setText(f"地圖: {map_name}")
+                self.map_label.setText(f"地圖: \n{map_name}")
                 log_parts.append(f"地圖: {map_name}")
 
                 reset_needed = True
 
             elif data_type == "slasher":
                 slasher_id = int(match.group(2))
-                slasher_name = SLASHER_CHARACTERS.get(slasher_id, f"未知殺手({slasher_id})")
-                self.slasher_label.setText(f"殺手: {slasher_name}")
-                log_parts.append(f"殺手: {slasher_name}")
+
+                # 獲取殺手映射
+                slasher_data = SLASHER_CHARACTERS.get(
+                    slasher_id, {"name": f"未知殺手({slasher_id})", "icon": None}
+                )
+
+                name = slasher_data["name"]
+                icon = slasher_data["icon"]
+
+                # 更新UI
+                self.slasher_label.setText(f"殺手: \n{name}")
+
+                # 更新圖片
+                if icon:
+                    self._set_image_url(icon)
+                else:
+                    self._set_image_url("")  # 顯示預設的"未知"
 
                 reset_needed = True
 
@@ -433,7 +602,7 @@ class SlashcoSenseMainWindow(QMainWindow):
 
             elif data_type == "items":
                 items = match.group(2).strip()
-                self.items_label.setText(f"生成物品: {items}")
+                self.items_label.setText(f"生成物品: \n{items}")
                 log_parts.append(f"物品: {items}")
 
             elif data_type == "generator":
