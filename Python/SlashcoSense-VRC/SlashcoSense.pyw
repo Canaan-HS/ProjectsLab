@@ -258,11 +258,16 @@ class SlashcoSenseMainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        # 直接初始化所有屬性，避免額外的對象創建
+        # 初始化所有屬性
         self.osc_client: Optional[SimpleUDPClient] = None
         self.osc_enabled = False
-        self.vrchat_log_dir = Path(__file__).parent / "test"
-        # self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
+
+        self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
+
+        # 開發測試用 (我本人沒玩 Slashco，所以沒有日誌目錄)
+        if not self.vrchat_log_dir.exists():
+            self.vrchat_log_dir = Path(__file__).parent / "test"
+
         self.current_log_file: Optional[Path] = None
         self.file_position = 0
 
@@ -274,13 +279,13 @@ class SlashcoSenseMainWindow(QMainWindow):
         self.gen2_label: Optional[QLabel] = None
         self.gen2_battery: Optional[QLabel] = None
 
-        self._setup_ui()
-        self._apply_dark_theme()
-
         self.initial = True  # 初始狀態標誌
+        self.image_cache = {}  # 圖片緩存，避免重複下載
         self.record_timestamp = {}  # 紀錄每種類型的最新時間戳
 
-        self.image_cache = {}  # 圖片緩存，避免重複下載
+        # 初始化UI
+        self._setup_ui()
+        self._apply_dark_theme()
 
         # 定時器設置
         self.log_timer = QTimer()
