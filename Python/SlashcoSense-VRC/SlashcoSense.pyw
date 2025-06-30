@@ -45,18 +45,18 @@ GAME_MAPS = {
     "SlashCoHQ": "舊 SlashCo 總部",
     "1": "馬龍斯農場",
     "MalonesFarmyard": "馬龍斯農場",
-    "2": "飛利浦韋斯特伍德高中",
-    "PhilipsWestwoodHighSchool": "飛利浦韋斯特伍德高中",
+    "2": "菲利普斯•書斯特伍德高中",
+    "PhilipsWestwoodHighSchool": "菲利普斯•書斯特伍德高中",
     "3": "伊斯特伍德綜合醫院",
     "EastwoodGeneralHospital": "伊斯特伍德綜合醫院",
-    "4": "三角洲研究設施",
-    "ResearchFacilityDelta": "三角洲研究設施",
+    "4": "德爾塔科研機構",
+    "ResearchFacilityDelta": "德爾塔科研機構",
 }
 
 # 殺手映射
 SLASHERS = {
     0: {  # BABABOOEY
-        "name": "巴巴布伊 【肌肉男】",
+        "name": "巴巴布伊 【肌肉男 / 隱形怪】",
         "icon": "https://images.steamusercontent.com/ugc/2477635226930588606/2CAE95D776EFCD7F635B7CA497C43079BB9BD71C/",
     },
     1: {  # SID
@@ -64,7 +64,7 @@ SLASHERS = {
         "icon": "https://images.steamusercontent.com/ugc/2477635226930588312/14B6C7D2AC9E6FC21936F1F2D46CCB1F040F6764/",
     },
     2: {  # TROLLAG
-        "name": "特羅勒格巨魔【笑臉男】",
+        "name": "特羅勒格巨魔【笑臉男 / 火柴人】",
         "icon": "https://images.steamusercontent.com/ugc/2477635226930589045/28AD304EBFA4C6BD7636269FE86B9CCFC4146B35/",
     },
     3: {  # BORGMIRE
@@ -72,7 +72,7 @@ SLASHERS = {
         "icon": "https://images.steamusercontent.com/ugc/2477635226930588057/1C8DCDC50F43E8D61E4CE530DF626AA518F0E3CC/",
     },
     4: {  # ABOMIGNAT
-        "name": "阿博米納特【憎惡者】",
+        "name": "阿博米納特【憎惡者 / 外星人】",
         "icon": "https://images.steamusercontent.com/ugc/2477635226930588840/1B1FF6A54E92C5CF5A928A2F4A78A79FB8ADADB0/",
     },
     5: {  # THIRSTY
@@ -84,7 +84,7 @@ SLASHERS = {
         "icon": "https://images.steamusercontent.com/ugc/2477635226930588961/75CEA25777A1E5DE316CE2B424574D14F73461B9/",
     },
     7: {  # THE WATCHER
-        "name": "觀察者 【高個子 / 火柴人】",
+        "name": "觀察者 【高個子】",
         "icon": "https://images.steamusercontent.com/ugc/2477635226930589113/62339E95829B59B81F89C8B910B481C890D9ADEF/",
     },
     8: {  # THE BEAST
@@ -96,47 +96,47 @@ SLASHERS = {
         "icon": "https://images.steamusercontent.com/ugc/7412825351520453/B2177B52B026AC287C4DEF5D59CC5A41669751C0/",
     },
     10: {  # IGOR
-        "name": "伊戈爾",
+        "name": "伊戈爾【DJ / 創造者 / 毀滅者】",
         "icon": "https://images.steamusercontent.com/ugc/7417357814949731/8E94E82D4DB07D7153192F36B98075B19A6ADAE5/",
     },
     11: {  # THE GROUCH
-        "name": "牢騷者",
+        "name": "牢騷者【乞丐】",
         "icon": "https://images.steamusercontent.com/ugc/7417357814868973/3AA5C51CA2AD30A62BC5F03375197ADA60BE155D/",
     },
     12: {  # PRINCESS
-        "name": "公主",
+        "name": "公主【狗】",
         "icon": "https://images.steamusercontent.com/ugc/7421615891170424/8C80D5AC4FBC1827B4FB7EAB032303ADC334E4A4/",
     },
     13: {  # SPEEDRUNNER
-        "name": "極速奔跑者",
+        "name": "極速奔跑者【Dream】",
         "icon": "https://images.steamusercontent.com/ugc/7421615891170364/29FAAF0C483A0BC133A15EAECB18C1BE19392873/",
     },
 }
 
 # 物品映射
 ITEMS = {
-    "Proxy-Locator": "代理定位器",
+    "Proxy-Locator": "定位器",
     "Royal Burger": "皇家漢堡",
-    "Cookie": "餅乾",
+    "Cookie": "曲奇",
     "Beer Keg": "啤酒桶",
-    "Mayonnaise": "美乃滋",
-    "Orange Jello": "橘色果凍",
-    "Costco Frozen Pizza": "冷凍披薩",
-    "Airport Jungle Juice": "機場叢林果汁",
+    "Mayonnaise": "蛋黃醬",
+    "Orange Jello": "橙色果凍",
+    "Costco Frozen Pizza": "COSTCO速凍披薩",
+    "Airport Jungle Juice": "機場的烈性酒",
     "Rhino Pill": "犀牛丸",
-    "The Rock": "石頭",
+    "The Rock": "岩石",
     "Lab-Grown Meat": "人造肉",
-    "Pocket Sand": "裝沙的袋子",
-    "The Baby": "詛咒娃娃",
-    "Newport Menthols": "新港薄荷菸",
+    "Pocket Sand": "沙袋",
+    "The Baby": "巫毒娃娃",
+    "Newport Menthols": "紐波特薄荷",
     "B-GONE Soda": "B-GONE蘇打水",
     "Red 40 Vial": "40號紅色染劑",
-    "Milk Jug": "牛奶瓶",
+    "Milk Jug": "桶裝牛奶",
     "Pot of Greed": "貪婪之壺",
-    "Deathward": "死亡圖騰",
-    "Evil Jonkler Cart": "邪惡的瓊克勒購物車",
-    "25 Gram Benadryl": "25克苯那君",
-    "Balkan Boost": "巴爾幹加速劑",
+    "Deathward": "不死圖騰",
+    "Evil Jonkler Cart": "邪惡的瓊克爾•卡特",
+    "25 Gram Benadryl": "25克苯海拉明",
+    "Balkan Boost": "巴爾幹激素",
     "Boykisser": "男孩親吻者",
     "Cinnamon Stick": "肉桂棒",
     "Dishwasher Salmon": "洗碗機鮭魚",
@@ -182,7 +182,7 @@ PROGRESS_COLORS = {
 
 
 def get_progress_color(value: int) -> str:
-    """快速獲取進度條顏色"""
+    """獲取進度條顏色"""
     for (min_val, max_val), color in PROGRESS_COLORS.items():
         if min_val <= value <= max_val:
             return color
@@ -220,6 +220,37 @@ class ProgressBar(QProgressBar):
         )
 
 
+def parse_items(items: str) -> str:
+    """解析物品列表"""
+    if not items:
+        return ""
+
+    matches = list(ITEMS_PATTERN.finditer(items))
+    if not matches:
+        return items
+
+    result = []
+    last_end = 0
+
+    for match in matches:
+        start, end = match.span()
+
+        if start > last_end:
+            unmatched = items[last_end:start].strip()
+            if unmatched:
+                result.append(unmatched)
+
+        result.append(ITEMS[match.group()])
+        last_end = end
+
+    if last_end < len(items):
+        unmatched = items[last_end:].strip()
+        if unmatched:
+            result.append(unmatched)
+
+    return " / ".join(result)
+
+
 class SlashcoSenseMainWindow(QMainWindow):
     """主視窗類"""
 
@@ -230,8 +261,8 @@ class SlashcoSenseMainWindow(QMainWindow):
         # 直接初始化所有屬性，避免額外的對象創建
         self.osc_client: Optional[SimpleUDPClient] = None
         self.osc_enabled = False
-        # self.vrchat_log_dir = Path(__file__).parent / "test"
-        self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
+        self.vrchat_log_dir = Path(__file__).parent / "test"
+        # self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
         self.current_log_file: Optional[Path] = None
         self.file_position = 0
 
@@ -457,31 +488,6 @@ class SlashcoSenseMainWindow(QMainWindow):
         """
         )
 
-    def _set_image_url(self, url: str):
-        """設置圖片URL（程式接口）"""
-        if url:
-            # 先檢查緩存
-            if url in self.image_cache:
-                # 從緩存中直接取得圖片
-                cached_pixmap = self.image_cache[url]
-                scaled_pixmap = cached_pixmap.scaled(
-                    self.image_label.size(),
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-                self.image_label.setPixmap(scaled_pixmap)
-                return
-
-            # 如果緩存中沒有，才進行網路請求
-            request = QNetworkRequest(QUrl(url))
-            # 將URL存儲到請求中，方便回調時使用
-            request.setAttribute(QNetworkRequest.Attribute.User, url)
-            self.network_manager.get(request)
-            self.image_label.setText("載入中...")
-        else:
-            self.image_label.clear()
-            self.image_label.setText("未知")
-
     def _on_image_loaded(self, reply: QNetworkReply):
         """圖片載入完成的回調"""
         url = reply.request().attribute(QNetworkRequest.Attribute.User)
@@ -516,35 +522,30 @@ class SlashcoSenseMainWindow(QMainWindow):
 
         reply.deleteLater()
 
-    def _parse_items(self, items: str) -> str:
-        """解析物品列表"""
-        if not items:
-            return ""
+    def _set_image_url(self, url: str):
+        """設置圖片URL（程式接口）"""
+        if url:
+            # 先檢查緩存
+            if url in self.image_cache:
+                # 從緩存中直接取得圖片
+                cached_pixmap = self.image_cache[url]
+                scaled_pixmap = cached_pixmap.scaled(
+                    self.image_label.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                self.image_label.setPixmap(scaled_pixmap)
+                return
 
-        matches = list(ITEMS_PATTERN.finditer(items))
-        if not matches:
-            return items
-
-        result = []
-        last_end = 0
-
-        for match in matches:
-            start, end = match.span()
-
-            if start > last_end:
-                unmatched = items[last_end:start].strip()
-                if unmatched:
-                    result.append(unmatched)
-
-            result.append(ITEMS[match.group()])
-            last_end = end
-
-        if last_end < len(items):
-            unmatched = items[last_end:].strip()
-            if unmatched:
-                result.append(unmatched)
-
-        return " / ".join(result)
+            # 如果緩存中沒有，才進行網路請求
+            request = QNetworkRequest(QUrl(url))
+            # 將URL存儲到請求中，方便回調時使用
+            request.setAttribute(QNetworkRequest.Attribute.User, url)
+            self.network_manager.get(request)
+            self.image_label.setText("載入中...")
+        else:
+            self.image_label.clear()
+            self.image_label.setText("未知")
 
     def _toggle_osc(self, enabled: bool):
         """切換 OSC 狀態"""
@@ -575,6 +576,15 @@ class SlashcoSenseMainWindow(QMainWindow):
             except Exception:
                 pass
         return False
+
+    def _append_log_message(self, message: str):
+        """添加日誌訊息"""
+        timestamp = datetime.now().strftime("[%H:%M:%S]")
+        self.log_display.append(f"{timestamp} {message}")
+
+        # 保持日誌在底部
+        scrollbar = self.log_display.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
     def _monitor_logs(self):
         """日誌監控"""
@@ -658,10 +668,7 @@ class SlashcoSenseMainWindow(QMainWindow):
                 self.slasher_label.setText(f"殺手: \n{name}")
 
                 # 更新圖片
-                if icon:
-                    self._set_image_url(icon)
-                else:
-                    self._set_image_url("")  # 顯示預設的"未知"
+                self._set_image_url(icon if icon else "")
 
                 reset_needed = True
 
@@ -673,7 +680,7 @@ class SlashcoSenseMainWindow(QMainWindow):
                     self.log_message.emit(f"[OSC] 發送 SlasherID: {slasher_id}")
 
             elif data_type == "items":
-                items = self._parse_items(match.group(2).strip())
+                items = parse_items(match.group(2).strip())
                 self.items_label.setText(f"生成物品: \n{items}")
                 log_parts.append(f"物品: {items}")
 
@@ -755,15 +762,6 @@ class SlashcoSenseMainWindow(QMainWindow):
                         self.log_message.emit(f"[OSC] 發送 GENERATOR2_BATTERY: {battery_value}")
         except ValueError:
             pass
-
-    def _append_log_message(self, message: str):
-        """添加日誌訊息"""
-        timestamp = datetime.now().strftime("[%H:%M:%S]")
-        self.log_display.append(f"{timestamp} {message}")
-
-        # 保持日誌在底部
-        scrollbar = self.log_display.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
 
 
 if __name__ == "__main__":
