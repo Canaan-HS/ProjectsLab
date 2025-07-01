@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import sys
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, Any, TYPE_CHECKING
@@ -39,7 +40,7 @@ if TYPE_CHECKING:
 DEFAULT_OSC_PORT = 9000  # 默認埠號
 LOG_UPDATE_INTERVAL = 500  # 日誌更新間隔 (毫秒)
 
-# 遊戲資料映射
+# 地圖映射
 GAME_MAPS = {
     "0": "舊 SlashCo 總部",
     "SlashCoHQ": "舊 SlashCo 總部",
@@ -53,7 +54,8 @@ GAME_MAPS = {
     "ResearchFacilityDelta": "三角洲研究設施",
 }
 
-SLASHER_CHARACTERS = {
+# 殺手映射
+SLASHERS = {
     0: {  # BABABOOEY
         "name": "巴巴布伊 【肌肉男】",
         "icon": "https://images.steamusercontent.com/ugc/2477635226930588606/2CAE95D776EFCD7F635B7CA497C43079BB9BD71C/",
@@ -112,7 +114,48 @@ SLASHER_CHARACTERS = {
     },
 }
 
-# 預編譯正則表達式
+# 物品映射
+ITEMS = {
+    "Proxy-Locator": "代理定位器",
+    "Royal Burger": "皇家漢堡",
+    "Cookie": "餅乾",
+    "Beer Keg": "啤酒桶",
+    "Mayonnaise": "美乃滋",
+    "Orange Jello": "橘色果凍",
+    "Costco Frozen Pizza": "冷凍披薩",
+    "Airport Jungle Juice": "機場叢林果汁",
+    "Rhino Pill": "犀牛丸",
+    "The Rock": "石頭",
+    "Lab-Grown Meat": "人造肉",
+    "Pocket Sand": "裝沙的袋子",
+    "The Baby": "詛咒娃娃",
+    "Newport Menthols": "新港薄荷菸",
+    "B-GONE Soda": "B-GONE蘇打水",
+    "Red 40 Vial": "40號紅色染劑",
+    "Milk Jug": "牛奶瓶",
+    "Pot of Greed": "貪婪之壺",
+    "Deathward": "死亡圖騰",
+    "Evil Jonkler Cart": "邪惡的瓊克勒購物車",
+    "25 Gram Benadryl": "25克苯那君",
+    "Balkan Boost": "巴爾幹加速劑",
+    "Boykisser": "男孩親吻者",
+    "Cinnamon Stick": "肉桂棒",
+    "Dishwasher Salmon": "洗碗機鮭魚",
+    "Reverse Card": "反轉卡",
+    "Nokia Shield": "諾基亞盾牌",
+    "Broken Radio": "破損收音機",
+    "Rascal Rage": "頑童狂怒",
+    "Pocket Fentanyl": "口袋芬太尼",
+    "IJED": "IJED",
+    "The Porchlight": "門廊燈",
+}
+
+# 編譯物品解析正則
+ITEMS_PATTERN = re.compile(
+    "|".join(re.escape(key) for key in sorted(ITEMS.keys(), key=len, reverse=True)), re.IGNORECASE
+)
+
+# 編譯類型解析正則
 LOG_PATTERNS = (
     (re.compile(r"(\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}).*?Played Map:\s*([^,]+)"), "map"),
     (re.compile(r"(\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}).*?Slasher:\s*(\d+)"), "slasher"),
@@ -188,8 +231,8 @@ class SlashcoSenseMainWindow(QMainWindow):
         # 直接初始化所有屬性，避免額外的對象創建
         self.osc_client: Optional[SimpleUDPClient] = None
         self.osc_enabled = False
-        # self.vrchat_log_dir = Path(__file__).parent / "test"
-        self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
+        self.vrchat_log_dir = Path(__file__).parent / "test"
+        # self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
         self.current_log_file: Optional[Path] = None
         self.file_position = 0
 
@@ -474,6 +517,36 @@ class SlashcoSenseMainWindow(QMainWindow):
 
         reply.deleteLater()
 
+    def _parse_items(self, items: str) -> str:
+        """解析物品列表"""
+        if not items:
+            return ""
+
+        matches = list(ITEMS_PATTERN.finditer(items))
+        if not matches:
+            return items
+
+        result = []
+        last_end = 0
+
+        for match in matches:
+            start, end = match.span()
+
+            if start > last_end:
+                unmatched = items[last_end:start].strip()
+                if unmatched:
+                    result.append(unmatched)
+
+            result.append(ITEMS[match.group()])
+            last_end = end
+
+        if last_end < len(items):
+            unmatched = items[last_end:].strip()
+            if unmatched:
+                result.append(unmatched)
+
+        return " / ".join(result)
+
     def _toggle_osc(self, enabled: bool):
         """切換 OSC 狀態"""
         if enabled:
@@ -575,7 +648,7 @@ class SlashcoSenseMainWindow(QMainWindow):
                 slasher_id = int(match.group(2))
 
                 # 獲取殺手映射
-                slasher_data = SLASHER_CHARACTERS.get(
+                slasher_data = SLASHERS.get(
                     slasher_id, {"name": f"未知殺手({slasher_id})", "icon": None}
                 )
 
@@ -601,7 +674,7 @@ class SlashcoSenseMainWindow(QMainWindow):
                     self.log_message.emit(f"[OSC] 發送 SlasherID: {slasher_id}")
 
             elif data_type == "items":
-                items = match.group(2).strip()
+                items = self._parse_items(match.group(2).strip())
                 self.items_label.setText(f"生成物品: \n{items}")
                 log_parts.append(f"物品: {items}")
 
