@@ -36,7 +36,7 @@ except ImportError:
 if TYPE_CHECKING:
     from pythonosc.udp_client import SimpleUDPClient
 
-# 地圖映射
+# 地圖對應
 GAME_MAPS = {
     "0": "舊 SlashCo 總部",
     "SlashCoHQ": "舊 SlashCo 總部",
@@ -50,7 +50,7 @@ GAME_MAPS = {
     "ResearchFacilityDelta": "德爾塔科研機構",
 }
 
-# 殺手映射
+# 殺手對應
 SLASHERS = {
     0: {  # BABABOOEY
         "name": "巴巴布伊 【肌肉男 / 隱形怪】",
@@ -110,7 +110,7 @@ SLASHERS = {
     },
 }
 
-# 物品映射
+# 物品對應
 ITEMS = {
     "Proxy-Locator": "定位器",
     "Royal Burger": "皇家漢堡",
@@ -137,7 +137,7 @@ ITEMS = {
     "Balkan Boost": "巴爾幹激素",
 }
 
-DEFAULT_OSC_PORT = 9000  # 默認埠號
+DEFAULT_OSC_PORT = 9000  # 預設埠號
 LOG_UPDATE_INTERVAL = 500  # 日誌更新間隔 (毫秒)
 VRC_LOG_DIR = Path.home() / "AppData/LocalLow/VRChat/VRChat"  # VRChat 日誌目錄
 WINDOWS_ICON_URL = "https://images.steamusercontent.com/ugc/2477635226930601215/D3708CAF453353764ADE800A779730BFCEF83408/"
@@ -147,7 +147,7 @@ ITEMS_PATTERN = re.compile(
     "|".join(re.escape(key) for key in sorted(ITEMS.keys(), key=len, reverse=True)), re.IGNORECASE
 )
 
-# 編譯類型解析正則
+# 編譯型別解析正則
 LOG_PATTERNS = (
     (re.compile(r"(\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}).*?Played Map:\s*([^,]+)"), "map"),
     (re.compile(r"(\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}).*?Slasher:\s*(\d+)"), "slasher"),
@@ -165,7 +165,7 @@ LOG_PATTERNS = (
     ),
 )
 
-# 進度條顏色映射
+# 進度條顏色對應
 PROGRESS_COLORS = {
     (0, 25): "#555555",  # 灰色
     (25, 50): "#e74c3c",  # 紅色
@@ -179,7 +179,7 @@ def get_progress_color(value: int) -> str:
     for (min_val, max_val), color in PROGRESS_COLORS.items():
         if min_val <= value <= max_val:
             return color
-    return "#2c2c2c"  # 默認
+    return "#2c2c2c"  # 預設
 
 
 class ProgressBar(QProgressBar):
@@ -262,9 +262,9 @@ class SlashcoSenseMainWindow(QMainWindow):
         self.network_manager = QNetworkAccessManager()
         self.network_manager.finished.connect(self._on_image_loaded)
 
-        self.info_cache = ""  # 資訊緩存
+        self.info_cache = ""  # 資訊快取
         self.reset_mark = False  # 重置標記
-        self.record_timestamp = {}  # 紀錄每種類型的最新時間戳
+        self.record_timestamp = {}  # 紀錄每種型別的最新時間戳
 
         self.gen1_progress: Optional[ProgressBar] = None
         self.gen1_label: Optional[QLabel] = None
@@ -279,25 +279,34 @@ class SlashcoSenseMainWindow(QMainWindow):
         self.file_position = 0
         self.current_log_file: Optional[Path] = None
 
-        # 初始化UI
+        # 立即初始化基本UI讓視窗快速顯示
         self._setup_ui()
         self._apply_dark_theme()
 
-        # 定時器 與 連結 設置
-        self.log_timer = QTimer()
-        self.log_timer.timeout.connect(self._monitor_logs)
-        self.log_timer.start(LOG_UPDATE_INTERVAL)
-        self.log_message.connect(self._append_log_message)
+        # 延遲載入圖示和啟動日誌監控，避免阻塞UI顯示
+        QTimer.singleShot(
+            300,
+            lambda: (
+                # 建立網路請求並設定屬性
+                (
+                    lambda req: (
+                        req.setAttribute(QNetworkRequest.Attribute.User, "icon"),
+                        self.network_manager.get(req),
+                    )
+                )(QNetworkRequest(QUrl(WINDOWS_ICON_URL))),
+                # 設定定時器
+                setattr(self, "log_timer", QTimer()),
+                self.log_timer.timeout.connect(self._monitor_logs),
+                self.log_timer.start(LOG_UPDATE_INTERVAL),
+                self.log_message.connect(self._append_log_message),
+            ),
+        )
 
     def _setup_ui(self):
-        """設置使用者介面"""
+        """設定使用者介面"""
         self.setWindowTitle("SlashCoSense")
         self.setMinimumSize(QSize(500, 700))
         self.resize(QSize(800, 800))
-
-        icon = QNetworkRequest(QUrl(WINDOWS_ICON_URL))
-        icon.setAttribute(QNetworkRequest.Attribute.User, "icon")
-        self.network_manager.get(icon)
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -309,7 +318,7 @@ class SlashcoSenseMainWindow(QMainWindow):
         game_group = QGroupBox("遊戲狀態")
         game_group.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
 
-        # 修改為水平布局，左邊是遊戲資訊，右邊是圖片
+        # 修改為水平佈局，左邊是遊戲資訊，右邊是圖片
         game_main_layout = QHBoxLayout(game_group)
         game_main_layout.setSpacing(15)
 
@@ -329,17 +338,17 @@ class SlashcoSenseMainWindow(QMainWindow):
         for label in [self.map_label, self.slasher_label, self.items_label]:
             label.setFont(font)
 
-        # 手動添加文字和間距
+        # 手動新增文字和間距
         game_layout.addWidget(self.map_label)
-        game_layout.addSpacing(20)  # 手動設置間距
+        game_layout.addSpacing(20)  # 手動設定間距
         game_layout.addWidget(self.slasher_label)
-        game_layout.addSpacing(20)  # 手動設置間距
+        game_layout.addSpacing(20)  # 手動設定間距
         game_layout.addWidget(self.items_label)
 
         # 下方彈性空間 - 平衡上方空間
         game_layout.addStretch()
 
-        # 右側：圖像框
+        # 右側：影像框
         image_widget = QWidget()
         image_layout = QVBoxLayout(image_widget)
         image_layout.setContentsMargins(0, 0, 5, 0)
@@ -354,11 +363,11 @@ class SlashcoSenseMainWindow(QMainWindow):
 
         image_layout.addWidget(self.image_label)
 
-        # 將左右兩側添加到主布局
+        # 將左右兩側新增到主佈局
         game_main_layout.addWidget(game_info_widget, 1)  # 權重1，可以伸縮
         game_main_layout.addWidget(image_widget, 0)  # 權重0，固定大小
 
-        # 發電機狀態群組 - 直接創建，避免循環開銷
+        # 發電機狀態群組 - 直接建立，避免迴圈開銷
         gen_group = QGroupBox("發電機狀態")
         gen_group.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         gen_layout = QVBoxLayout(gen_group)
@@ -372,9 +381,10 @@ class SlashcoSenseMainWindow(QMainWindow):
         self.gen1_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
         self.gen1_progress = ProgressBar()
         self.gen1_progress.setMinimumWidth(250)
-        self.gen1_battery = QLabel("電池: ❌")
+        self.gen1_progress.setFont(QFont("Microsoft YaHei", 10))
+        self.gen1_battery = QLabel("電池: 🪫")
         self.gen1_battery.setMinimumWidth(70)
-        self.gen1_battery.setFont(QFont("Microsoft YaHei", 12))
+        self.gen1_battery.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
 
         gen1_layout.addWidget(self.gen1_label)
         gen1_layout.addWidget(self.gen1_progress)
@@ -388,9 +398,10 @@ class SlashcoSenseMainWindow(QMainWindow):
         self.gen2_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
         self.gen2_progress = ProgressBar()
         self.gen2_progress.setMinimumWidth(250)
-        self.gen2_battery = QLabel("電池: ❌")
+        self.gen2_progress.setFont(QFont("Microsoft YaHei", 10))
+        self.gen2_battery = QLabel("電池: 🪫")
         self.gen2_battery.setMinimumWidth(70)
-        self.gen2_battery.setFont(QFont("Microsoft YaHei", 12))
+        self.gen2_battery.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
 
         gen2_layout.addWidget(self.gen2_label)
         gen2_layout.addWidget(self.gen2_progress)
@@ -409,8 +420,8 @@ class SlashcoSenseMainWindow(QMainWindow):
         warning.setAlignment(Qt.AlignmentFlag.AlignCenter)
         gen_layout.addWidget(warning)
 
-        # OSC 設置群組
-        osc_group = QGroupBox("OSC 設置")
+        # OSC 設定群組
+        osc_group = QGroupBox("OSC 設定")
         osc_group.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         osc_layout = QHBoxLayout(osc_group)
         osc_layout.setSpacing(15)
@@ -442,7 +453,7 @@ class SlashcoSenseMainWindow(QMainWindow):
         self.log_display.setFont(QFont("Consolas", 10))
         log_layout.addWidget(self.log_display)
 
-        # 添加所有群組到主布局
+        # 新增所有群組到主佈局
         main_layout.addWidget(game_group)
         main_layout.addWidget(gen_group)
         main_layout.addWidget(osc_group)
@@ -508,14 +519,14 @@ class SlashcoSenseMainWindow(QMainWindow):
         return mask
 
     def _on_image_loaded(self, reply: QNetworkReply):
-        """圖片載入完成的回調"""
+        """圖片載入完成的回撥"""
         url = reply.request().attribute(QNetworkRequest.Attribute.User)
 
         if reply.error() == QNetworkReply.NetworkError.NoError:
             pixmap = QPixmap()
             image_data = reply.readAll()
 
-            if url == "icon" and pixmap.loadFromData(image_data):  # 載入圖標
+            if url == "icon" and pixmap.loadFromData(image_data):  # 載入圖示
                 # 裁出圖片中心的正方形區域
                 w, h = pixmap.width(), pixmap.height()
                 side = min(w, h)
@@ -523,7 +534,7 @@ class SlashcoSenseMainWindow(QMainWindow):
                 y = (h - side) // 2
                 center_crop = pixmap.copy(x, y, side, side)
 
-                # 圖標大小
+                # 圖示大小
                 icon_size = 124
                 scaled = center_crop.scaled(
                     icon_size, icon_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
@@ -541,7 +552,7 @@ class SlashcoSenseMainWindow(QMainWindow):
                 painter.drawPixmap(0, 0, scaled)
                 painter.end()
 
-                # 設定視窗圖標
+                # 設定視窗圖示
                 self.setWindowIcon(QIcon(circular))
             elif pixmap.loadFromData(image_data):  # 載入殺手圖片
                 self.image_label.setStyleSheet("")  # 恢復原本樣式
@@ -567,7 +578,7 @@ class SlashcoSenseMainWindow(QMainWindow):
         reply.deleteLater()
 
     def _set_image_url(self, url: str):
-        """設置圖片URL（程式接口）"""
+        """設定圖片URL（程式介面）"""
         if url:
             # 先從 QPixmapCache 快取找
             pixmap = QPixmap()
@@ -581,13 +592,13 @@ class SlashcoSenseMainWindow(QMainWindow):
                 self.image_label.setStyleSheet("")
                 return
 
-            # 如果緩存中沒有，才進行網路請求
+            # 如果快取中沒有，才進行網路請求
             request = QNetworkRequest(QUrl(url))
-            # 將URL存儲到請求中，方便回調時使用
+            # 將URL儲存到請求中，方便回撥時使用
             request.setAttribute(QNetworkRequest.Attribute.User, url)
             self.network_manager.get(request)
 
-            # 設置載入中的樣式和文字
+            # 設定載入中的樣式和文字
             self.image_label.clear()  # 清除之前的圖片
             self.image_label.setText("?")
             self.image_label.setStyleSheet(
@@ -628,7 +639,7 @@ class SlashcoSenseMainWindow(QMainWindow):
             self.log_message.emit("OSC 已停用")
 
     def _send_osc(self, param: str, value: Any) -> bool:
-        """快速發送OSC參數"""
+        """快速傳送OSC引數"""
         if self.osc_enabled and self.osc_client:
             try:
                 self.osc_client.send_message(f"/avatar/parameters/{param}", value)
@@ -638,7 +649,7 @@ class SlashcoSenseMainWindow(QMainWindow):
         return False
 
     def _append_log_message(self, message: str):
-        """添加日誌訊息"""
+        """新增日誌訊息"""
         timestamp = datetime.now().strftime("[%H:%M:%S]")
         self.log_display.append(f"{timestamp} {message}")
 
@@ -649,12 +660,11 @@ class SlashcoSenseMainWindow(QMainWindow):
     def _monitor_logs(self):
         """日誌監控"""
         try:
-            # 檢查新文件
+            # 檢查新檔案
             if not self.log_dir.exists():
                 return
 
             log_files = list(self.log_dir.glob("output_log_*.txt"))
-
             if not log_files:
                 return
 
@@ -662,7 +672,7 @@ class SlashcoSenseMainWindow(QMainWindow):
             if latest_file != self.current_log_file:
                 self.current_log_file = latest_file
                 self.file_position = 0
-                self.log_message.emit(f"開始監控日誌文件: {latest_file.name}")
+                self.log_message.emit(f"開始監控日誌: {latest_file.name}")
 
             # 讀取新行
             if self.current_log_file.exists():
@@ -672,7 +682,6 @@ class SlashcoSenseMainWindow(QMainWindow):
                     self.file_position = file.tell()
 
                 if new_content:
-                    # 按行處理，但只進行一次文件讀取
                     for line in reversed(new_content.splitlines()):
                         if line.strip():
                             self._process_log_line(line.strip())
@@ -680,11 +689,11 @@ class SlashcoSenseMainWindow(QMainWindow):
             pass
 
     def _process_log_line(self, line: str):
-        """日誌處理"""
+        """最佳化後的日誌處理"""
         log_parts = []
-        new_info = False
+        new_game_info = False
 
-        # 單次遍歷所有模式，避免重複搜索
+        # 單次遍歷所有模式，避免重複搜尋
         for pattern, data_type in LOG_PATTERNS:
             match = pattern.search(line)
 
@@ -692,8 +701,8 @@ class SlashcoSenseMainWindow(QMainWindow):
                 continue
 
             try:
+                # 根據相同資料型別, 篩選掉舊的時間戳
                 search_key = match.group(2) if data_type == "generator" else data_type
-
                 log_timestamp = match.group(1)
                 record_timestamp = self.record_timestamp.get(search_key, log_timestamp)
 
@@ -710,13 +719,12 @@ class SlashcoSenseMainWindow(QMainWindow):
                 map_name = GAME_MAPS.get(map_val, map_val)
                 self.map_label.setText(f"地圖: \n{map_name}")
                 log_parts.append(f"地圖: {map_name}")
-
-                new_info = True
+                new_game_info = True
 
             elif data_type == "slasher":
                 slasher_id = int(match.group(2))
 
-                # 獲取殺手映射
+                # 獲取殺手對應
                 slasher_data = SLASHERS.get(
                     slasher_id, {"name": f"未知殺手({slasher_id})", "icon": None}
                 )
@@ -726,25 +734,23 @@ class SlashcoSenseMainWindow(QMainWindow):
 
                 self.slasher_label.setText(f"殺手: \n{name}")
                 log_parts.append(f"殺手: {name}")
-
-                new_info = True
+                new_game_info = True
 
                 # 更新圖片
                 self._set_image_url(icon if icon else "")
 
-                # 直接發送OSC
+                # 直接傳送OSC
                 if (
                     self._send_osc("SlasherID", slasher_id)
                     and self.osc_log_enabled_checkbox.isChecked()
                 ):
-                    self.log_message.emit(f"[OSC] 發送 SlasherID: {slasher_id}")
+                    self.log_message.emit(f"[OSC] 傳送 SlasherID: {slasher_id}")
 
             elif data_type == "items":
                 items = parse_items(match.group(2).strip())
                 self.items_label.setText(f"生成物品: \n{items}")
                 log_parts.append(f"物品: {items}")
-
-                new_info = True
+                new_game_info = True
 
             elif data_type == "generator" and not self.reset_mark:  # 重置標記時禁止更新
                 _, gen_name, var_type, _, _, new_value = match.groups()
@@ -752,36 +758,38 @@ class SlashcoSenseMainWindow(QMainWindow):
                 log_parts.append(f"{gen_name} {var_type}: {new_value}")
 
         if log_parts:
-            # 理論上有 new_info 更新時, 不可能跟緩存相同 (除非真的生成完全一樣的資訊)
             message = " | ".join(log_parts)
 
-            if new_info and message != self.info_cache:  # 有新資訊且與緩存不同, 通常是新遊戲開始
-                self.reset_mark = False
-                self.info_cache = message
-            elif (  # 有新資訊但與緩存相同, 通常是結束後再次打印資訊
-                new_info and message == self.info_cache
-            ):
-                self._reset_generators()
-                if self.reset_mark:  # 已經標記時, 跳出避免重置後多餘日誌 (第一次觸發時, 需要打印一次, 所以這樣寫, 才能確保只在第二次開始時不打印)
+            if new_game_info:
+                if message == self.info_cache:
+                    # 重複的遊戲資訊 = 遊戲結束，執行重置邏輯
+                    if not self.reset_mark:
+                        self._reset_generators()
+                        self.reset_mark = True
                     return
-                self.reset_mark = True
-            elif self.reset_mark:  # 禁止重置狀態的, 後續日誌
+                else:
+                    # 新的遊戲資訊 = 新遊戲開始
+                    self.reset_mark = False
+                    self.info_cache = message
+
+            # 重置狀態下禁止傳送日誌
+            if self.reset_mark:
                 return
 
             self.log_message.emit(message)
 
     def _reset_generators(self):
-        """重置所有發電機狀態 (不透過 _update_generator 更新, 減少性能開銷)"""
+        """重置所有發電機狀態 (不透過 _update_generator 更新, 減少效能開銷)"""
 
         # 重置發電機1
         self.gen1_progress.setValue(0)
-        self.gen1_battery.setText("電池: ❌")
+        self.gen1_battery.setText("電池: 🪫")
 
         # 重置發電機2
         self.gen2_progress.setValue(0)
-        self.gen2_battery.setText("電池: ❌")
+        self.gen2_battery.setText("電池: 🪫")
 
-        # 直接發送OSC消息
+        # 直接傳送OSC訊息
         if self.osc_enabled:
             self._send_osc("GENERATOR1_FUEL", 0)
             self._send_osc("GENERATOR1_BATTERY", 0)
@@ -795,25 +803,25 @@ class SlashcoSenseMainWindow(QMainWindow):
                 filled = 4 - int(new_value)
                 progress = (filled * 100) // 4  # 使用整數除法
 
-                # 直接更新對應的發電機，避免字典查找
+                # 直接更新對應的發電機，避免字典查詢
                 if gen_name == "generator1":
                     self.gen1_progress.setValue(progress)
                     if (
                         self._send_osc("GENERATOR1_FUEL", filled)
                         and self.osc_log_enabled_checkbox.isChecked()
                     ):
-                        self.log_message.emit(f"[OSC] 發送 GENERATOR1_FUEL: {filled}")
+                        self.log_message.emit(f"[OSC] 傳送 GENERATOR1_FUEL: {filled}")
                 elif gen_name == "generator2":
                     self.gen2_progress.setValue(progress)
                     if (
                         self._send_osc("GENERATOR2_FUEL", filled)
                         and self.osc_log_enabled_checkbox.isChecked()
                     ):
-                        self.log_message.emit(f"[OSC] 發送 GENERATOR2_FUEL: {filled}")
+                        self.log_message.emit(f"[OSC] 傳送 GENERATOR2_FUEL: {filled}")
 
             elif var_type == "HAS_BATTERY":
                 has_battery = new_value.lower() == "true"
-                battery_text = "電池: ✅" if has_battery else "電池: ❌"
+                battery_text = "電池: 🔋" if has_battery else "電池: 🪫"
                 battery_value = 1 if has_battery else 0
 
                 if gen_name == "generator1":
@@ -822,14 +830,14 @@ class SlashcoSenseMainWindow(QMainWindow):
                         self._send_osc("GENERATOR1_BATTERY", battery_value)
                         and self.osc_log_enabled_checkbox.isChecked()
                     ):
-                        self.log_message.emit(f"[OSC] 發送 GENERATOR1_BATTERY: {battery_value}")
+                        self.log_message.emit(f"[OSC] 傳送 GENERATOR1_BATTERY: {battery_value}")
                 elif gen_name == "generator2":
                     self.gen2_battery.setText(battery_text)
                     if (
                         self._send_osc("GENERATOR2_BATTERY", battery_value)
                         and self.osc_log_enabled_checkbox.isChecked()
                     ):
-                        self.log_message.emit(f"[OSC] 發送 GENERATOR2_BATTERY: {battery_value}")
+                        self.log_message.emit(f"[OSC] 傳送 GENERATOR2_BATTERY: {battery_value}")
         except ValueError:
             pass
 
