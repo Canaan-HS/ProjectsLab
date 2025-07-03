@@ -256,7 +256,7 @@ class SlashcoSenseMainWindow(QMainWindow):
 
         # 開發測試用 (我本人沒玩 Slashco，所以沒有日誌目錄)
         if not self.log_dir.exists():
-            self.log_dir = Path(__file__).parent / "test"
+            self.log_dir = Path(__file__).parent / "TEST"
 
         # 初始化網路管理器（用於載入圖片）
         self.network_manager = QNetworkAccessManager()
@@ -723,8 +723,8 @@ class SlashcoSenseMainWindow(QMainWindow):
                 name = slasher_data["name"]
                 icon = slasher_data["icon"]
 
-                # 更新UI
                 self.slasher_label.setText(f"殺手: \n{name}")
+                log_parts.append(f"殺手: {name}")
 
                 # 更新圖片
                 self._set_image_url(icon if icon else "")
@@ -773,9 +773,6 @@ class SlashcoSenseMainWindow(QMainWindow):
             self._send_osc("GENERATOR1_BATTERY", 0)
             self._send_osc("GENERATOR2_FUEL", 0)
             self._send_osc("GENERATOR2_BATTERY", 0)
-
-            if self.osc_log_enabled_checkbox.isChecked():
-                self.log_message.emit("[OSC] 重置所有狀態")
 
     def _update_generator(self, gen_name: str, var_type: str, new_value: str):
         """發電機更新 - 直接訪問UI元素"""
