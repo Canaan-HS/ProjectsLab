@@ -29,13 +29,13 @@ excludes = [
     'pywintypes', 'win32cred', 'win32file', 'win32pipe', 'win32process'
 
     # 網絡與 Web 服務
-    'socket', 'selectors', 'email', 'ftplib',
-    'telnetlib', 'nntplib', 'poplib', 'smtpd', 'smtplib',
-    'mailbox', 'asyncio', 'ssl', '_ssl', 'http',
-    'urllib.request', 'gopherlib', 'imaplib', 'wsgiref',
-    'webbrowser', 'cgi', 'cgitb', 'xmlrpc'
+    'email', 'ftplib', 'telnetlib', 'nntplib',
+    'poplib', 'smtpd', 'smtplib', 'mailbox', 'asyncio',
+    'ssl', '_ssl', 'http', 'urllib.request', 'gopherlib',
+    'imaplib', 'wsgiref', 'webbrowser', 'cgi', 'cgitb',
+    'xmlrpc'
 
-    # 型科學與網頁框架 (若未使用)
+    # 科學與網頁框架 (若未使用)
     'numpy', 'pandas', 'scipy', 'matplotlib',
     'requests', 'flask', 'jinja2', 'werkzeug', 'sqlalchemy',
     'PIL', 'Pillow', 'pygame',
@@ -60,7 +60,7 @@ excludes = [
     'msilib', 'shelve', 'symtable', 'tabnanny'
 
     # 有風險 (激進)
-    'msvcrt', 'pickle', 'hashlib', '_hashlib', 'ctypes', '_ctypes',
+    'msvcrt', 'pickle', 'hashlib', '_hashlib',
     'encodings.koi8_r', 'encodings.koi8_t', 'encodings.koi8_u', 'encodings.kz1048',
     'encodings.mac_cyrillic', 'encodings.mac_greek', 'encodings.mac_iceland',
     'encodings.mac_latin2', 'encodings.mac_roman', 'encodings.mac_turkish',
@@ -69,7 +69,7 @@ excludes = [
     'encodings.iso8859_8', 'encodings.iso8859_9', 'encodings.iso8859_10',
     'encodings.iso8859_11', 'encodings.iso8859_13', 'encodings.iso8859_14',
     'encodings.iso8859_15', 'encodings.iso8859_16',
-    'encodings.cp037', 'encodings.cp273', 'encodings.cp424', 'encodings.cp437',
+    'encodings.cp037', 'encodings.cp273', 'encodings.cp424',
     'encodings.cp500', 'encodings.cp720', 'encodings.cp737', 'encodings.cp775',
     'encodings.cp850', 'encodings.cp852', 'encodings.cp855', 'encodings.cp856',
     'encodings.cp857', 'encodings.cp858', 'encodings.cp860', 'encodings.cp861',
