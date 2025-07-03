@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QGroupBox,
 )
-from PySide6.QtCore import QTimer, Signal, Qt, QSize, QUrl
-from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtCore import Qt, QTimer, Signal, QSize, QUrl
+from PySide6.QtGui import QFont, QCursor, QPixmap, QPainter, QPixmapCache, QPainterPath
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 
 try:
@@ -249,9 +249,6 @@ class SlashcoSenseMainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        # 初始化所有屬性
-        self.osc_client: Optional[SimpleUDPClient] = None
-        self.osc_enabled = False
 
         self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
 
@@ -259,10 +256,6 @@ class SlashcoSenseMainWindow(QMainWindow):
         if not self.vrchat_log_dir.exists():
             self.vrchat_log_dir = Path(__file__).parent / "test"
 
-        self.current_log_file: Optional[Path] = None
-        self.file_position = 0
-
-        # 預分配生成器引用 - 避免字典查找
         self.gen1_progress: Optional[ProgressBar] = None
         self.gen1_label: Optional[QLabel] = None
         self.gen1_battery: Optional[QLabel] = None
@@ -270,15 +263,20 @@ class SlashcoSenseMainWindow(QMainWindow):
         self.gen2_label: Optional[QLabel] = None
         self.gen2_battery: Optional[QLabel] = None
 
+        self.osc_enabled = False
+        self.osc_client: Optional[SimpleUDPClient] = None
+
+        self.file_position = 0
+        self.current_log_file: Optional[Path] = None
+
         self.initial = True  # 初始狀態標誌
-        self.image_cache = {}  # 圖片緩存，避免重複下載
         self.record_timestamp = {}  # 紀錄每種類型的最新時間戳
 
         # 初始化UI
         self._setup_ui()
         self._apply_dark_theme()
 
-        # 定時器設置
+        # 定時器 與 連結 設置
         self.log_timer = QTimer()
         self.log_timer.timeout.connect(self._monitor_logs)
         self.log_timer.start(LOG_UPDATE_INTERVAL)
@@ -286,7 +284,7 @@ class SlashcoSenseMainWindow(QMainWindow):
 
     def _setup_ui(self):
         """設置使用者介面"""
-        self.setWindowTitle("SlashcoSense By:CanaanHS")
+        self.setWindowTitle("SlashCoSense")
         self.setMinimumSize(QSize(500, 700))
         self.resize(QSize(800, 800))
 
@@ -337,7 +335,7 @@ class SlashcoSenseMainWindow(QMainWindow):
         # 右側：圖像框
         image_widget = QWidget()
         image_layout = QVBoxLayout(image_widget)
-        image_layout.setContentsMargins(0, 0, 10, 0)
+        image_layout.setContentsMargins(0, 0, 5, 0)
 
         # 圖片顯示標籤
         self.image_label = QLabel()
@@ -359,33 +357,33 @@ class SlashcoSenseMainWindow(QMainWindow):
         gen_layout = QVBoxLayout(gen_group)
         gen_layout.setSpacing(10)
 
-        # 發電機1
+        # 發電機 1
         gen1_layout = QHBoxLayout()
         gen1_layout.setSpacing(10)
-        self.gen1_label = QLabel("發電機1")
+        self.gen1_label = QLabel("發電機 1")
         self.gen1_label.setMinimumWidth(20)
         self.gen1_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
         self.gen1_progress = ProgressBar()
         self.gen1_progress.setMinimumWidth(250)
         self.gen1_battery = QLabel("電池: ❌")
         self.gen1_battery.setMinimumWidth(70)
-        self.gen1_battery.setFont(QFont("Microsoft YaHei", 10))
+        self.gen1_battery.setFont(QFont("Microsoft YaHei", 12))
 
         gen1_layout.addWidget(self.gen1_label)
         gen1_layout.addWidget(self.gen1_progress)
         gen1_layout.addWidget(self.gen1_battery)
 
-        # 發電機2
+        # 發電機 2
         gen2_layout = QHBoxLayout()
         gen2_layout.setSpacing(10)
-        self.gen2_label = QLabel("發電機2")
+        self.gen2_label = QLabel("發電機 2")
         self.gen2_label.setMinimumWidth(20)
         self.gen2_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
         self.gen2_progress = ProgressBar()
         self.gen2_progress.setMinimumWidth(250)
         self.gen2_battery = QLabel("電池: ❌")
         self.gen2_battery.setMinimumWidth(70)
-        self.gen2_battery.setFont(QFont("Microsoft YaHei", 10))
+        self.gen2_battery.setFont(QFont("Microsoft YaHei", 12))
 
         gen2_layout.addWidget(self.gen2_label)
         gen2_layout.addWidget(self.gen2_progress)
@@ -412,7 +410,10 @@ class SlashcoSenseMainWindow(QMainWindow):
 
         self.osc_enabled_checkbox = QCheckBox("啟用 OSC")
         self.osc_enabled_checkbox.toggled.connect(self._toggle_osc)
+        self.osc_enabled_checkbox.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
         self.osc_log_enabled_checkbox = QCheckBox("顯示 OSC 日誌")
+        self.osc_log_enabled_checkbox.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.osc_log_enabled_checkbox.setChecked(True)
 
         self.port_input = QLineEdit(str(DEFAULT_OSC_PORT))
@@ -484,6 +485,21 @@ class SlashcoSenseMainWindow(QMainWindow):
         """
         )
 
+    def _rounded_pixmap(self, pixmap: QPixmap, radius: int) -> QPixmap:
+        size = pixmap.size()
+        mask = QPixmap(size)
+        mask.fill(Qt.GlobalColor.transparent)
+
+        painter = QPainter(mask)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        path = QPainterPath()
+        path.addRoundedRect(0, 0, size.width(), size.height(), radius, radius)
+        painter.setClipPath(path)
+        painter.drawPixmap(0, 0, pixmap)
+        painter.end()
+
+        return mask
+
     def _on_image_loaded(self, reply: QNetworkReply):
         """圖片載入完成的回調"""
         url = reply.request().attribute(QNetworkRequest.Attribute.User)
@@ -496,9 +512,8 @@ class SlashcoSenseMainWindow(QMainWindow):
             image_data = reply.readAll()
             pixmap = QPixmap()
             if pixmap.loadFromData(image_data):
-                # 將原始圖片存儲到緩存中
                 if url:
-                    self.image_cache[url] = pixmap
+                    QPixmapCache.insert(url, pixmap)  # 存入 QPixmapCache
 
                 # 縮放圖片以適應標籤大小
                 scaled_pixmap = pixmap.scaled(
@@ -506,7 +521,8 @@ class SlashcoSenseMainWindow(QMainWindow):
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
-                self.image_label.setPixmap(scaled_pixmap)
+                # radius 與 QLabel 的 border-radius 相同
+                self.image_label.setPixmap(self._rounded_pixmap(scaled_pixmap, radius=8))
             else:
                 self.image_label.setText("格式錯誤")
         else:
@@ -518,17 +534,15 @@ class SlashcoSenseMainWindow(QMainWindow):
     def _set_image_url(self, url: str):
         """設置圖片URL（程式接口）"""
         if url:
-            # 先檢查緩存
-            if url in self.image_cache:
-                # 從緩存中直接取得圖片
-                cached_pixmap = self.image_cache[url]
-                scaled_pixmap = cached_pixmap.scaled(
+            # 先從 QPixmapCache 快取找
+            pixmap = QPixmap()
+            if QPixmapCache.find(url, pixmap):
+                scaled_pixmap = pixmap.scaled(
                     self.image_label.size(),
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
-                self.image_label.setPixmap(scaled_pixmap)
-                # 恢復原本樣式
+                self.image_label.setPixmap(self._rounded_pixmap(scaled_pixmap, radius=8))
                 self.image_label.setStyleSheet("")
                 return
 
