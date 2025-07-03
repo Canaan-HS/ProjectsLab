@@ -59,25 +59,36 @@ excludes = [
     'getpass', 'gettext', 'decimal', 'fractions', 'statistics',
     'msilib', 'shelve', 'symtable', 'tabnanny'
 
-    # 有風險 (激進)
+    # 以下為有風險 (激進) 排除
     'msvcrt', 'pickle', 'hashlib', '_hashlib',
+
+    # 古老 / 少用語系
     'encodings.koi8_r', 'encodings.koi8_t', 'encodings.koi8_u', 'encodings.kz1048',
     'encodings.mac_cyrillic', 'encodings.mac_greek', 'encodings.mac_iceland',
     'encodings.mac_latin2', 'encodings.mac_roman', 'encodings.mac_turkish',
     'encodings.iso8859_2', 'encodings.iso8859_3', 'encodings.iso8859_4',
     'encodings.iso8859_5', 'encodings.iso8859_6', 'encodings.iso8859_7',
-    'encodings.iso8859_8', 'encodings.iso8859_9', 'encodings.iso8859_10',
-    'encodings.iso8859_11', 'encodings.iso8859_13', 'encodings.iso8859_14',
+    'encodings.iso8859_8', 'encodings.iso8859_10', 'encodings.iso8859_11',
+    'encodings.iso8859_13', 'encodings.iso8859_14',
     'encodings.iso8859_15', 'encodings.iso8859_16',
     'encodings.cp037', 'encodings.cp273', 'encodings.cp424',
     'encodings.cp500', 'encodings.cp720', 'encodings.cp737', 'encodings.cp775',
-    'encodings.cp850', 'encodings.cp852', 'encodings.cp855', 'encodings.cp856',
-    'encodings.cp857', 'encodings.cp858', 'encodings.cp860', 'encodings.cp861',
-    'encodings.cp862', 'encodings.cp863', 'encodings.cp864', 'encodings.cp865',
-    'encodings.cp866', 'encodings.cp869', 'encodings.cp874', 'encodings.cp875',
-    'encodings.cp932', 'encodings.cp949', 'encodings.cp950', 'encodings.cp1006',
-    'encodings.cp1026', 'encodings.cp1125', 'encodings.cp1140',
-    'encodings.palmos', 'encodings.ptcp154', 'encodings.tis_620', 'encodings.hp_roman8',
+    'encodings.cp850', 'encodings.cp855', 'encodings.cp858', 'encodings.cp861',
+    'encodings.cp862', 'encodings.cp863', 'encodings.cp864',
+    'encodings.cp865', 'encodings.cp866', 'encodings.cp869', 'encodings.cp874',
+    'encodings.cp875', 'encodings.cp1006', 'encodings.cp1026',
+    'encodings.cp1125', 'encodings.cp1140', 'encodings.palmos',
+    'encodings.ptcp154', 'encodings.tis_620', 'encodings.hp_roman8',
+
+    # 單位區域不必要的
+    'encodings.cp1250', 'encodings.cp1251', 'encodings.cp1253',
+    'encodings.cp1254', 'encodings.cp1255', 'encodings.cp1256',
+    'encodings.cp1257', 'encodings.cp1258',
+    'encodings.iso8859_5', 'encodings.iso8859_6',
+    'encodings.iso8859_7', 'encodings.iso8859_9',
+
+    # DOS 特定語系
+    'encodings.cp852', 'encodings.cp860',
 ]
 
 
