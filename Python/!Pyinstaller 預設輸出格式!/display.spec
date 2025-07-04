@@ -41,7 +41,7 @@ excludes = [
     'PIL', 'Pillow', 'pygame',
 
     # 數據庫
-    'sqlite3', 'dbm', 'dbm.gnu', 'dbm.ndbm', 'dbm.dumb',
+    'sqlite3', 'dbm', 'gdbm', 'dbm.gnu', 'dbm.ndbm', 'dbm.dumb',
 
     # 數據解析
     # 排除除 JSON 和基本配置外的所有數據格式處理器
