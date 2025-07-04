@@ -55,7 +55,7 @@ excludes = [
     'multiprocessing', 'concurrent',
 
     # 不常用標準庫
-    'argparse', 'copyreg', 'getopt', 'calendar', 'optparse',
+    'argparse', 'getopt', 'calendar', 'optparse',
     'getpass', 'gettext', 'decimal', 'fractions', 'statistics',
     'msilib', 'shelve', 'symtable', 'tabnanny'
 
