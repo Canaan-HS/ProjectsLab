@@ -2,7 +2,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
-from Script.Parameters import paramet
 from Script import paramet, DO, DI
 from selenium import webdriver
 from bs4 import BeautifulSoup
@@ -563,7 +562,7 @@ if __name__ == "__main__":
 
     # ? Jkf論壇自動挖礦(次數 , 地點) 次數 0 = 體力用完
     # ? 地點 : "巨龍巢穴" "精靈峽谷" "廢棄礦坑"
-    # main.jkf_mining(10, "廢棄礦坑")
+    # main.jkf_mining(10, "精靈峽谷")
 
     # ? Jkf論壇自動探索(次數 , 地點) 次數 0 = 體力用完
     # ? 地點 : "墮落聖地" "焚燒之地" "巨木森林"
