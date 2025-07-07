@@ -66,12 +66,12 @@ class TestBrowser:
         self.Chrome.headless = False
         return self.Chrome
 
-    def Enable_browsing(self, url: str = "https://www.google.com.tw/", UserDat: str = None):
-        if UserDat:
-            self.CachePath = UserDat
+    def Enable_browsing(self, url: str = "https://www.google.com.tw/", UserDate: str = None):
+        if UserDate:
+            self.CachePath = UserDate
 
         self.Driver = Chrome(
-            version_main=133,
+            version_main=138,
             advanced_elements=True,
             options=self.Options(),
             driver_executable_path=self.DriverPath,
