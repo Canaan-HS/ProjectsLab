@@ -16,29 +16,32 @@
 
 // @match        *://*/*
 
+// @noframes
 // @license      MPL-2.0
 // @namespace    https://greasyfork.org/users/989635
 // @icon         https://cdn-icons-png.flaticon.com/512/7960/7960597.png
 
-// @run-at       document-body
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_deleteValue
 // @grant        GM_notification
 // @grant        GM_registerMenuCommand
+// @grant        GM_unregisterMenuCommand
 
+// @require      https://update.greasyfork.org/scripts/487608/1616382/SyntaxLite_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1456526/ObjectSyntax_min.js
+
+// @run-at       document-end
 // ==/UserScript==
 
 /**
  * 保存輸入帳號, 密碼
  * 密碼進行加密, 密碼添加顯示眼睛
- * 
+ *
  * 加密Key設置, 選擇是否加密
  * 調整選單設置, 背景色, 文字色, 透明度, 位置
- * 
+ *
  * 範例明文: 12345678
  * 範例密碼: password
  */
@@ -46,9 +49,8 @@
 (function () {
     class AutoLogin {
         constructor() {
-            this.Domain = Syn.Device.Host;
-            this.Url = Syn.Device.Url.split("?")[0];
-            this.LoginInfo = Syn.Store("g", this.Domain, {});
+            this.Url = Syn.$url.split("?")[0];
+            this.LoginInfo = Syn.gV(Syn.$domain, {});
 
             // 保存資訊模板
             this.SaveTemplate = [
@@ -151,7 +153,7 @@
                         let Info = Data[index] ?? "";
 
                         if (key === "Account" || key === "Password") { // 目前先用預設加密
-                            Info = this.Algorithm.Encry(Info, `${this.Domain}@Default_${key}@`);
+                            Info = this.Algorithm.Encry(Info, `${Syn.$domain}@Default_${key}@`);
                         }
 
                         SaveBox[key] = Info;
@@ -160,39 +162,43 @@
                     SaveBox["Encrypted"] = true; // 如果有加密了話
 
                     setTimeout(() => {
-                        Syn.Store("s", this.Domain, Object.assign({ Url: this.Url }, SaveBox));
+                        Syn.sV(Syn.$domain, Object.assign({ Url: this.Url }, SaveBox));
                         GM_notification({
                             title: "保存成功",
                             text: "以存入登入資訊",
                             timeout: 1500
                         });
                     }, 1000);
+
+                    this.Delete();
                 } else {
                     alert("輸入錯誤");
                 }
             }
         }
 
+        async Delete() {
+            const Menu = GM_registerMenuCommand("🚮 刪除登入資訊", () => {
+                Syn.dV(Syn.$domain);
+                GM_unregisterMenuCommand(Menu);
+            })
+        }
+
         async Main() {
-            Syn.Menu({
-                "📝 添加登入資訊": { func: () => this.Save() },
-                "🚮 刪除登入資訊": {
-                    func: () => {
-                        Syn.Store("d", this.Domain);
-                    }
-                }
-            });
+            GM_registerMenuCommand("📝 添加登入資訊", () => this.Save());
 
             // 檢測登入資訊中, 是否含有當前網址
             const Info = this.LoginInfo;
 
             if (Info?.Url && this.Url.startsWith(Info.Url)) {
+                this.Delete(); // 註冊刪除登入資訊的選單
+
                 let Account = Info.Account;
                 let Password = Info.Password;
 
-                if (Info.Encrypted == true) {
-                    Account = this.Algorithm.Decrypt(Account, `${this.Domain}@Default_Account@`);
-                    Password = this.Algorithm.Decrypt(Password, `${this.Domain}@Default_Password@`);
+                if (Info.Encrypted === true) {
+                    Account = this.Algorithm.Decrypt(Account, `${Syn.$domain}@Default_Account@`);
+                    Password = this.Algorithm.Decrypt(Password, `${Syn.$domain}@Default_Password@`);
                 }
 
                 Syn.WaitElem("input[type='password']", PasswordEnter => {
