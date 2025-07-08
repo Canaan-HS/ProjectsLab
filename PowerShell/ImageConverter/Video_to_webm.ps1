@@ -36,15 +36,7 @@ function StartConvert {
 
         $runspace.AddScript({
                 param($inputFile, $outputFile)
-
-                # 我的顯卡目前不支援 AV1 GPU 進行編碼, 暫時使用 CPU 進行編碼
-                # -hwaccel cuda: 使用 NVIDIA GPU 硬體加速解碼, 大幅提升速度
-                # -map 0:v -map 0:a?: 映射視訊軌道, 如果音訊軌道存在的話
-                # -c:v libaom-av1: 使用 AV1 編碼器 (libaom)
-                # -crf 22: 影片品質, 越低越好
-                # -cpu-used 4: 編碼速度與品質的平衡點 (0-8, 越高越快)
-                # -vf 降噪, 提升對比度與飽和度, 智慧銳化
-                ffmpeg -hwaccel cuda -i "$inputFile" -map 0:v -map 0:a? -c:v libaom-av1 -crf 22 -cpu-used 4 -vf "hqdn3d=1.5:1.5:6:6,eq=contrast=1.1:saturation=1.15,smartblur=luma_radius=1.2:luma_strength=-0.7" -c:a libopus -b:a 320k "$outputFile" -y
+                ffmpeg -hwaccel cuda -i "$inputFile" -map 0:v -map 0:a? -c:v libaom-av1 -crf 23 -cpu-used 4 -row-mt 1 -tune-content animation -vf "deband,unsharp=5:5:0.7:5:5:0,eq=contrast=1.05:saturation=1.1" -c:a libopus -b:a 320k "$outputFile" -y
             }).AddArgument($inputFile).AddArgument($outputFile)
 
         try {
