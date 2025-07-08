@@ -36,18 +36,7 @@ function StartConvert {
 
         $runspace.AddScript({
                 param($inputFile, $outputFile)
-
-                # -hwaccel cuda: 使用 NVIDIA GPU 硬體加速解碼, 大幅提升速度
-                # -an: 完全去除音訊
-                # -c:v libwebp_anim: 使用 webp 動畫編碼
-                # -loop 0: 無限循環
-                # -q:v 95: 圖片品質 (0-100), 越高越好
-                # -compression_level 6: 壓縮等級 (0-6), 越高壓縮率越高但越慢
-                # -pix_fmt yuva420p: 像素格式, 支援透明度
-                # -vf 降噪, 智慧銳化
-                # -threads 0: 自動分配核心
-                # -map_metadata -1: 移除所有中繼資料
-                ffmpeg -hwaccel cuda -i "$inputFile" -an -c:v libwebp_anim -loop 0 -q:v 95 -compression_level 6 -pix_fmt yuva420p -vf "hqdn3d=1.5:1.5:6:6,smartblur=luma_radius=1.0:luma_strength=-0.5" -threads 0 -map_metadata -1 "$outputFile" -y
+                ffmpeg -hwaccel cuda -i "$inputFile" -an -c:v libwebp_anim -loop 0 -q:v 92 -compression_level 6 -preset drawing -vf "deband,unsharp=5:5:0.7:5:5:0,fps=%TARGET_FPS%" -pix_fmt yuva420p -threads 0 -map_metadata -1 "$outputFile" -y
             }).AddArgument($inputFile).AddArgument($outputFile)
 
         try {
