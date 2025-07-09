@@ -137,16 +137,6 @@ ITEMS = {
     "Evil Jonkler Cart": "邪惡的瓊克爾•卡特",
     "25 Gram Benadryl": "25克苯海拉明",
     "Balkan Boost": "巴爾幹激素",
-    "Boykisser": "男孩親吻者",
-    "Cinnamon Stick": "肉桂棒",
-    "Dishwasher Salmon": "洗碗機鮭魚",
-    "Reverse Card": "反轉卡",
-    "Nokia Shield": "諾基亞盾牌",
-    "Broken Radio": "破損收音機",
-    "Rascal Rage": "頑童狂怒",
-    "Pocket Fentanyl": "口袋芬太尼",
-    "IJED": "IJED",
-    "The Porchlight": "門廊燈",
 }
 
 # 編譯物品解析正則
