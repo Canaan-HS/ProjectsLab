@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import re
 import sys
-import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Any, TYPE_CHECKING
+from typing import Optional, Any, TYPE_CHECKING
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -231,8 +230,8 @@ class SlashcoSenseMainWindow(QMainWindow):
         # 直接初始化所有屬性，避免額外的對象創建
         self.osc_client: Optional[SimpleUDPClient] = None
         self.osc_enabled = False
-        self.vrchat_log_dir = Path(__file__).parent / "test"
-        # self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
+        # self.vrchat_log_dir = Path(__file__).parent / "test"
+        self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
         self.current_log_file: Optional[Path] = None
         self.file_position = 0
 
