@@ -166,7 +166,7 @@ class VRChatMonitorGUI:
 
         self.osc_client = None
         # self.log_dir = os.path.expandvars(r"%USERPROFILE%\AppData\LocalLow\VRChat\VRChat")
-        self.log_dir = Path(__file__).parent / "TestLog"
+        self.log_dir = Path(__file__).parent / "test"
         self.current_file = None
         self.file_pos = 0
         self.master.after(100, self.monitor_logs)
