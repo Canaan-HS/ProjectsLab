@@ -40,15 +40,15 @@ LOG_UPDATE_INTERVAL = 500  # 日誌更新間隔 (毫秒)
 
 # 遊戲資料映射
 GAME_MAPS = {
-    0: "舊 SlashCo 總部",
+    "0": "舊 SlashCo 總部",
     "SlashCoHQ": "舊 SlashCo 總部",
-    1: "馬龍斯農場",
+    "1": "馬龍斯農場",
     "MalonesFarmyard": "馬龍斯農場",
-    2: "飛利浦韋斯特伍德高中",
+    "2": "飛利浦韋斯特伍德高中",
     "PhilipsWestwoodHighSchool": "飛利浦韋斯特伍德高中",
-    3: "伊斯特伍德綜合醫院",
+    "3": "伊斯特伍德綜合醫院",
     "EastwoodGeneralHospital": "伊斯特伍德綜合醫院",
-    4: "三角洲研究設施",
+    "4": "三角洲研究設施",
     "ResearchFacilityDelta": "三角洲研究設施",
 }
 
