@@ -130,7 +130,8 @@ ITEMS = {
     "The Baby": "巫毒娃娃",
     "Newport Menthols": "紐波特薄荷",
     "B-GONE Soda": "B-GONE蘇打水",
-    "Red 40 Vial": "40號紅色染劑",
+    "Red40": "40號紅色染劑",
+    "Red40 Vial": "40號紅色染劑",
     "Milk Jug": "桶裝牛奶",
     "Pot of Greed": "貪婪之壺",
     "Deathward": "不死圖騰",
@@ -487,6 +488,9 @@ class SlashcoSenseMainWindow(QMainWindow):
         """圖片載入完成的回調"""
         url = reply.request().attribute(QNetworkRequest.Attribute.User)
 
+        # 恢復原本樣式
+        self.image_label.setStyleSheet("")
+
         if reply.error() == QNetworkReply.NetworkError.NoError:
             # 成功載入圖片
             image_data = reply.readAll()
@@ -495,12 +499,6 @@ class SlashcoSenseMainWindow(QMainWindow):
                 # 將原始圖片存儲到緩存中
                 if url:
                     self.image_cache[url] = pixmap
-
-                    # 可選：限制緩存大小，避免內存過度使用
-                    if len(self.image_cache) > 50:  # 最多緩存50張圖片
-                        # 移除最舊的緩存項目（簡單的FIFO策略）
-                        oldest_url = next(iter(self.image_cache))
-                        del self.image_cache[oldest_url]
 
                 # 縮放圖片以適應標籤大小
                 scaled_pixmap = pixmap.scaled(
@@ -530,6 +528,8 @@ class SlashcoSenseMainWindow(QMainWindow):
                     Qt.TransformationMode.SmoothTransformation,
                 )
                 self.image_label.setPixmap(scaled_pixmap)
+                # 恢復原本樣式
+                self.image_label.setStyleSheet("")
                 return
 
             # 如果緩存中沒有，才進行網路請求
@@ -537,10 +537,26 @@ class SlashcoSenseMainWindow(QMainWindow):
             # 將URL存儲到請求中，方便回調時使用
             request.setAttribute(QNetworkRequest.Attribute.User, url)
             self.network_manager.get(request)
-            self.image_label.setText("載入中...")
+
+            # 設置載入中的樣式和文字
+            self.image_label.clear()  # 清除之前的圖片
+            self.image_label.setText("?")
+            self.image_label.setStyleSheet(
+                """
+                    QLabel#imageDisplay {
+                        color: red;
+                        font-size: 100px;
+                        font-weight: bold;
+                        border-radius: 8px;
+                        border: 5px solid red;
+                        background-color: #404040;
+                    }
+                """
+            )
         else:
             self.image_label.clear()
             self.image_label.setText("未知")
+            self.image_label.setStyleSheet("")
 
     def _toggle_osc(self, enabled: bool):
         """切換 OSC 狀態"""
