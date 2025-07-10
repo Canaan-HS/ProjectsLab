@@ -177,7 +177,7 @@ def get_progress_color(value: int) -> str:
     for (min_val, max_val), color in PROGRESS_COLORS.items():
         if min_val <= value <= max_val:
             return color
-    return "#27ae60"  # 默認綠色
+    return "#2c2c2c"  # 默認
 
 
 class ProgressBar(QProgressBar):
