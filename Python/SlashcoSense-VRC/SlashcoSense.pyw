@@ -262,7 +262,8 @@ class SlashcoSenseMainWindow(QMainWindow):
         self.network_manager = QNetworkAccessManager()
         self.network_manager.finished.connect(self._on_image_loaded)
 
-        self.initial = True  # 初始狀態標誌
+        self.info_cache = ""  # 資訊緩存
+        self.reset_mark = False  # 重置標記
         self.record_timestamp = {}  # 紀錄每種類型的最新時間戳
 
         self.gen1_progress: Optional[ProgressBar] = None
@@ -681,7 +682,7 @@ class SlashcoSenseMainWindow(QMainWindow):
     def _process_log_line(self, line: str):
         """日誌處理"""
         log_parts = []
-        reset_needed = False
+        new_info = False
 
         # 單次遍歷所有模式，避免重複搜索
         for pattern, data_type in LOG_PATTERNS:
@@ -710,7 +711,7 @@ class SlashcoSenseMainWindow(QMainWindow):
                 self.map_label.setText(f"地圖: \n{map_name}")
                 log_parts.append(f"地圖: {map_name}")
 
-                reset_needed = True
+                new_info = True
 
             elif data_type == "slasher":
                 slasher_id = int(match.group(2))
@@ -726,10 +727,10 @@ class SlashcoSenseMainWindow(QMainWindow):
                 self.slasher_label.setText(f"殺手: \n{name}")
                 log_parts.append(f"殺手: {name}")
 
+                new_info = True
+
                 # 更新圖片
                 self._set_image_url(icon if icon else "")
-
-                reset_needed = True
 
                 # 直接發送OSC
                 if (
@@ -743,18 +744,31 @@ class SlashcoSenseMainWindow(QMainWindow):
                 self.items_label.setText(f"生成物品: \n{items}")
                 log_parts.append(f"物品: {items}")
 
-            elif data_type == "generator":
+                new_info = True
+
+            elif data_type == "generator" and not self.reset_mark:  # 重置標記時禁止更新
                 _, gen_name, var_type, _, _, new_value = match.groups()
                 self._update_generator(gen_name, var_type, new_value)
                 log_parts.append(f"{gen_name} {var_type}: {new_value}")
 
         if log_parts:
-            self.log_message.emit(" | ".join(log_parts))
+            # 理論上有 new_info 更新時, 不可能跟緩存相同 (除非真的生成完全一樣的資訊)
+            message = " | ".join(log_parts)
 
-        if reset_needed and not self.initial:
-            self._reset_generators()
-        elif reset_needed and self.initial:
-            self.initial = False
+            if new_info and message != self.info_cache:  # 有新資訊且與緩存不同, 通常是新遊戲開始
+                self.reset_mark = False
+                self.info_cache = message
+            elif (  # 有新資訊但與緩存相同, 通常是結束後再次打印資訊
+                new_info and message == self.info_cache
+            ):
+                self._reset_generators()
+                if self.reset_mark:  # 已經標記時, 跳出避免重置後多餘日誌
+                    return
+                self.reset_mark = True
+            elif self.reset_mark:  # 禁止重置狀態的, 後續日誌
+                return
+
+            self.log_message.emit(message)
 
     def _reset_generators(self):
         """重置所有發電機狀態 (不透過 _update_generator 更新, 減少性能開銷)"""
