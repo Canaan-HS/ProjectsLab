@@ -762,7 +762,7 @@ class SlashcoSenseMainWindow(QMainWindow):
                 new_info and message == self.info_cache
             ):
                 self._reset_generators()
-                if self.reset_mark:  # 已經標記時, 跳出避免重置後多餘日誌
+                if self.reset_mark:  # 已經標記時, 跳出避免重置後多餘日誌 (第一次觸發時, 需要打印一次, 所以這樣寫, 才能確保只在第二次開始時不打印)
                     return
                 self.reset_mark = True
             elif self.reset_mark:  # 禁止重置狀態的, 後續日誌
