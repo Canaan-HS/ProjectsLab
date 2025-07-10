@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QSize, QUrl
-from PySide6.QtGui import QFont, QCursor, QPixmap, QPainter, QPixmapCache, QPainterPath
+from PySide6.QtGui import QFont, QIcon, QCursor, QPixmap, QPainter, QPixmapCache, QPainterPath
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 
 try:
@@ -35,9 +35,6 @@ except ImportError:
 
 if TYPE_CHECKING:
     from pythonosc.udp_client import SimpleUDPClient
-
-DEFAULT_OSC_PORT = 9000  # 默認埠號
-LOG_UPDATE_INTERVAL = 500  # 日誌更新間隔 (毫秒)
 
 # 地圖映射
 GAME_MAPS = {
@@ -139,6 +136,11 @@ ITEMS = {
     "25 Gram Benadryl": "25克苯海拉明",
     "Balkan Boost": "巴爾幹激素",
 }
+
+DEFAULT_OSC_PORT = 9000  # 默認埠號
+LOG_UPDATE_INTERVAL = 500  # 日誌更新間隔 (毫秒)
+VRC_LOG_DIR = Path.home() / "AppData/LocalLow/VRChat/VRChat"  # VRChat 日誌目錄
+WINDOWS_ICON_URL = "https://images.steamusercontent.com/ugc/2477635226930601215/D3708CAF453353764ADE800A779730BFCEF83408/"
 
 # 編譯物品解析正則
 ITEMS_PATTERN = re.compile(
@@ -250,11 +252,18 @@ class SlashcoSenseMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.vrchat_log_dir = Path.home() / "AppData/LocalLow/VRChat/VRChat"
+        self.log_dir = VRC_LOG_DIR
 
         # 開發測試用 (我本人沒玩 Slashco，所以沒有日誌目錄)
-        if not self.vrchat_log_dir.exists():
-            self.vrchat_log_dir = Path(__file__).parent / "test"
+        if not self.log_dir.exists():
+            self.log_dir = Path(__file__).parent / "test"
+
+        # 初始化網路管理器（用於載入圖片）
+        self.network_manager = QNetworkAccessManager()
+        self.network_manager.finished.connect(self._on_image_loaded)
+
+        self.initial = True  # 初始狀態標誌
+        self.record_timestamp = {}  # 紀錄每種類型的最新時間戳
 
         self.gen1_progress: Optional[ProgressBar] = None
         self.gen1_label: Optional[QLabel] = None
@@ -268,9 +277,6 @@ class SlashcoSenseMainWindow(QMainWindow):
 
         self.file_position = 0
         self.current_log_file: Optional[Path] = None
-
-        self.initial = True  # 初始狀態標誌
-        self.record_timestamp = {}  # 紀錄每種類型的最新時間戳
 
         # 初始化UI
         self._setup_ui()
@@ -288,15 +294,15 @@ class SlashcoSenseMainWindow(QMainWindow):
         self.setMinimumSize(QSize(500, 700))
         self.resize(QSize(800, 800))
 
+        icon = QNetworkRequest(QUrl(WINDOWS_ICON_URL))
+        icon.setAttribute(QNetworkRequest.Attribute.User, "icon")
+        self.network_manager.get(icon)
+
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
         main_layout.setSpacing(15)
         main_layout.setContentsMargins(15, 15, 15, 15)
-
-        # 初始化網路管理器（用於載入圖片）
-        self.network_manager = QNetworkAccessManager()
-        self.network_manager.finished.connect(self._on_image_loaded)
 
         # 遊戲狀態群組
         game_group = QGroupBox("遊戲狀態")
@@ -460,7 +466,7 @@ class SlashcoSenseMainWindow(QMainWindow):
                 border: 2px solid #555555; background-color: #2b2b2b; border-radius: 3px;
             }
             QCheckBox::indicator:checked {
-                border: 2px solid #3498db; background-color: #3498db; border-radius: 3px;
+                border: 2px solid #27ae60; background-color: #27ae60; border-radius: 3px;
             }
             QLineEdit {
                 background-color: #404040; border: 2px solid #555555; border-radius: 4px;
@@ -504,14 +510,41 @@ class SlashcoSenseMainWindow(QMainWindow):
         """圖片載入完成的回調"""
         url = reply.request().attribute(QNetworkRequest.Attribute.User)
 
-        # 恢復原本樣式
-        self.image_label.setStyleSheet("")
-
         if reply.error() == QNetworkReply.NetworkError.NoError:
-            # 成功載入圖片
-            image_data = reply.readAll()
             pixmap = QPixmap()
-            if pixmap.loadFromData(image_data):
+            image_data = reply.readAll()
+
+            if url == "icon" and pixmap.loadFromData(image_data):  # 載入圖標
+                # 裁出圖片中心的正方形區域
+                w, h = pixmap.width(), pixmap.height()
+                side = min(w, h)
+                x = (w - side) // 2
+                y = (h - side) // 2
+                center_crop = pixmap.copy(x, y, side, side)
+
+                # 圖標大小
+                icon_size = 124
+                scaled = center_crop.scaled(
+                    icon_size, icon_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                )
+
+                # 製作圓形遮罩
+                circular = QPixmap(icon_size, icon_size)
+                circular.fill(Qt.transparent)
+
+                painter = QPainter(circular)
+                painter.setRenderHint(QPainter.Antialiasing)
+                path = QPainterPath()
+                path.addEllipse(0, 0, icon_size, icon_size)
+                painter.setClipPath(path)
+                painter.drawPixmap(0, 0, scaled)
+                painter.end()
+
+                # 設定視窗圖標
+                self.setWindowIcon(QIcon(circular))
+            elif pixmap.loadFromData(image_data):  # 載入殺手圖片
+                self.image_label.setStyleSheet("")  # 恢復原本樣式
+
                 if url:
                     QPixmapCache.insert(url, pixmap)  # 存入 QPixmapCache
 
@@ -521,11 +554,12 @@ class SlashcoSenseMainWindow(QMainWindow):
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
+
                 # radius 與 QLabel 的 border-radius 相同
                 self.image_label.setPixmap(self._rounded_pixmap(scaled_pixmap, radius=8))
-            else:
+            elif url != "icon":
                 self.image_label.setText("格式錯誤")
-        else:
+        elif url != "icon":
             # 載入失敗
             self.image_label.setText("載入失敗")
 
@@ -615,10 +649,10 @@ class SlashcoSenseMainWindow(QMainWindow):
         """日誌監控"""
         try:
             # 檢查新文件
-            if not self.vrchat_log_dir.exists():
+            if not self.log_dir.exists():
                 return
 
-            log_files = list(self.vrchat_log_dir.glob("output_log_*.txt"))
+            log_files = list(self.log_dir.glob("output_log_*.txt"))
 
             if not log_files:
                 return
