@@ -39,7 +39,7 @@ function StartConvert {
                 param($inputFile, $outputFile, $isGif)
 
                 if ($isGif) {
-                    ffmpeg -i "$inputFile" -loop 0 -c:v libwebp_anim -q:v 90 -compression_level 6 -preset drawing -threads 0 -vf "deband,unsharp=3:3:0.4:3:3:0" -pix_fmt yuva444p -an -map_metadata -1 "$outputFile" -y
+                    ffmpeg -i "$inputFile" -loop 0 -c:v libwebp_anim -q:v 90 -compression_level 6 -preset drawing -threads 0 -vf "deband,nlmeans=s=1.0,unsharp=3:3:0.4:3:3:0" -pix_fmt yuva444p -an -map_metadata -1 "$outputFile" -y
                 }
                 else {
                     ffmpeg -i "$inputFile" -c:v libwebp -q:v 90 -compression_level 6 -preset drawing -threads 0 -vf "deband,unsharp=3:3:0.4:3:3:0" -pix_fmt yuva444p -an -map_metadata -1 "$outputFile" -y
