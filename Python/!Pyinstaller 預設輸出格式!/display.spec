@@ -1,33 +1,83 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 excludes = [
-    # 1. 測試與偵錯 (Testing & Debugging)
+    # 客製化 GUI / TUI (若您的專案未使用)
+    # 使用 PySide6/PyQt5，就不需要 Tkinter。
+    'tkinter', 'turtle', 'turtledemo', 'curses',
+    'winsound', 'colorsys', 'chunk', 'imghdr',
+    'sndhdr', 'ossaudiodev',
+
+    # 測試與偵錯 (Testing & Debugging)
     # 這些是開發時才用到的工具，發布時完全不需要。
-    'unittest', 'test', 'doctest', 'pytest', '_pytest', 'nose', 'mock', 'tox', 'hypothesis',
-    'pdb', 'bdb', 'cProfile', 'profile', 'pstats', 'tracemalloc',
+    'unittest', 'test', 'doctest', 'pytest', '_pytest',
+    'nose', 'mock', 'tox', 'hypothesis', 'pdb', 
+    'bdb', 'cProfile', 'profile', 'pstats', 'tracemalloc', 
+    'pydoc', 'tests', 'pydoc_data', 'lib2to3', 'pickletools'
 
-    # 2. 開發與外帶工具 (Development & Packaging Tools)
+    # 開發與外帶工具 (Development & Packaging Tools)
     # 應用程式執行時不需要外帶工具本身。
-    'distutils', '_distutils_hack', 'setuptools', 'pip', 'venv', 'zipapp',
-    'lib2to3', 'pyclbr', 'pydoc', 'pydoc_data', 'idlelib',
+    'distutils', '_distutils_hack', 'setuptools', 'pip', 'venv',
+    'zipapp', 'lib2to3', 'pyclbr', 'pydoc', 'pydoc_data',
+    'idlelib', 'pkg_resources', 'ensurepip', 'wheel'
 
-    # 3. GUI / TUI (若您的專案未使用)
-    # 如果您使用 PySide6/PyQt5，就不需要 Tkinter。
-    'tkinter', 'turtle', 'turtledemo', 'curses', 
+    # PyInstaller 相關工具和包
+    'altgraph', 'pyinstaller_hooks_contrib', '_pyinstaller_hooks_contrib',
+    'pefile', 'packaging', 'pywin32_system32',
 
-    # 4. 大型科學與網頁框架 (若您的專案未使用)
-    # 這些函式庫體積龐大，只在確定需要時才外帶。
+    # Windows 特定組件 (激進)
+    'win32com', 'win32ctypes', 'win32api', 'win32con',
+    'pywintypes', 'win32cred', 'win32file', 'win32pipe', 'win32process'
+
+    # 網絡與 Web 服務
+    'socket', 'selectors', 'email', 'ftplib',
+    'telnetlib', 'nntplib', 'poplib', 'smtpd', 'smtplib',
+    'mailbox', 'asyncio', 'ssl', '_ssl', 'http',
+    'urllib.request', 'gopherlib', 'imaplib', 'wsgiref',
+    'webbrowser', 'cgi', 'cgitb', 'xmlrpc'
+
+    # 型科學與網頁框架 (若未使用)
     'numpy', 'pandas', 'scipy', 'matplotlib',
     'requests', 'flask', 'jinja2', 'werkzeug', 'sqlalchemy',
     'PIL', 'Pillow', 'pygame',
 
-    # 5. 過時或罕用的網路協定
-    'email', 'ftplib', 'telnetlib', 'nntplib', 'poplib', 'smtpd', 'smtplib', 'mailbox',
+    # 數據庫
+    'sqlite3', 'dbm', 'dbm.gnu', 'dbm.ndbm', 'dbm.dumb',
 
-    # 6. 其他罕用標準庫
-    'argparse', # 如果您的 GUI 應用不處理命令列參數
-    'getopt',
-    'calendar',
+    # 數據解析
+    # 排除除 JSON 和基本配置外的所有數據格式處理器
+    'xml', 'xml.dom', 'xml.sax', 'xml.etree', 'csv', 'configparser',
+    'html', 'email', 'json.tool', 'tarfile', 'zipapp', 'plistlib', 'xdrlib',
+
+    # 加密與壓縮
+    'hmac', 'secrets', 'bz2', 'lzma', 'gzip', 'zlib', 
+
+    # 並發與多進程
+    'multiprocessing', 'concurrent',
+
+    # 不常用標準庫
+    'argparse', 'copyreg', 'getopt', 'calendar', 'optparse',
+    'getpass', 'gettext', 'decimal', 'fractions', 'statistics',
+    'msilib', 'shelve', 'symtable', 'tabnanny'
+
+    # 有風險 (激進)
+    'msvcrt', 'pickle', 'hashlib', '_hashlib', 'ctypes', '_ctypes',
+    'encodings.koi8_r', 'encodings.koi8_t', 'encodings.koi8_u', 'encodings.kz1048',
+    'encodings.mac_cyrillic', 'encodings.mac_greek', 'encodings.mac_iceland',
+    'encodings.mac_latin2', 'encodings.mac_roman', 'encodings.mac_turkish',
+    'encodings.iso8859_2', 'encodings.iso8859_3', 'encodings.iso8859_4',
+    'encodings.iso8859_5', 'encodings.iso8859_6', 'encodings.iso8859_7',
+    'encodings.iso8859_8', 'encodings.iso8859_9', 'encodings.iso8859_10',
+    'encodings.iso8859_11', 'encodings.iso8859_13', 'encodings.iso8859_14',
+    'encodings.iso8859_15', 'encodings.iso8859_16',
+    'encodings.cp037', 'encodings.cp273', 'encodings.cp424', 'encodings.cp437',
+    'encodings.cp500', 'encodings.cp720', 'encodings.cp737', 'encodings.cp775',
+    'encodings.cp850', 'encodings.cp852', 'encodings.cp855', 'encodings.cp856',
+    'encodings.cp857', 'encodings.cp858', 'encodings.cp860', 'encodings.cp861',
+    'encodings.cp862', 'encodings.cp863', 'encodings.cp864', 'encodings.cp865',
+    'encodings.cp866', 'encodings.cp869', 'encodings.cp874', 'encodings.cp875',
+    'encodings.cp932', 'encodings.cp949', 'encodings.cp950', 'encodings.cp1006',
+    'encodings.cp1026', 'encodings.cp1125', 'encodings.cp1140',
+    'encodings.palmos', 'encodings.ptcp154', 'encodings.tis_620', 'encodings.hp_roman8',
 ]
 
 
