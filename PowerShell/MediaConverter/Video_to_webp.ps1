@@ -36,7 +36,7 @@ function StartConvert {
 
         $runspace.AddScript({
                 param($inputFile, $outputFile)
-                ffmpeg -hwaccel cuda -i "$inputFile" -an -c:v libwebp_anim -loop 0 -q:v 95 -compression_level 6 -preset drawing -vf "deband,unsharp=3:3:0.4:3:3:0,fps=%TARGET_FPS%" -pix_fmt yuva444p -threads 0 -map_metadata -1 "$outputFile" -y
+                ffmpeg -hwaccel cuda -i "$inputFile" -an -c:v libwebp_anim -loop 0 -q:v 95 -compression_level 6 -preset drawing -vf "deband,nlmeans=s=1.0,unsharp=3:3:0.4:3:3:0,fps=%TARGET_FPS%" -pix_fmt yuva444p -threads 0 -map_metadata -1 "$outputFile" -y
             }).AddArgument($inputFile).AddArgument($outputFile)
 
         try {
