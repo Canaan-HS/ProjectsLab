@@ -7,7 +7,7 @@ os.chdir(Path(__file__).parent)
 
 
 # 使用絕對路徑 , 創建 user-data-dir 時 , 會創建完整的數據
-data_location = lambda: "WebsiteData"
+data_location = lambda: Path("WebsiteData")
 
 
 def import_json(Json_name):
@@ -17,9 +17,7 @@ def import_json(Json_name):
 
 def output_json(Json_name, Json_data):
     with open(Json_name, "w", encoding="utf-8") as file:
-        file.write(
-            json.dumps(Json_data, indent=4, separators=(",", ":"), ensure_ascii=False)
-        )
+        file.write(json.dumps(Json_data, indent=4, separators=(",", ":"), ensure_ascii=False))
 
 
 # 數據輸入
