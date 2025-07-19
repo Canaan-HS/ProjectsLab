@@ -1474,9 +1474,19 @@ class Main {
                         Start-Sleep -Seconds 1
                     })
 
-                $locationInfo = Invoke-RestMethod -Uri "https://ipinfo.io/json"
-                $area = $locationInfo.timezone.Split("/")[0]
-                $testServers = $dnsServers.Global + $dnsServers[$area]
+                $area = $null
+                $testServers = $dnsServers.Global
+
+                try {
+                    $locationInfo = Invoke-RestMethod -Uri "https://ipinfo.io/json" -ErrorAction Stop
+                    $area = $locationInfo.timezone.Split("/")[0]
+                } catch {
+                    # 暫時不特別處理
+                }
+
+                if ($area) {
+                    $testServers += $dnsServers[$area]
+                }
 
                 Print "===== 開始測試延遲 ======`n"
                 Clear-DnsClientCache # 清除 DNS 緩存
