@@ -110,8 +110,8 @@ function StartConvert {
                 function GetDynamicFramerate {
                     param(
                         [string[]]$ImagePaths,
-                        [int]$MinFramerate = 7,
-                        [int]$MaxFramerate = 14
+                        [int]$MinFramerate = 6,
+                        [int]$MaxFramerate = 12
                     )
 
                     $imageCount = $ImagePaths.Count
