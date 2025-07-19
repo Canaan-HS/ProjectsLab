@@ -76,7 +76,7 @@ function VideoUpscaler {
     $outputTemplate = "$(Split-Path $VideoPath)\$([System.IO.Path]::GetFileNameWithoutExtension($VideoPath))"
 
     # -------- 獲取媒體資訊 --------
-    ($width, $height, $fps, $bitrate, $totalDuration, $totalFrames, $fillerFrame) = GetStreamsInfo $VideoPath $TargetFPS $UpscaleFactor
+    ($width, $height, $fps, $totalDuration, $totalFrames, $fillerFrame) = GetStreamsInfo $VideoPath $TargetFPS $UpscaleFactor
 
     # ---- 解析解析度與放大倍率 ----
     $reduce = $null
@@ -85,8 +85,6 @@ function VideoUpscaler {
     # 如果有提供自訂解析度，則覆寫預設值
     if ($CustomResolution) {
         ($reduce, $UpscaleFactor, $scaled) = & $Gen.GetCustomScale $width $height $CustomResolution
-        # 修改倍率後重新獲取影片資訊
-        ($width, $height, $fps, $bitrate, $totalDuration, $totalFrames, $fillerFrame) = GetStreamsInfo $VideoPath $TargetFPS $UpscaleFactor
     }
 
     # 4. 最終確認放大倍率在 1-4 之間
@@ -158,7 +156,7 @@ function VideoUpscaler {
                 "放大倍率" = $UpscaleFactor
                 "目標FPS" = $TargetFPS
                 "輸出畫質" = $scaled
-                "輸出比特" = "$($bitrate)M"
+                "輸出幀數" = $fillerFrame
                 "輸出格式" = $OutputFormat
                 "快速合併" = $FastOutput
                 "分段秒數" = $ChunkDuration
@@ -171,10 +169,10 @@ function VideoUpscaler {
             }
         }
     } | ConvertTo-Json -Depth 4 | Write-Host
-    pause
 
     # -------- 主處理迴圈 --------
     New-Item -ItemType Directory -Path $chunksDir -Force | Out-Null
+
 
     foreach ($chunk in $chunks) {
         $chunkId = "CHUNK_$($chunk.Index)"
@@ -188,24 +186,24 @@ function VideoUpscaler {
         New-Item -ItemType Directory -Path $cachePath -Force | Out-Null
 
         $imgFormat = ([string][Math]::Ceiling($chunk.Duration * $TargetFPS)).Length
-        
+
         # 1. 幀提取
-        $step_extract = "$chunkId""_提取完成"
+        $step_extract = "$chunkId`_提取完成"
         if (-not $completedSteps.ContainsKey($step_extract)) {
             Write-Host "--> 步驟 1/5: 幀提取"
-            $extractVf = if ($reduce) { "scale=$reduce,fps=$fps" } else { "fps=$fps" }
             $extractPath = Join-Path $cachePath "%0$($imgFormat)d.$processFormat"
+            $vfConfigForExtract = "hwdownload,format=nv12,nlmeans=s=1.2:p=7:pc=15,unsharp=3:3:0.2,fps=$fps"
 
             $ffmpegParams = @(
-                '-v', 'quiet',
+                '-v', 'error',
+                '-hwaccel', 'cuda',
+                '-hwaccel_output_format', 'cuda',
                 '-ss', $chunk.StartTime,
                 '-t', $chunk.Duration,
-                '-hwaccel', 'cuda',
                 '-i', $VideoPath,
                 '-an',
-                '-vsync', 'vfr',
-                '-vf', $extractVf,
-                '-threads', 0,
+                '-vf', $vfConfigForExtract,
+                '-pix_fmt', 'rgb24',
                 $extractPath,
                 '-y'
             )
@@ -221,7 +219,7 @@ function VideoUpscaler {
         } else { Write-Host "--> 步驟 1/5: 幀提取 (完成跳過)" -ForegroundColor Gray }
 
         # 2. 預處理 (SRMD)
-        $step_srmd = "$chunkId`_SRMD_預處理完成"
+        $step_srmd = "$chu成"
         if ($srmdProcess -and (-not $completedSteps.ContainsKey($step_srmd))) {
             if (Test-Path $cachePath -PathType Container) {
                 Write-Host "--> 步驟 2/5: 預處理 (SRMD)"
@@ -237,12 +235,12 @@ function VideoUpscaler {
                 Write-Host "--> 步驟 3/5: 幀數提升 (RIFE)"
                 $fpsPath = "$cachePath-fps"
                 New-Item -ItemType Directory -Path $fpsPath -Force | Out-Null
-                
+
                 $numFramesToGenerate = [Math]::Ceiling($chunk.Duration * $TargetFPS)
                 $outputFileFormat = "%0$($imgFormat)d.$processFormat"
 
                 & $Dep.rife -i "$cachePath" -o "$fpsPath" -n "$numFramesToGenerate" -m "$fpsModels" -j "$thread" -q 100 -f "$outputFileFormat"
-                
+
                 # 更新路徑給下一步使用
                 $currentCachePath = $fpsPath
                 WriteProgressLog $step_rife
@@ -261,7 +259,7 @@ function VideoUpscaler {
         if ($upscaleModels -and (-not $completedSteps.ContainsKey($step_realesr))) {
             if (Test-Path $currentCachePath -PathType Container) {
                 Write-Host "--> 步驟 4/5: 畫質提升 (Real-ESRGAN)"
-                & $Dep.realesr -i "$currentCachePath" -o "$currentCachePath" -s "$UpscaleFactor" -m "$($Dep.realesrganModelFolder)" -n "$upscaleModels" -t 512 -j "$thread" -f "$ProcessFormat"
+                & $Dep.realesr -i "$currentCachePath" -o "$currentCachePath" -s "$UpscaleFactor" -m "$($Dep.realesrganModelFolder)" -n "$upscaleModels" -t 0 -j "$thread" -f "$ProcessFormat"
                 WriteProgressLog $step_realesr
             } else { Write-Host "Real-ESRGAN 錯誤: 找不到快取目錄 $currentCachePath" -ForegroundColor Red; continue }
         } elseif ($upscaleModels) { Write-Host "--> 步驟 4/5: 畫質提升 (Real-ESRGAN) (完成跳過)" -ForegroundColor Gray }
@@ -269,10 +267,29 @@ function VideoUpscaler {
         # 5. 合併分段影片 (無音訊)
         $step_merge_chunk = "$chunkId`_合併完成"
         if (-not $completedSteps.ContainsKey($step_merge_chunk)) {
+            # 組合包含銳化等效果的濾鏡鏈
+            $baseVf = if ($reduce) { "scale=$reduce,fps=$fps" } else { "scale=$scaled,fps=$fps" }
+            $vfConfigForChunk = "$baseVf,deband,unsharp=5:5:0.8:5:5:0.0"
+
+            # 根據 $FastOutput 決定輸出品質參數
+            $outputQualityForChunk = if ($FastOutput) {
+                @("-c:v", "hevc_nvenc", "-profile:v", "main10", "-preset", "p7", "-rc", "vbr", "-cq", "22", "-qmin", "0", "-rc-lookahead", "32", "-spatial-aq", "1", "-pix_fmt", "p010le")
+            } else {
+                @("-c:v", "libx265", "-preset", "slow", "-crf", "20", "-tune", "animation", "-x265-params", "aq-mode=3:strong-intra-smoothing=0:rect=0:aq-strength=0.9", "-pix_fmt", "yuv420p10le")
+            }
+
             $imageInputPath = Join-Path $currentCachePath "%0$($imgFormat)d.$processFormat"
             if (Get-ChildItem -Path $currentCachePath -Filter "*.$processFormat" | Select-Object -First 1) {
                 Write-Host "--> 步驟 5/5: 合併分段影片"
-                & $Dep.ffmpeg -framerate $TargetFPS -i "$imageInputPath" -c:v hevc_nvenc -profile:v main10 -rc vbr -cq 24 -preset p7 -threads 0 -an $($chunk.OutputFile) -y
+
+                if ($chunks.Count -eq 1) {
+                    # 只有一個分段，合併原始音訊
+                    & $Dep.ffmpeg -v error -framerate $TargetFPS -start_number 0 -i "$imageInputPath" -i "$VideoPath" -vf $vfConfigForChunk @outputQualityForChunk -map 0:v:0 -map 1:a:0 -c:a copy $($chunk.OutputFile) -y
+                } else {
+                    # 有多個分段，暫不合併音訊
+                    & $Dep.ffmpeg -v error -framerate $TargetFPS -start_number 0 -i "$imageInputPath" -vf $vfConfigForChunk @outputQualityForChunk -an $($chunk.OutputFile) -y
+                }
+
                 WriteProgressLog $step_merge_chunk
             } else { Write-Host "合併錯誤: 在 $currentCachePath 中找不到圖片序列" -ForegroundColor Red; continue }
         } else { Write-Host "--> 5/5: 合併分段影片 (完成跳過)" -ForegroundColor Gray }
@@ -286,67 +303,93 @@ function VideoUpscaler {
     }
 
     # -------- 最終合併 --------
-    $step_final_merge = "FINAL_MERGE_COMPLETE"
+    $step_final_merge = "最終合併完成"
     if (-not $completedSteps.ContainsKey($step_final_merge)) {
         Write-Host "`n===== 所有段落處理完成，開始最終合併 =====>`n"
-        $concatListFile = Join-Path $workDir "concat_list.txt"
-        
-        # 檢查所有預期的分段影片是否都存在
-        $allChunksExist = $true
-        foreach ($chunk in $chunks) {
-            if (-not (Test-Path $chunk.OutputFile)) {
-                Write-Host "最終合併錯誤: 找不到分段影片 $($chunk.OutputFile)" -ForegroundColor Red
-                $allChunksExist = $false
-                break
-            }
-        }
 
-        if ($allChunksExist) {
-            $chunks | ForEach-Object { "file '$($_.OutputFile)'" } | Set-Content $concatListFile
+        # 定義最終輸出路徑
+        $merge = $FastOutput ? "fast" : "slow"
+        $upscaled_Path = "$outputTemplate-x$UpscaleFactor-$($TargetFPS)Fps-$merge.$OutputFormat"
 
-            $merge = $FastOutput ? "fast" : "slow"
-            $upscaled_Path = "$outputTemplate-x$UpscaleFactor-$($TargetFPS)Fps-$merge.$OutputFormat"
-            
-            $vfConfig = "scale=$($scaled):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($scaled):(ow-iw)/2:(oh-ih)/2:black,smartblur=luma_radius=1.0:luma_strength=-0.5"
-
-            $originalAudio = & $Dep.ffprobe -v error -i "$VideoPath" -select_streams a -show_streams -of json
-            $hasOriginalAudio = -not [string]::IsNullOrEmpty($originalAudio)
-
-            $outputQuality = if ($FastOutput) {
-                @("-c:v", "hevc_nvenc", "-profile:v", "main10", "-rc", "vbr", "-cq", "24", "-preset", "p7")
-            } else {
-                @("-c:v", "libx265", "-crf", "22", "-preset", "slow", "-pix_fmt", "yuv420p10le")
-            }
-
-            try {
-                if ($hasOriginalAudio) {
-                    & $Dep.ffmpeg -f concat -safe 0 -i $concatListFile -i "$VideoPath" -vf "$vfConfig" $outputQuality -map 0:v:0 -map 1:a:0 -c:a copy "$upscaled_Path" -y
-                } else {
-                    & $Dep.ffmpeg -f concat -safe 0 -i $concatListFile -vf "$vfConfig" $outputQuality -an "$upscaled_Path" -y
+        # 只有一個分段時，直接移動檔案
+        if ($chunks.Count -eq 1) {
+            $sourceFile = $chunks[0].OutputFile
+            if (Test-Path $sourceFile) {
+                try {
+                    Move-Item -Path $sourceFile -Destination $upscaled_Path -Force
+                    Write-Host "影片移動成功: $upscaled_Path" -ForegroundColor Cyan
+                    WriteProgressLog $step_final_merge
+                } catch {
+                    Write-Host "影片移動失敗: $_" -ForegroundColor Red
+                    exit
                 }
-                Write-Host "影片合併成功: $upscaled_Path" -ForegroundColor Cyan
-                WriteProgressLog $step_final_merge
-            } catch {
-                Write-Host "最終合併失敗: $_" -ForegroundColor Red
-                exit
+            } else {
+                Write-Host "段落合併錯誤: 找不到來源檔案 $sourceFile" -ForegroundColor Red
+            }
+        } else {
+            $concatListFile = Join-Path $workDir "concat_list.txt"
+
+            # 檢查所有預期的分段影片是否都存在
+            $allChunksExist = $true
+            foreach ($chunk in $chunks) {
+                if (-not (Test-Path $chunk.OutputFile)) {
+                    Write-Host "最終合併錯誤: 找不到分段影片 $($chunk.OutputFile)" -ForegroundColor Red
+                    $allChunksExist = $false
+                    break
+                }
+            }
+
+            if ($allChunksExist) {
+                $chunks | ForEach-Object { "file '$($_.OutputFile)'" } | Set-Content $concatListFile
+
+                $vfConfig = "scale=$($scaled):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($scaled):(ow-iw)/2:(oh-ih)/2:black,deband,unsharp=5:5:0.8:5:5:0.0"
+
+                $originalAudio = & $Dep.ffprobe -v error -i "$VideoPath" -select_streams a -show_streams -of json
+                $hasOriginalAudio = -not [string]::IsNullOrEmpty($originalAudio)
+
+                $inputFlags = if ($FastOutput) {
+                    @("-v", "error", "-hwaccel", "cuda", "-c:v", "hevc_cuvid")
+                } else {
+                    @("-v", "error")
+                }
+
+                $outputQuality = if ($FastOutput) {
+                    @("-c:v", "hevc_nvenc", "-profile:v", "main10", "-preset", "p7", "-rc", "vbr", "-cq", "22", "-qmin", "0", "-rc-lookahead", "32", "-spatial-aq", "1", "-pix_fmt", "p010le")
+                } else {
+                    @("-c:v", "libx265", "-preset", "slow", "-crf", "20", "-tune", "animation", "-x265-params", "aq-mode=3:strong-intra-smoothing=0:rect=0:aq-strength=0.9", "-pix_fmt", "yuv420p10le")
+                }
+
+                try {
+                    if ($hasOriginalAudio) {
+                        & $Dep.ffmpeg @inputFlags -f concat -safe 0 -i $concatListFile -i "$VideoPath" -vf "$vfConfig" @outputQuality -map 0:v:0 -map 1:a:0 -c:a copy "$upscaled_Path" -y
+                    } else {
+                        & $Dep.ffmpeg @inputFlags -f concat -safe 0 -i $concatListFile -vf "$vfConfig" @outputQuality -an "$upscaled_Path" -y
+                    }
+                    Write-Host "影片合併成功: $upscaled_Path" -ForegroundColor Cyan
+                    WriteProgressLog $step_final_merge
+                } catch {
+                    Write-Host "最終合併失敗: $_" -ForegroundColor Red
+                    exit
+                }
             }
         }
     }
 
     # -------- 清理工作目錄 --------
-    if ($completedSteps.ContainsKey("FINAL_MERGE_COMPLETE")) {
+    if ($completedSteps.ContainsKey("最終合併完成")) {
         Write-Host "已清理所有工作檔案。"
         Remove-Item $workDir -Recurse -Force
+        Read-Host "Enter 離開..."
     }
 }
 
 # --- 使用範例 ---
-# VideoUpscaler `
-    # -VideoPath "R:\Test-1.mp4" `
-    # -TargetFPS 0 `
-    # -UpscaleFactor 2 `
-    # -OutputFormat "mp4" `
-    # -ProcessFormat "png" `
-    # -CustomResolution "" `
-    # -FastOutput $true `
-    # -ChunkDuration 10
+VideoUpscaler `
+    -VideoPath "R:\Test-1.mp4" `
+    -TargetFPS 0 `
+    -UpscaleFactor 2 `
+    -OutputFormat "mp4" `
+    -ProcessFormat "png" `
+    -CustomResolution "1920x1080" `
+    -FastOutput $true `
+    -ChunkDuration 30
