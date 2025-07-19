@@ -39,26 +39,10 @@ function StartConvert {
                 param($inputFile, $outputFile, $isGif)
 
                 if ($isGif) {
-                     # -loop 0: 無限循環
-                    # -c:v libwebp_anim: 使用 webp 動畫編碼
-                    # -q:v 85: 圖片品質 (0-100), 越高越好
-                    # -compression_level 6: 壓縮等級 (0-6), 越高壓縮率越高但越慢
-                    # -threads 0: 自動分配核心
-                    # -pix_fmt yuva420p: 強制轉換為標準像素格式, 解決特殊GIF的相容性問題
-                    # -preset drawing: 預設集, 適合動漫和線條圖
-                    # -vf : 降噪, 智慧銳化
-                    ffmpeg -i "$inputFile" -loop 0 -c:v libwebp_anim -q:v 85 -compression_level 6 -threads 0 -pix_fmt yuva420p -preset drawing -vf "hqdn3d=1.5:1.5:6:6,smartblur=luma_radius=1.0:luma_strength=-0.5" -map_metadata -1 "$outputFile" -y
+                    ffmpeg -i "$inputFile" -loop 0 -c:v libwebp_anim -q:v 90 -compression_level 6 -preset drawing -threads 0 -vf "deband,unsharp=5:5:0.7:5:5:0" -pix_fmt yuva420p -an -map_metadata -1 "$outputFile" -y
                 }
                 else {
-                    # -an: 去除音訊
-                    # -c:v libwebp: 使用 webp 圖片編碼
-                    # -q:v 85: 圖片品質
-                    # -compression_level 6: 壓縮等級
-                    # -preset drawing: 預設集, 適合細節豐富的圖片
-                    # -vf 降噪, 智慧銳化
-                    # -threads 0: 自動分配核心
-                    # -pix_fmt yuva420p: 像素格式, 支援透明度
-                    ffmpeg -i "$inputFile" -an -c:v libwebp -q:v 85 -compression_level 6 -preset drawing -vf "hqdn3d=1.5:1.5,smartblur=luma_radius=1.0:luma_strength=-0.5" -threads 0 -pix_fmt yuva420p -map_metadata -1 "$outputFile" -y
+                    ffmpeg -i "$inputFile" -c:v libwebp -q:v 90 -compression_level 6 -preset drawing -threads 0 -vf "deband,unsharp=5:5:0.7:5:5:0" -pix_fmt yuva420p -an -map_metadata -1 "$outputFile" -y
                 }
             }).AddArgument($inputFile).AddArgument($outputFile).AddArgument($isGif)
 
