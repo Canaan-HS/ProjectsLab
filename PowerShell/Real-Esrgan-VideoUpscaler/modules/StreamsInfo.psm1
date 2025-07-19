@@ -19,26 +19,32 @@ function GetStreamsInfo {
 
     try {
         # 取得媒體完整資訊
-        $videoInfo = (& ffprobe -v quiet -print_format json -show_streams -show_format $Video | ConvertFrom-Json).streams
+        $mediaInfo = & ffprobe -v quiet -print_format json -show_streams -show_format $Video | ConvertFrom-Json
+        $videoStream = $mediaInfo.streams | Where-Object { $_.codec_type -eq 'video' } | Select-Object -First 1
+        $formatInfo = $mediaInfo.format
 
         # 處理回傳所需數據
-        $width = Parse $videoInfo.width $true # 基本寬
-        $height = Parse $videoInfo.height $true # 基本高
+        $width = [int]$videoStream.width # 基本寬
+        $height = [int]$videoStream.height # 基本高
 
-        $frame_rate = ((Parse $videoInfo.avg_frame_rate) -split "/")
+        $frame_rate = ($videoStream.avg_frame_rate -split "/")
         $fps = [int]([int]$frame_rate[0] / [int]$frame_rate[1]) # 每幀張數 Fps
 
         $fpsFactor = [Math]::Max($targetFPS / $fps, 1) # 根據目標 FPS, 計算出 FPS 乘數
-        $bitrate = [int]((Parse $videoInfo.bit_rate $true) * ($scaleFactor * $scaleFactor) * [Math]::Max($fpsFactor * 0.8, 1) / 1MB) # 比特 位元 率 ($fpsFactor * 0.8 是壓縮用, 不一定會增加這麼多)
+        
+        # 如果 formatInfo.bit_rate 存在且有效，則使用它，否則回退到 videoStream.bit_rate
+        $baseBitrate = if ($formatInfo.bit_rate) { [int]$formatInfo.bit_rate } else { [int]$videoStream.bit_rate }
+        $bitrate = [int]($baseBitrate * ($scaleFactor * $scaleFactor) * [Math]::Max($fpsFactor * 0.8, 1) / 1MB) # 比特 位元 率
 
-        $frames = Parse $videoInfo.nb_frames $true # 總共幀數 (擷圖的總數)
-        $fillerFrame = [int]($frames * $fpsFactor) # 計算補偵後的框架數
+        $totalFrames = [int]$videoStream.nb_frames # 總共幀數 (擷圖的總數)
+        $totalDuration = [double]$formatInfo.duration # 總時長（秒）
+        $fillerFrame = [int]($totalFrames * $fpsFactor) # 計算補幀後的框架數
 
-        return @( # 不驗證參數有效性, 主函式會檢查
-            $width, $height, $fps, $bitrate, $frames, $fillerFrame
+        return @(
+            $width, $height, $fps, $bitrate, $totalDuration, $totalFrames, $fillerFrame
         )
     } catch {
-        write-host ($_.Exception.Message)
+        write-host ("獲取媒體資訊時發生錯誤: " + $_.Exception.Message)
         exit
     }
 }
