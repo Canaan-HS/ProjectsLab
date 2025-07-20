@@ -151,6 +151,13 @@ function VideoUpscaler {
         @("-c:v", "libx265", "-preset", "slow", "-crf", "20", "-tune", "animation", "-x265-params", "aq-mode=3:strong-intra-smoothing=0:rect=0:aq-strength=0.9", "-pix_fmt", "yuv420p10le")
     }
 
+    $losslessQuality = if ($FastOutput) {
+        @("-c:v", "hevc_nvenc", "-preset", "p7", "-rc", "constqp", "-qp", "0", "-pix_fmt", "p010le")
+    }
+    else {
+        @("-c:v", "libx265", "-preset", "ultrafast", "-crf", "0", "-pix_fmt", "yuv420p10le")
+    }
+
     # -------- 輸出除錯資訊 --------
     @{
         "Meta" = @{
@@ -260,7 +267,6 @@ function VideoUpscaler {
                 WriteProgressLog $step_rife
 
                 # 立即清理舊的快取以節省空間
-                Write-Host "RIFE 處理完成，正在清理原始幀快取..." -ForegroundColor DarkGray
                 Remove-Item $cachePath -Recurse -Force -ErrorAction SilentlyContinue
             }
             else { Write-Host "RIFE 錯誤: 找不到快取目錄 $cachePath" -ForegroundColor Red; continue }
@@ -275,8 +281,82 @@ function VideoUpscaler {
         if ($upscaleModels -and (-not $completedSteps.ContainsKey($step_realesr))) {
             if (Test-Path $currentCachePath -PathType Container) {
                 Write-Host "--> 步驟 4/5: 畫質提升 (Real-ESRGAN)"
-                & $Dep.realesr -i "$currentCachePath" -o "$currentCachePath" -s "$UpscaleFactor" -m "$($Dep.realesrganModelFolder)" -n "$upscaleModels" -t 0 -j "$thread" -f "$ProcessFormat"
-                WriteProgressLog $step_realesr
+
+                # 獲取資料夾內符合格式的圖片總數
+                $totalImages = (Get-ChildItem -Path $currentCachePath -Filter "*.$processFormat" -File).Count
+                if ($totalImages -eq 0) {
+                    Write-Host "Real-ESRGAN 警告: 在 $currentCachePath 中找不到可處理的圖片，跳過此步驟。" -ForegroundColor Yellow
+                    WriteProgressLog $step_realesr
+                    continue
+                }
+
+                # 建立一個執行緒安全的集合，用來儲存非進度、非硬體資訊的輸出訊息
+                $realesrganMessages = [System.Collections.Concurrent.ConcurrentBag[string]]::new()
+
+                # 設定 Real-ESRGAN 處理程式的啟動資訊
+                $pinfo = New-Object System.Diagnostics.ProcessStartInfo
+
+                # 運行指令
+                $pinfo.FileName = $Dep.realesr
+                $pinfo.Arguments = "-i ""$currentCachePath"" -o ""$currentCachePath"" -s ""$UpscaleFactor"" -m ""$($Dep.realesrganModelFolder)"" -n ""$upscaleModels"" -t 0 -j ""$thread"" -f ""$ProcessFormat"""
+
+                $pinfo.RedirectStandardError = $true
+                $pinfo.RedirectStandardOutput = $true
+                $pinfo.UseShellExecute = $false
+                $pinfo.CreateNoWindow = $true
+
+                # 建立新的處理程式物件
+                $p = New-Object System.Diagnostics.Process
+                $p.StartInfo = $pinfo
+                $p.EnableRaisingEvents = $true
+
+                # 定義處理程式輸出資料時觸發的事件處理器 (Action Block)
+                $outputAction = {
+                    if ($EventArgs.Data) {
+                        $line = $EventArgs.Data
+
+                        # 1. 進度資訊顯示
+                        if ($line -match '^\s*(\d{1,3}(?:\.\d+)?)\s*%\s*$') {
+                        }
+                        # 2. 如果不是進度資訊，再判斷是否為硬體資訊行
+                        elseif ($line.StartsWith('[')) {
+                            Write-Host $line
+                        }
+                        # 3. 如果以上都不是，且不是空行，則存起來最後再顯示
+                        else {
+                            if (-not [string]::IsNullOrWhiteSpace($line)) {
+                                $realesrganMessages.Add($line)
+                            }
+                        }
+                    }
+                }
+
+                # 註冊事件
+                $stdOutEvent = Register-ObjectEvent -InputObject $p -EventName 'OutputDataReceived' -Action $outputAction
+                $stdErrEvent = Register-ObjectEvent -InputObject $p -EventName 'ErrorDataReceived' -Action $outputAction
+
+                # 啟動處理程式
+                $p.Start() | Out-Null
+                $p.BeginOutputReadLine()
+                $p.BeginErrorReadLine()
+
+                # 繼續使用 while 迴圈等待，處理非同步事件
+                while (-not $p.HasExited) {
+                    Start-Sleep -Milliseconds 100
+                }
+
+                # 處理程式結束後，清理並取消註冊事件
+                Unregister-Event -SourceIdentifier $stdOutEvent.Name
+                Unregister-Event -SourceIdentifier $stdErrEvent.Name
+
+                # 檢查處理程式的退出代碼以及是否有額外的訊息
+                if ($realesrganMessages.Count -eq 0 -and $p.ExitCode -eq 0) {
+                    WriteProgressLog $step_realesr
+                }
+                else {
+                    Write-Host "Real-ESRGAN 處理期間有額外資訊或錯誤輸出:" -ForegroundColor Yellow
+                    $realesrganMessages | ForEach-Object { Write-Host $_ -ForegroundColor Yellow }
+                }
             }
             else { Write-Host "Real-ESRGAN 錯誤: 找不到快取目錄 $currentCachePath" -ForegroundColor Red; continue }
         }
@@ -285,21 +365,25 @@ function VideoUpscaler {
         # 5. 合併分段影片 (無音訊)
         $step_merge_chunk = "$chunkId`_合併完成"
         if (-not $completedSteps.ContainsKey($step_merge_chunk)) {
-            # 組合包含銳化等效果的濾鏡鏈
-            $baseVf = if ($reduce) { "scale=$reduce,fps=$fps" } else { "scale=$scaled,fps=$fps" }
-            $vfConfig = "$baseVf,$vfUnsharp"
+
+            # 設置縮放參數
+            $baseVf = if ($reduce) {
+                "scale=$($reduce):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($reduce):(ow-iw)/2:(oh-ih)/2:black,fps=$fps"
+            } else {
+                "scale=$($scaled):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($scaled):(ow-iw)/2:(oh-ih)/2:black,fps=$fps"
+            }
 
             $imageInputPath = Join-Path $currentCachePath "%0$($imgFormat)d.$processFormat"
             if (Get-ChildItem -Path $currentCachePath -Filter "*.$processFormat" | Select-Object -First 1) {
                 Write-Host "--> 步驟 5/5: 合併分段影片"
 
                 if ($chunksCount -eq 1) {
-                    # 只有一個分段，合併原始音訊
-                    & $Dep.ffmpeg -v error -framerate $TargetFPS -start_number 0 -i "$imageInputPath" -i "$VideoPath" -vf $vfConfig @outputQualityk -map 0:v:0 -map 1:a:0 -c:a copy $($chunk.OutputFile) -y
+                    # 只有一個分段，合併原始音訊 (一個分段時有損壓縮)
+                    & $Dep.ffmpeg -v error -framerate $TargetFPS -start_number 0 -i "$imageInputPath" -i "$VideoPath" -vf "$baseVf,$vfUnsharp" @outputQuality -map 0:v:0 -map 1:a:0 -c:a copy $($chunk.OutputFile) -y
                 }
                 else {
-                    # 有多個分段，暫不合併音訊
-                    & $Dep.ffmpeg -v error -framerate $TargetFPS -start_number 0 -i "$imageInputPath" -vf $vfConfig @outputQuality -an $($chunk.OutputFile) -y
+                    # 有多個分段，暫不合併音訊 (分段時無損壓縮)
+                    & $Dep.ffmpeg -v error -framerate $TargetFPS -start_number 0 -i "$imageInputPath" -vf "$baseVf" @losslessQuality -an $($chunk.OutputFile) -y
                 }
 
                 WriteProgressLog $step_merge_chunk
@@ -359,8 +443,6 @@ function VideoUpscaler {
             if ($allChunksExist) {
                 $chunks | ForEach-Object { "file '$($_.OutputFile)'" } | Set-Content $concatListFile
 
-                $vfConfig = "scale=$($scaled):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($scaled):(ow-iw)/2:(oh-ih)/2:black,$vfUnsharp"
-
                 $originalAudio = & $Dep.ffprobe -v error -i "$VideoPath" -select_streams a -show_streams -of json
                 $hasOriginalAudio = -not [string]::IsNullOrEmpty($originalAudio)
 
@@ -373,10 +455,10 @@ function VideoUpscaler {
 
                 try {
                     if ($hasOriginalAudio) {
-                        & $Dep.ffmpeg @inputFlags -f concat -safe 0 -i $concatListFile -i "$VideoPath" -vf "$vfConfig" @outputQuality -map 0:v:0 -map 1:a:0 -c:a copy "$upscaled_Path" -y
+                        & $Dep.ffmpeg @inputFlags -f concat -safe 0 -i $concatListFile -i "$VideoPath" -vf "$vfUnsharp" @outputQuality -map 0:v:0 -map 1:a:0 -c:a copy "$upscaled_Path" -y
                     }
                     else {
-                        & $Dep.ffmpeg @inputFlags -f concat -safe 0 -i $concatListFile -vf "$vfConfig" @outputQuality -an "$upscaled_Path" -y
+                        & $Dep.ffmpeg @inputFlags -f concat -safe 0 -i $concatListFile -vf "$vfUnsharp" @outputQuality -an "$upscaled_Path" -y
                     }
                     Write-Host "影片合併成功: $upscaled_Path" -ForegroundColor Cyan
                     WriteProgressLog $step_final_merge
