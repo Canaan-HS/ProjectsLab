@@ -48,9 +48,10 @@ function VideoUpscaler {
         [int]$UpscaleFactor = 2, # 放大倍率 (設置 1 ~ 4) [1 就什麼都不做]
         [string]$OutputFormat = "mp4", # 最終合併影片格式
         [string]$ProcessFormat = "png", # 處理的緩存圖片格式
+        [string]$CustomCacheDir = $null, # 自定緩存圖處理路徑
         [string]$CustomResolution = $null, # 自定輸出解析度
         [boolean]$FastOutput = $true, # 快速輸出 [慢速壓縮率較高]
-        [int]$ChunkDuration = 15 # 分段處理的時長（秒），0 為不分段
+        [int]$ChunkDuration = 20 # 分段處理的時長（秒），0 為不分段
     )
 
     if (-not(Test-Path -LiteralPath $VideoPath)) {
@@ -59,23 +60,37 @@ function VideoUpscaler {
     }
 
     # -------- 初始化運算配置 --------
+
     $srmdRules = @{
         144 = @(10, 4)
         240 = @(9, 3)
         360 = @(8, 2)
         480 = @(7, 2)
     }
+
+    # 預設位元率較高 (因為可能有 3D 動畫之類的)
+    $nvencRules = @{
+        720  = @("-b:v", "7000k",  "-maxrate", "10000k", "-cq", "22")
+        1080 = @("-b:v", "12000k", "-maxrate", "15000k", "-cq", "21")
+        1440 = @("-b:v", "20000k", "-maxrate", "25000k", "-cq", "20")
+        2160 = @("-b:v", "30000k", "-maxrate", "40000k", "-cq", "19")
+    }
+
     $fpsModelRules = @{
         1 = "rife-models\rife-v4.24_ensembleTrue"
         2 = "rife-models\rife-v4.26-large_ensembleFalse"
     }
+
     $upscaleModelRules = @{
         1 = ""
         2 = "realesr-animevideov3-x2"
         3 = "realesr-animevideov3-x3"
         4 = "realesr-animevideov3-x4"
     }
-    $outputTemplate = "$(Split-Path -LiteralPath $VideoPath)\$([System.IO.Path]::GetFileNameWithoutExtension($VideoPath))"
+
+    $outputPath = Split-Path -LiteralPath $VideoPath
+    $fileName = [System.IO.Path]::GetFileNameWithoutExtension($VideoPath)
+    $outputTemplate = Join-Path $outputPath $fileName
 
     # -------- 獲取媒體資訊 --------
     ($width, $height, $fps, $totalDuration, $totalFrames, $fillerFrame) = GetStreamsInfo $VideoPath $TargetFPS $UpscaleFactor
@@ -93,7 +108,8 @@ function VideoUpscaler {
     $UpscaleFactor = [Math]::Max(1, [Math]::Min($UpscaleFactor, 4))
 
     # -------- 工作目錄、日誌與分段邏輯 --------
-    $workDir = "$(& $Gen.GetCachePath $outputTemplate $UpscaleFactor $TargetFPS)"
+    $workDir = "$(& $Gen.GetCachePath $outputPath $fileName $UpscaleFactor $TargetFPS)"
+    $cacheDir = (Test-Path -LiteralPath $CustomCacheDir) ? $CustomCacheDir : $workDir
     $chunksDir = Join-Path $workDir "chunks"
     $logFile = Join-Path $workDir "progress.log"
 
@@ -140,21 +156,24 @@ function VideoUpscaler {
     $chunksCount = $chunks.Count
     $TargetFPS = $TargetFPS -gt $fps ? $TargetFPS : $fps
 
-    $srmdProcess = $srmdRules[$(& $Gen.GetResolution $height)]
+    $resolution = & $Gen.GetResolution $height
+
+    $srmdProcess = $srmdRules[(& $Gen.GetResolution $height)] # 這邊是取用當前畫質判斷是否需要預處理
     $fpsModels = $fpsModelRules[2] | Where-Object { $Dep.rifeModelList[$_] }
     $upscaleModels = $upscaleModelRules[$UpscaleFactor] | Where-Object { $Dep.realesrganModelList[$_] }
 
     $vfUnsharp = "deband,unsharp=3:3:0.4:3:3:0.0"
+    $nvencParams = $nvencRules[[math]::Max((& $Gen.GetResolution ($scaled -split ":")[1]), 720)] # 這邊是根據目標解析度取用對應的參數
 
     $outputQuality = if ($FastOutput) {
-        @("-c:v", "hevc_nvenc", "-profile:v", "main10", "-preset", "p7", "-rc", "vbr", "-cq", "22", "-qmin", "0", "-rc-lookahead", "32", "-spatial-aq", "1", "-pix_fmt", "p010le")
+        @("-c:v", "hevc_nvenc", "-profile:v", "main10", "-preset", "p7", "-rc", "vbr_hq", "-qmin", "0", "-rc-lookahead", "32", "-spatial-aq", "1", "-aq-strength", "8", "-pix_fmt", "p010le") + $nvencParams
     }
     else {
         @("-c:v", "libx265", "-preset", "slow", "-crf", "20", "-tune", "animation", "-x265-params", "aq-mode=3:strong-intra-smoothing=0:rect=0:aq-strength=0.9", "-pix_fmt", "yuv420p10le")
     }
 
     $losslessQuality = if ($FastOutput) {
-        @("-c:v", "hevc_nvenc", "-preset", "p7", "-rc", "constqp", "-qp", "0", "-pix_fmt", "p010le")
+        @("-c:v", "hevc_nvenc", "-profile:v", "main10", "-preset", "p7", "-rc", "constqp", "-qp", "0", "-pix_fmt", "p010le")
     }
     else {
         @("-c:v", "libx265", "-preset", "ultrafast", "-crf", "0", "-pix_fmt", "yuv420p10le")
@@ -166,21 +185,22 @@ function VideoUpscaler {
             "媒體資訊" = @{
                 "寬度"  = $width
                 "高度"  = $height
-                "FPS" = $fps
+                "FPS"  = $fps
                 "總時長" = $totalDuration
                 "總幀數" = $totalFrames
             }
             "輸出配置" = @{
                 "媒體路徑"  = $VideoPath
                 "放大倍率"  = $UpscaleFactor
-                "目標FPS" = $TargetFPS
+                "目標FPS"  = $TargetFPS
                 "輸出畫質"  = $scaled
                 "輸出幀數"  = $fillerFrame
                 "輸出格式"  = $OutputFormat
                 "快速合併"  = $FastOutput
                 "分段秒數"  = $ChunkDuration
                 "分段數量"  = $chunksCount
-                "工作目錄"  = $workDir
+                "合併目錄"  = $workDir
+                "緩存目錄"  = $cacheDir
             }
             "模型資訊" = @{
                 "補幀模型" = $fpsModels
@@ -190,17 +210,18 @@ function VideoUpscaler {
     } | ConvertTo-Json -Depth 4 | Write-Host
 
     # -------- 主處理迴圈 --------
-    New-Item -ItemType Directory -Path $chunksDir -Force | Out-Null
-
+    $ProgressPreference = "SilentlyContinue" # 隱藏進度條
+    New-Item -ItemType Directory -Path $chunksDir -Force | Out-Null # 創建分段目錄
 
     foreach ($chunk in $chunks) {
-        $chunkId = "CHUNK_$($chunk.Index)"
+        $chunkIndex = $chunk.Index + 1
+        $chunkId = "CHUNK_$($chunkIndex)"
         if ($completedSteps.ContainsKey("$chunkId`_合併完成")) {
             continue
         }
 
-        Write-Host "`n===== 段落 [$($chunk.Index + 1)/$($chunksCount)] 處理開始 (段落時間: $($chunk.StartTime)) =====>`n"
-        $cachePath = Join-Path $workDir "cache_$($chunk.Index)"
+        Write-Host "`n===== 段落 [$chunkIndex/$($chunksCount)] 處理開始 (段落時間: $($chunk.StartTime)) =====>`n"
+        $cachePath = Join-Path $cacheDir "cache-$chunkIndex"
         $currentCachePath = $cachePath # 該路徑在RIFE處理後會更新
         New-Item -ItemType Directory -Path $cachePath -Force | Out-Null
 
@@ -398,7 +419,7 @@ function VideoUpscaler {
         if ($completedSteps.ContainsKey("$chunkId`_合併完成")) {
             Remove-Item -LiteralPath $cachePath -Recurse -Force -ErrorAction SilentlyContinue
             Remove-Item -LiteralPath "$cachePath-fps" -Recurse -Force -ErrorAction SilentlyContinue
-            Write-Host "段落 [$($chunk.Index + 1)/$($chunksCount)] 完成清理。" -ForegroundColor Green
+            Write-Host "段落 [$chunkIndex/$chunksCount] 完成清理。" -ForegroundColor Green
         }
     }
 
@@ -409,7 +430,7 @@ function VideoUpscaler {
 
         # 定義最終輸出路徑
         $merge = $FastOutput ? "fast" : "slow"
-        $upscaled_Path = "$outputTemplate-x$UpscaleFactor-$($TargetFPS)Fps-$merge.$OutputFormat"
+        $upscaled_Path = "$outputTemplate-x$UpscaleFactor-$($TargetFPS)fps-$merge.$OutputFormat"
 
         # 只有一個分段時，直接移動檔案
         if ($chunksCount -eq 1) {
@@ -484,10 +505,11 @@ function VideoUpscaler {
 # --- 使用範例 ---
 VideoUpscaler `
     -VideoPath "" `
-    -TargetFPS 30 `
+    -TargetFPS 0 `
     -UpscaleFactor 2 `
     -OutputFormat "mp4" `
     -ProcessFormat "png" `
+    -CustomCacheDir "" `
     -CustomResolution "1920x1080" `
     -FastOutput $true `
-    -ChunkDuration 15
+    -ChunkDuration 20
