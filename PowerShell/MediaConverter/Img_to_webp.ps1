@@ -78,7 +78,6 @@ function StartConvert {
     foreach ($job in $jobs) {
         $result = $job.Runspace.EndInvoke($job.AsyncResult)
 
-        # 如果有載入 webp 格式圖片, 那麼就不能刪除, 這會導致全部為空
         try {
             if ($result.Success) {
                 try {
