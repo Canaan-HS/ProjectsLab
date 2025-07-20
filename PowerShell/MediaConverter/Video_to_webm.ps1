@@ -16,6 +16,7 @@ function StartConvert {
     }
 
     $jobs = @()
+    $errorOccurred = $false
     $maxThreads = [Math]::Ceiling([Environment]::ProcessorCount / 3)
 
     $runspacePool = [runspacefactory]::CreateRunspacePool(1, $maxThreads)
@@ -30,19 +31,35 @@ function StartConvert {
         $inputFile = $_.FullName
         $outputFile = "$($_.DirectoryName)\$($_.BaseName).webm"
 
-        # 開啟新的 runspace
+        # 建立一個新的 Runspace
         $runspace = [powershell]::Create()
         $runspace.RunspacePool = $runspacePool
 
         $runspace.AddScript({
                 param($inputFile, $outputFile)
-                ffmpeg -hwaccel cuda -i "$inputFile" -map 0:v -map 0:a? -c:v libaom-av1 -crf 23 -cpu-used 4 -row-mt 1 -tune-content animation -vf "deband,unsharp=5:5:0.7:5:5:0,eq=contrast=1.05:saturation=1.1" -c:a libopus -b:a 320k "$outputFile" -y
+
+                $ErrorMessage = ""
+                $ffmpegOutput = ""
+                $ErrorOccurred = $false
+
+                $ffmpegOutput = ffmpeg -hwaccel cuda -i "$inputFile" -map 0:v -map 0:a? -c:v libaom-av1 -crf 23 -cpu-used 4 -row-mt 1 -tune-content animation -vf "deband,unsharp=5:5:0.7:5:5:0,eq=contrast=1.05:saturation=1.1" -c:a libopus -b:a 320k "$outputFile" -y 2>&1
+
+                if ($LASTEXITCODE -ne 0) {
+                    $ErrorOccurred = $true
+                    $ErrorMessage = $ffmpegOutput
+                }
+
+                return [PSCustomObject]@{
+                    Success     = -not $ErrorOccurred
+                    InputFile   = $inputFile
+                    OutputFile  = $outputFile
+                    Error       = $ErrorMessage
+                }
             }).AddArgument($inputFile).AddArgument($outputFile)
 
         try {
             $jobs += [PSCustomObject]@{
                 Runspace    = $runspace
-                InputFile   = $inputFile
                 AsyncResult = $runspace.BeginInvoke()
             }
         }
@@ -53,21 +70,38 @@ function StartConvert {
 
     # 等待所有工作完成
     foreach ($job in $jobs) {
-        $job.Runspace.EndInvoke($job.AsyncResult)
-        $job.Runspace.Dispose()
+        $result = $job.Runspace.EndInvoke($job.AsyncResult)
 
         try {
-            Remove-Item -LiteralPath $job.InputFile -Force
+            if ($result.Success) {
+                try {
+                    if (-not $result.InputFile.EndsWith('.webm', [System.StringComparison]::OrdinalIgnoreCase)) {
+                        Remove-Item -LiteralPath $result.InputFile -Force -ErrorAction Stop
+                    }
+                }
+                catch {
+                    $errorOccurred = $true
+                    Write-Warning "$($result.InputFile) Delete Failed: $_"
+                }
+            }else {
+                $errorOccurred = $true
+                Write-Error "Error File: $($result.InputFile)`nError Message: $($result.Error)"
+            }
         }
         catch {
-            Write-Warning "Remove Failed： $($job.InputFile)"
+            $errorOccurred = $true
+            Write-Error "Task Failed： $($result.InputFile)"
+        } finally {
+            $job.Runspace.Dispose()
         }
     }
 
     $runspacePool.Close()
     $runspacePool.Dispose()
 
-    Clear-Host
+    if (-not $errorOccurred) {
+        Clear-Host
+    }
     StartConvert
 }
 
