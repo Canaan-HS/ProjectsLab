@@ -22,6 +22,9 @@
 
     運行環境:
     PowerShell 7+
+
+    重要說明:
+    檔案路徑最好都是英文，不要有奇怪的符號或文字，否則可能會出現問題。 [PowerShell 麻煩的地方]
 #>
 
 # 取得指令碼位置
@@ -54,7 +57,6 @@ function VideoUpscaler {
         Write-Host "錯誤的媒體路徑: $VideoPath"
         exit
     }
-    $VideoPath = Convert-Path -LiteralPath $VideoPath
 
     # -------- 初始化運算配置 --------
     $srmdRules = @{
@@ -73,7 +75,7 @@ function VideoUpscaler {
         3 = "realesr-animevideov3-x3"
         4 = "realesr-animevideov3-x4"
     }
-    $outputTemplate = "$(Split-Path $VideoPath)\$([System.IO.Path]::GetFileNameWithoutExtension($VideoPath))"
+    $outputTemplate = "$(Split-Path -LiteralPath $VideoPath)\$([System.IO.Path]::GetFileNameWithoutExtension($VideoPath))"
 
     # -------- 獲取媒體資訊 --------
     ($width, $height, $fps, $totalDuration, $totalFrames, $fillerFrame) = GetStreamsInfo $VideoPath $TargetFPS $UpscaleFactor
@@ -87,24 +89,24 @@ function VideoUpscaler {
         ($reduce, $UpscaleFactor, $scaled) = & $Gen.GetCustomScale $width $height $CustomResolution
     }
 
-    # 4. 最終確認放大倍率在 1-4 之間
+    # 確認放大倍率在 1-4 之間
     $UpscaleFactor = [Math]::Max(1, [Math]::Min($UpscaleFactor, 4))
 
     # -------- 工作目錄、日誌與分段邏輯 --------
-    $workDir = "$outputTemplate`_Upscaler"
+    $workDir = "$(& $Gen.GetCachePath $outputTemplate $UpscaleFactor $TargetFPS)"
     $chunksDir = Join-Path $workDir "chunks"
     $logFile = Join-Path $workDir "progress.log"
 
     # 讀取已完成的步驟
     $completedSteps = @{}
-    if (Test-Path $logFile) {
-        Get-Content $logFile | ForEach-Object { $completedSteps[$_] = $true }
+    if (Test-Path -LiteralPath $logFile) {
+        Get-Content -LiteralPath $logFile | ForEach-Object { $completedSteps[$_] = $true }
     }
     
     # 輔助函式：記錄已完成的步驟到日誌
     function WriteProgressLog {
         param([string]$Step)
-        Add-Content -Path $logFile -Value $Step
+        Add-Content -LiteralPath $logFile -Value $Step
         $completedSteps[$Step] = $true
     }
 
@@ -240,7 +242,7 @@ function VideoUpscaler {
         # 2. 預處理 (SRMD)
         $step_srmd = "$chunkId`_SRMD_預處理完成"
         if ($srmdProcess -and (-not $completedSteps.ContainsKey($step_srmd))) {
-            if (Test-Path $cachePath -PathType Container) {
+            if (Test-Path -LiteralPath $cachePath -PathType Container) {
                 Write-Host "--> 步驟 2/5: 預處理 (SRMD)"
                 & $Dep.srmd -i "$cachePath" -o "$cachePath" -n "$($srmdProcess[0])" -s "$($srmdProcess[1])" -j "$thread" -f "$ProcessFormat"
                 WriteProgressLog $step_srmd
@@ -252,7 +254,7 @@ function VideoUpscaler {
         # 3. 補幀 (RIFE)
         $step_rife = "$chunkId`_RIFE_補幀完成"
         if (($TargetFPS -gt $fps) -and (-not $completedSteps.ContainsKey($step_rife))) {
-            if (Test-Path $cachePath -PathType Container) {
+            if (Test-Path -LiteralPath $cachePath -PathType Container) {
                 Write-Host "--> 步驟 3/5: 幀數提升 (RIFE)"
                 $fpsPath = "$cachePath-fps"
                 New-Item -ItemType Directory -Path $fpsPath -Force | Out-Null
@@ -267,7 +269,7 @@ function VideoUpscaler {
                 WriteProgressLog $step_rife
 
                 # 立即清理舊的快取以節省空間
-                Remove-Item $cachePath -Recurse -Force -ErrorAction SilentlyContinue
+                Remove-Item -LiteralPath $cachePath -Recurse -Force -ErrorAction SilentlyContinue
             }
             else { Write-Host "RIFE 錯誤: 找不到快取目錄 $cachePath" -ForegroundColor Red; continue }
         }
@@ -279,11 +281,11 @@ function VideoUpscaler {
         # 4. 畫質提升 (Real-ESRGAN)
         $step_realesr = "$chunkId`_RealESRGAN_提升完成"
         if ($upscaleModels -and (-not $completedSteps.ContainsKey($step_realesr))) {
-            if (Test-Path $currentCachePath -PathType Container) {
+            if (Test-Path -LiteralPath $currentCachePath -PathType Container) {
                 Write-Host "--> 步驟 4/5: 畫質提升 (Real-ESRGAN)"
 
                 # 獲取資料夾內符合格式的圖片總數
-                $totalImages = (Get-ChildItem -Path $currentCachePath -Filter "*.$processFormat" -File).Count
+                $totalImages = (Get-ChildItem -LiteralPath $currentCachePath -Filter "*.$processFormat" -File).Count
                 if ($totalImages -eq 0) {
                     Write-Host "Real-ESRGAN 警告: 在 $currentCachePath 中找不到可處理的圖片，跳過此步驟。" -ForegroundColor Yellow
                     WriteProgressLog $step_realesr
@@ -368,13 +370,13 @@ function VideoUpscaler {
 
             # 設置縮放參數
             $baseVf = if ($reduce) {
-                "scale=$($reduce):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($reduce):(ow-iw)/2:(oh-ih)/2:black,fps=$fps"
+                "scale=$($reduce):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($reduce):(ow-iw)/2:(oh-ih)/2:black,fps=$TargetFPS"
             } else {
-                "scale=$($scaled):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($scaled):(ow-iw)/2:(oh-ih)/2:black,fps=$fps"
+                "scale=$($scaled):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($scaled):(ow-iw)/2:(oh-ih)/2:black,fps=$TargetFPS"
             }
 
             $imageInputPath = Join-Path $currentCachePath "%0$($imgFormat)d.$processFormat"
-            if (Get-ChildItem -Path $currentCachePath -Filter "*.$processFormat" | Select-Object -First 1) {
+            if (Get-ChildItem -LiteralPath $currentCachePath -Filter "*.$processFormat" | Select-Object -First 1) {
                 Write-Host "--> 步驟 5/5: 合併分段影片"
 
                 if ($chunksCount -eq 1) {
@@ -394,8 +396,8 @@ function VideoUpscaler {
 
         # 即時清理
         if ($completedSteps.ContainsKey("$chunkId`_合併完成")) {
-            Remove-Item $cachePath -Recurse -Force -ErrorAction SilentlyContinue
-            Remove-Item "$cachePath-fps" -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath $cachePath -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath "$cachePath-fps" -Recurse -Force -ErrorAction SilentlyContinue
             Write-Host "段落 [$($chunk.Index + 1)/$($chunksCount)] 完成清理。" -ForegroundColor Green
         }
     }
@@ -412,9 +414,9 @@ function VideoUpscaler {
         # 只有一個分段時，直接移動檔案
         if ($chunksCount -eq 1) {
             $sourceFile = $chunks[0].OutputFile
-            if (Test-Path $sourceFile) {
+            if (Test-Path -LiteralPath $sourceFile) {
                 try {
-                    Move-Item -Path $sourceFile -Destination $upscaled_Path -Force
+                    Move-Item -LiteralPath $sourceFile -Destination $upscaled_Path -Force
                     Write-Host "影片移動成功: $upscaled_Path" -ForegroundColor Cyan
                     WriteProgressLog $step_final_merge
                 }
@@ -433,7 +435,7 @@ function VideoUpscaler {
             # 檢查所有預期的分段影片是否都存在
             $allChunksExist = $true
             foreach ($chunk in $chunks) {
-                if (-not (Test-Path $chunk.OutputFile)) {
+                if (-not (Test-Path -LiteralPath $chunk.OutputFile)) {
                     Write-Host "最終合併錯誤: 找不到分段影片 $($chunk.OutputFile)" -ForegroundColor Red
                     $allChunksExist = $false
                     break
@@ -441,7 +443,7 @@ function VideoUpscaler {
             }
 
             if ($allChunksExist) {
-                $chunks | ForEach-Object { "file '$($_.OutputFile)'" } | Set-Content $concatListFile
+                $chunks | ForEach-Object { "file '$($_.OutputFile)'" } | Set-Content -LiteralPath $concatListFile
 
                 $originalAudio = & $Dep.ffprobe -v error -i "$VideoPath" -select_streams a -show_streams -of json
                 $hasOriginalAudio = -not [string]::IsNullOrEmpty($originalAudio)
@@ -474,15 +476,15 @@ function VideoUpscaler {
     # -------- 清理工作目錄 --------
     if ($completedSteps.ContainsKey("最終合併完成")) {
         Write-Host "已清理所有工作檔案。"
-        Remove-Item $workDir -Recurse -Force
+        Remove-Item -LiteralPath $workDir -Recurse -Force
         Read-Host "Enter 離開..."
     }
 }
 
 # --- 使用範例 ---
 VideoUpscaler `
-    -VideoPath "R:\Test-1.mp4" `
-    -TargetFPS 0 `
+    -VideoPath "" `
+    -TargetFPS 30 `
     -UpscaleFactor 2 `
     -OutputFormat "mp4" `
     -ProcessFormat "png" `
