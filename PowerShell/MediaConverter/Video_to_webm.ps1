@@ -1,4 +1,4 @@
-# ? 搭配本地 ffmpeg 使用
+# ? 搭配本地 ffmpeg full 版本使用
 
 function StartConvert {
     $inputPath = $null
