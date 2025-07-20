@@ -16,6 +16,7 @@ function StartConvert {
     }
 
     $jobs = @()
+    $errorOccurred = $false
     $maxThreads = [Environment]::ProcessorCount - 1
 
     $runspacePool = [runspacefactory]::CreateRunspacePool(1, $maxThreads)
@@ -31,25 +32,40 @@ function StartConvert {
         $outputFile = "$($_.DirectoryName)\$($_.BaseName).webp"
         $isGif = $_.Extension -ieq ".gif"
 
-        # 開啟新的 runspace
+        # 建立一個新的 Runspace
         $runspace = [powershell]::Create()
         $runspace.RunspacePool = $runspacePool
 
         $runspace.AddScript({
                 param($inputFile, $outputFile, $isGif)
 
+                $ErrorMessage = ""
+                $ffmpegOutput = ""
+                $ErrorOccurred = $false
+
                 if ($isGif) {
-                    ffmpeg -i "$inputFile" -loop 0 -c:v libwebp_anim -q:v 90 -compression_level 6 -preset drawing -threads 0 -vf "deband,nlmeans=s=1.0,unsharp=3:3:0.4:3:3:0" -pix_fmt yuva444p -an -map_metadata -1 "$outputFile" -y
+                    $ffmpegOutput = ffmpeg -i "$inputFile" -loop 0 -c:v libwebp_anim -q:v 90 -compression_level 6 -preset drawing -threads 0 -vf "deband,nlmeans=s=1.0,unsharp=3:3:0.4:3:3:0" -pix_fmt yuva444p -an -map_metadata -1 "$outputFile" -y 2>&1
                 }
                 else {
-                    ffmpeg -i "$inputFile" -c:v libwebp -q:v 90 -compression_level 6 -preset drawing -threads 0 -vf "deband,unsharp=3:3:0.4:3:3:0" -pix_fmt yuva444p -an -map_metadata -1 "$outputFile" -y
+                    $ffmpegOutput = ffmpeg -v error -i "$inputFile" -c:v libwebp -q:v 90 -compression_level 6 -preset drawing -threads 0 -vf "deband,unsharp=3:3:0.4:3:3:0" -pix_fmt yuva444p -an -map_metadata -1 "$outputFile" -y 2>&1
+                }
+
+                if ($LASTEXITCODE -ne 0) {
+                    $ErrorOccurred = $true
+                    $ErrorMessage = $ffmpegOutput
+                }
+
+                return [PSCustomObject]@{
+                    Success     = -not $ErrorOccurred
+                    InputFile   = $inputFile
+                    OutputFile  = $outputFile
+                    Error       = $ErrorMessage
                 }
             }).AddArgument($inputFile).AddArgument($outputFile).AddArgument($isGif)
 
         try {
             $jobs += [PSCustomObject]@{
                 Runspace    = $runspace
-                InputFile   = $inputFile
                 AsyncResult = $runspace.BeginInvoke()
             }
         }
@@ -60,22 +76,40 @@ function StartConvert {
 
     # 等待所有工作完成
     foreach ($job in $jobs) {
-        $job.Runspace.EndInvoke($job.AsyncResult)
-        $job.Runspace.Dispose()
+        $result = $job.Runspace.EndInvoke($job.AsyncResult)
 
         # 如果有載入 webp 格式圖片, 那麼就不能刪除, 這會導致全部為空
         try {
-            Remove-Item -LiteralPath $job.InputFile -Force
+            if ($result.Success) {
+                try {
+                    if (-not $result.InputFile.EndsWith('.webp', [System.StringComparison]::OrdinalIgnoreCase)) {
+                        Remove-Item -LiteralPath $result.InputFile -Force -ErrorAction Stop
+                    }
+                }
+                catch {
+                    $errorOccurred = $true
+                    Write-Warning "$($result.InputFile) Delete Failed: $_"
+                }
+            }else {
+                $errorOccurred = $true
+                Write-Error "Error File: $($result.InputFile)`nError Message: $($result.Error)"
+            }
         }
         catch {
-            Write-Warning "Remove Failed： $($job.InputFile)"
+            $errorOccurred = $true
+            Write-Error "Task Failed： $($result.InputFile)"
+        } finally {
+            $job.Runspace.Dispose()
         }
     }
 
     $runspacePool.Close()
     $runspacePool.Dispose()
 
-    Clear-Host
+    if (-not $errorOccurred) {
+        Clear-Host
+    }
+
     StartConvert
 }
 
