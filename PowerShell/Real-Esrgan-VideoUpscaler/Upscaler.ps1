@@ -70,7 +70,7 @@ function VideoUpscaler {
 
     # 預設位元率較高 (因為可能有 3D 動畫之類的)
     $nvencRules = @{
-        720  = @("-b:v", "7000k",  "-maxrate", "10000k", "-cq", "22")
+        720  = @("-b:v", "7000k", "-maxrate", "10000k", "-cq", "22")
         1080 = @("-b:v", "12000k", "-maxrate", "15000k", "-cq", "21")
         1440 = @("-b:v", "20000k", "-maxrate", "25000k", "-cq", "20")
         2160 = @("-b:v", "30000k", "-maxrate", "40000k", "-cq", "19")
@@ -121,9 +121,15 @@ function VideoUpscaler {
     
     # 輔助函式：記錄已完成的步驟到日誌
     function WriteProgressLog {
-        param([string]$Step)
-        Add-Content -LiteralPath $logFile -Value $Step
-        $completedSteps[$Step] = $true
+        param([string]$message, [string]$step, [boolean]$print = $true)
+
+        if ($LASTEXITCODE -ne 0) {
+            if ($print) { Write-Host $message -ForegroundColor Red }
+            return
+        }
+
+        Add-Content -LiteralPath $logFile -Value $step
+        $completedSteps[$step] = $true
     }
 
     $chunks = @()
@@ -156,8 +162,6 @@ function VideoUpscaler {
     $chunksCount = $chunks.Count
     $TargetFPS = $TargetFPS -gt $fps ? $TargetFPS : $fps
 
-    $resolution = & $Gen.GetResolution $height
-
     $srmdProcess = $srmdRules[(& $Gen.GetResolution $height)] # 這邊是取用當前畫質判斷是否需要預處理
     $fpsModels = $fpsModelRules[2] | Where-Object { $Dep.rifeModelList[$_] }
     $upscaleModels = $upscaleModelRules[$UpscaleFactor] | Where-Object { $Dep.realesrganModelList[$_] }
@@ -185,14 +189,14 @@ function VideoUpscaler {
             "媒體資訊" = @{
                 "寬度"  = $width
                 "高度"  = $height
-                "FPS"  = $fps
+                "FPS" = $fps
                 "總時長" = $totalDuration
                 "總幀數" = $totalFrames
             }
             "輸出配置" = @{
                 "媒體路徑"  = $VideoPath
                 "放大倍率"  = $UpscaleFactor
-                "目標FPS"  = $TargetFPS
+                "目標FPS" = $TargetFPS
                 "輸出畫質"  = $scaled
                 "輸出幀數"  = $fillerFrame
                 "輸出格式"  = $OutputFormat
@@ -255,8 +259,8 @@ function VideoUpscaler {
                 $ffmpegParams += @('-q:v', 1)
             }
 
-            & $Dep.ffmpeg $ffmpegParams
-            WriteProgressLog $step_extract
+            $message = & $Dep.ffmpeg $ffmpegParams 2>&1
+            WriteProgressLog $message $step_extract
         }
         else { Write-Host "--> 步驟 1/5: 幀提取 (完成跳過)" -ForegroundColor Gray }
 
@@ -392,24 +396,26 @@ function VideoUpscaler {
             # 設置縮放參數
             $baseVf = if ($reduce) {
                 "scale=$($reduce):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($reduce):(ow-iw)/2:(oh-ih)/2:black,fps=$TargetFPS"
-            } else {
+            }
+            else {
                 "scale=$($scaled):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($scaled):(ow-iw)/2:(oh-ih)/2:black,fps=$TargetFPS"
             }
 
             $imageInputPath = Join-Path $currentCachePath "%0$($imgFormat)d.$processFormat"
             if (Get-ChildItem -LiteralPath $currentCachePath -Filter "*.$processFormat" | Select-Object -First 1) {
                 Write-Host "--> 步驟 5/5: 合併分段影片"
+                $message = ""
 
                 if ($chunksCount -eq 1) {
                     # 只有一個分段，合併原始音訊 (一個分段時有損壓縮)
-                    & $Dep.ffmpeg -v error -framerate $TargetFPS -start_number 0 -i "$imageInputPath" -i "$VideoPath" -vf "$baseVf,$vfUnsharp" @outputQuality -map 0:v:0 -map 1:a:0 -c:a copy $($chunk.OutputFile) -y
+                    $message = & $Dep.ffmpeg -v error -framerate $TargetFPS -start_number 0 -i "$imageInputPath" -i "$VideoPath" -vf "$baseVf,$vfUnsharp" @outputQuality -map 0:v:0 -map 1:a:0 -c:a copy $($chunk.OutputFile) -y 2>&1
                 }
                 else {
                     # 有多個分段，暫不合併音訊 (分段時無損壓縮)
-                    & $Dep.ffmpeg -v error -framerate $TargetFPS -start_number 0 -i "$imageInputPath" -vf "$baseVf" @losslessQuality -an $($chunk.OutputFile) -y
+                    $message = & $Dep.ffmpeg -v error -framerate $TargetFPS -start_number 0 -i "$imageInputPath" -vf "$baseVf" @losslessQuality -an $($chunk.OutputFile) -y 2>&1
                 }
 
-                WriteProgressLog $step_merge_chunk
+                WriteProgressLog $message $step_merge_chunk
             }
             else { Write-Host "合併錯誤: 在 $currentCachePath 中找不到圖片序列" -ForegroundColor Red; continue }
         }
@@ -477,14 +483,18 @@ function VideoUpscaler {
                 }
 
                 try {
+                    $message = ""
                     if ($hasOriginalAudio) {
-                        & $Dep.ffmpeg @inputFlags -f concat -safe 0 -i $concatListFile -i "$VideoPath" -vf "$vfUnsharp" @outputQuality -map 0:v:0 -map 1:a:0 -c:a copy "$upscaled_Path" -y
+                        $message = & $Dep.ffmpeg @inputFlags -f concat -safe 0 -i $concatListFile -i "$VideoPath" -vf "$vfUnsharp" @outputQuality -map 0:v:0 -map 1:a:0 -c:a copy "$upscaled_Path" -y 2>&1
                     }
                     else {
-                        & $Dep.ffmpeg @inputFlags -f concat -safe 0 -i $concatListFile -vf "$vfUnsharp" @outputQuality -an "$upscaled_Path" -y
+                        $message = & $Dep.ffmpeg @inputFlags -f concat -safe 0 -i $concatListFile -vf "$vfUnsharp" @outputQuality -an "$upscaled_Path" -y 2>&1
                     }
+
+                    WriteProgressLog $message $step_final_merge $false
+                    if ($LASTEXITCODE -ne 0) { throw $message }
+
                     Write-Host "影片合併成功: $upscaled_Path" -ForegroundColor Cyan
-                    WriteProgressLog $step_final_merge
                 }
                 catch {
                     Write-Host "最終合併失敗: $_" -ForegroundColor Red
@@ -504,7 +514,7 @@ function VideoUpscaler {
 
 # --- 使用範例 ---
 VideoUpscaler `
-    -VideoPath "" `
+    -VideoPath "R:\Test-1.mp4" `
     -TargetFPS 0 `
     -UpscaleFactor 2 `
     -OutputFormat "mp4" `
@@ -512,4 +522,4 @@ VideoUpscaler `
     -CustomCacheDir "" `
     -CustomResolution "1920x1080" `
     -FastOutput $true `
-    -ChunkDuration 20
+    -ChunkDuration 15
