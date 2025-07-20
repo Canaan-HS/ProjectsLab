@@ -42,7 +42,7 @@ function StartConvert {
                 $ffmpegOutput = ""
                 $ErrorOccurred = $false
 
-                $ffmpegOutput = ffmpeg -hwaccel cuda -i "$inputFile" -map 0:v -map 0:a? -c:v libaom-av1 -crf 23 -cpu-used 4 -row-mt 1 -tune-content animation -vf "deband,unsharp=5:5:0.7:5:5:0,eq=contrast=1.05:saturation=1.1" -c:a libopus -b:a 320k "$outputFile" -y 2>&1
+                $ffmpegOutput = ffmpeg -hwaccel cuda -i "$inputFile" -map 0:v -map 0:a? -c:v libsvtav1 -crf 23 -preset 7 -svtav1-params "tune=0" -vf "deband,unsharp=5:5:0.7:5:5:0,eq=contrast=1.05:saturation=1.1" -c:a libopus -b:a 320k "$outputFile" -y 2>&1
 
                 if ($LASTEXITCODE -ne 0) {
                     $ErrorOccurred = $true
