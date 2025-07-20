@@ -85,7 +85,7 @@ function StartConvert {
                 }
             }else {
                 $errorOccurred = $true
-                Write-Error "Error File: $($result.InputFile)`nError Message: $($result.Error)"
+                Write-Error "Error File: $($result.InputFile) | Error Message: $($result.Error)"
             }
         }
         catch {
