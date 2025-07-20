@@ -47,7 +47,7 @@ function VideoUpscaler {
         [string]$ProcessFormat = "png", # 處理的緩存圖片格式
         [string]$CustomResolution = $null, # 自定輸出解析度
         [boolean]$FastOutput = $true, # 快速輸出 [慢速壓縮率較高]
-        [int]$ChunkDuration = 30 # 分段處理的時長（秒），0 為不分段
+        [int]$ChunkDuration = 15 # 分段處理的時長（秒），0 為不分段
     )
 
     if (-not(Test-Path -LiteralPath $VideoPath)) {
@@ -142,6 +142,8 @@ function VideoUpscaler {
     $fpsModels = $fpsModelRules[2] | Where-Object { $Dep.rifeModelList[$_] }
     $upscaleModels = $upscaleModelRules[$UpscaleFactor] | Where-Object { $Dep.realesrganModelList[$_] }
 
+    $vfUnsharp = "deband,unsharp=3:3:0.4:3:3:0.0"
+
     $outputQuality = if ($FastOutput) {
         @("-c:v", "hevc_nvenc", "-profile:v", "main10", "-preset", "p7", "-rc", "vbr", "-cq", "22", "-qmin", "0", "-rc-lookahead", "32", "-spatial-aq", "1", "-pix_fmt", "p010le")
     }
@@ -188,7 +190,7 @@ function VideoUpscaler {
             continue
         }
 
-        Write-Host "`n===== 處理開始 [$($chunk.Index) - $($chunksCount)] (段落時間: $($chunk.StartTime)) =====>`n"
+        Write-Host "`n===== 段落 [$($chunk.Index + 1)/$($chunksCount)] 處理開始 (段落時間: $($chunk.StartTime)) =====>`n"
         $cachePath = Join-Path $workDir "cache_$($chunk.Index)"
         $currentCachePath = $cachePath # 該路徑在RIFE處理後會更新
         New-Item -ItemType Directory -Path $cachePath -Force | Out-Null
@@ -229,7 +231,7 @@ function VideoUpscaler {
         else { Write-Host "--> 步驟 1/5: 幀提取 (完成跳過)" -ForegroundColor Gray }
 
         # 2. 預處理 (SRMD)
-        $step_srmd = "$chu成"
+        $step_srmd = "$chunkId`_SRMD_預處理完成"
         if ($srmdProcess -and (-not $completedSteps.ContainsKey($step_srmd))) {
             if (Test-Path $cachePath -PathType Container) {
                 Write-Host "--> 步驟 2/5: 預處理 (SRMD)"
@@ -285,7 +287,7 @@ function VideoUpscaler {
         if (-not $completedSteps.ContainsKey($step_merge_chunk)) {
             # 組合包含銳化等效果的濾鏡鏈
             $baseVf = if ($reduce) { "scale=$reduce,fps=$fps" } else { "scale=$scaled,fps=$fps" }
-            $vfConfig = "$baseVf,deband,unsharp=3:3:0.4:3:3:0.0"
+            $vfConfig = "$baseVf,$vfUnsharp"
 
             $imageInputPath = Join-Path $currentCachePath "%0$($imgFormat)d.$processFormat"
             if (Get-ChildItem -Path $currentCachePath -Filter "*.$processFormat" | Select-Object -First 1) {
@@ -310,7 +312,7 @@ function VideoUpscaler {
         if ($completedSteps.ContainsKey("$chunkId`_合併完成")) {
             Remove-Item $cachePath -Recurse -Force -ErrorAction SilentlyContinue
             Remove-Item "$cachePath-fps" -Recurse -Force -ErrorAction SilentlyContinue
-            Write-Host "段落 [$($chunk.Index) - $($chunksCount)] 完成清理。" -ForegroundColor Green
+            Write-Host "段落 [$($chunk.Index + 1)/$($chunksCount)] 完成清理。" -ForegroundColor Green
         }
     }
 
@@ -357,7 +359,7 @@ function VideoUpscaler {
             if ($allChunksExist) {
                 $chunks | ForEach-Object { "file '$($_.OutputFile)'" } | Set-Content $concatListFile
 
-                $vfConfig = "scale=$($scaled):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($scaled):(ow-iw)/2:(oh-ih)/2:black,deband,unsharp=3:3:0.4:3:3:0.0"
+                $vfConfig = "scale=$($scaled):force_original_aspect_ratio=decrease:flags=lanczos,pad=$($scaled):(ow-iw)/2:(oh-ih)/2:black,$vfUnsharp"
 
                 $originalAudio = & $Dep.ffprobe -v error -i "$VideoPath" -select_streams a -show_streams -of json
                 $hasOriginalAudio = -not [string]::IsNullOrEmpty($originalAudio)
