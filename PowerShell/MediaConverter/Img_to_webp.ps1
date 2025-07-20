@@ -44,7 +44,7 @@ function StartConvert {
                 $ErrorOccurred = $false
 
                 if ($isGif) {
-                    $ffmpegOutput = ffmpeg -i "$inputFile" -loop 0 -c:v libwebp_anim -q:v 90 -compression_level 6 -preset drawing -threads 0 -vf "deband,nlmeans=s=1.0,unsharp=3:3:0.4:3:3:0" -pix_fmt yuva444p -an -map_metadata -1 "$outputFile" -y 2>&1
+                    $ffmpegOutput = ffmpeg -v error -i "$inputFile" -loop 0 -c:v libwebp_anim -q:v 90 -compression_level 6 -preset drawing -threads 0 -vf "deband,nlmeans=s=1.0,unsharp=3:3:0.4:3:3:0" -pix_fmt yuva444p -an -map_metadata -1 "$outputFile" -y 2>&1
                 }
                 else {
                     $ffmpegOutput = ffmpeg -v error -i "$inputFile" -c:v libwebp -q:v 90 -compression_level 6 -preset drawing -threads 0 -vf "deband,unsharp=3:3:0.4:3:3:0" -pix_fmt yuva444p -an -map_metadata -1 "$outputFile" -y 2>&1
@@ -91,7 +91,7 @@ function StartConvert {
                 }
             }else {
                 $errorOccurred = $true
-                Write-Error "Error File: $($result.InputFile)`nError Message: $($result.Error)"
+                Write-Error "Error File: $($result.InputFile) | Error Message: $($result.Error)"
             }
         }
         catch {
