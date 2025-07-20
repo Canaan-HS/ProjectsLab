@@ -5,12 +5,11 @@ function Generator {
     )
 
     return @{
-        # 取得緩存路徑名稱 (影片路徑, 放大倍率, FPS, 哈希值字元數)
+        # 取得緩存路徑名稱 (緩存路徑, 檔案名稱, 放大倍率, FPS, 哈希值字數)
         GetCachePath = {
-            param ([string]$path, [int]$scaleFactor=2, [int]$fps=24, [int]$byte = 20)
+            param ([string]$path, [string]$fileName, [int]$scaleFactor=2, [int]$fps=24, [int]$byte = 20)
 
-            $parent = Split-Path -LiteralPath $path
-            $name = [System.IO.Path]::GetFileNameWithoutExtension("$path+$scaleFactor+$fps")
+            $name = [System.IO.Path]::GetFileNameWithoutExtension("$fileName+$scaleFactor+$fps")
 
             $md5 = [System.Security.Cryptography.MD5]::Create()
             $fileBytes = [System.Text.Encoding]::UTF8.GetBytes($name)
@@ -19,7 +18,7 @@ function Generator {
             $lowerHash = $hashString.ToLower()
 
             $fielHash = $lowerHash.Substring(0, [System.Math]::Min($byte, $lowerHash.Length))
-            return "$parent\Cache-$fielHash"
+            return (Join-Path $path "Cache-$fielHash")
         }
 
         # 取得最接近的標準解析度 (原始寬度, 原始高度)
