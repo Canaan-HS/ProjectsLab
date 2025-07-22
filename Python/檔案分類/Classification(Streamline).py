@@ -8,13 +8,15 @@ from collections import Counter
 import progressbar
 from rich.console import Console
 
+from utils import Restore_RPG, VALID_EXTENSIONS
+
 """ Versions 1.0.3 - V2
 
     Todo - 精簡版檔案類型分類
 
         ? (開發/運行環境):
-        * Windows 11 23H2
-        * Python 3.12.9 64-bit
+        * Windows 11 24H2
+        * Python 3.13.5 64-bit
 
         * 第三方庫:
         * rich
@@ -110,7 +112,7 @@ class Output:
     def __init__(self):
         # 將變數都用這種方式初始化, 雖然不是很好 (難以單獨測試), 但是可以讓代碼看起來更整潔
         self.Auto_Open = None
-        self.Task_Mode = None
+        self.Task_Work = None
         self.Attach_Source = None
 
         self.Save_Path = None
@@ -151,7 +153,7 @@ class Output:
                         Record_Output.add(Output_Path)
 
                 # 執行實際任務
-                self.Task_Mode(Copy_Path, Output_Path)
+                self.Task_Work(Copy_Path, Output_Path)
 
                 # 更新進度條
                 bar.update(Index + 1)
@@ -182,6 +184,7 @@ class TypeSelection(Read, Output):
         self.Task_List = None
         self.Repeat_Task = None
         self.Type_Folder = None
+        self.Copy_Mode = True
 
     # 選擇輸出類型
     def __Choose(self, Select: None):
@@ -202,6 +205,24 @@ class TypeSelection(Read, Output):
                     Selected = Type
 
                     print(f"你選擇了 : {Type}\n", style="bold green")
+
+                    # 檢查是否為 RPG Maker 加密圖片類型
+                    if f".{Type.lower()}" in VALID_EXTENSIONS:
+
+                        def rpg_restore_task(source_path, output_path):
+                            # 將輸出的副檔名強制變更為 .png
+                            output_path_base, _ = os.path.splitext(output_path)
+                            png_output_path = output_path_base + ".png"
+
+                            # 執行還原任務
+                            Restore_RPG(
+                                input_path=source_path,
+                                output_path=png_output_path,
+                                delete_original=not self.Copy_Mode,  # 如果不是複製模式，就刪除原始檔案
+                            )
+
+                        # 將任務切換為 RPG 圖片還原
+                        self.Task_Work = rpg_restore_task
 
                     # 根據選擇類型, 取出完整數據中符合該副檔名的文件
                     self.Output_Data = [
@@ -246,11 +267,12 @@ class TypeSelection(Read, Output):
         """
 
         # 賦予數據
+        self.Copy_Mode = Copy
         self.Auto_Open = SaveOpen
         self.Repeat_Task = Repeat
         self.Attach_Source = AddSource
         self.Type_Folder = CreateTypeFolder
-        self.Task_Mode = self.Copy_Output if Copy else self.Move_Output  # 選擇任務模式
+        self.Task_Work = self.Copy_Output if self.Copy_Mode else self.Move_Output  # 選擇任務模式
 
         while True:
             Default_Choose = None  # 預設選擇類型
