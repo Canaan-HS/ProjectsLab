@@ -1,6 +1,5 @@
 import os
 import shutil
-import threading
 import tkinter as tk
 from tkinter import filedialog
 from operator import itemgetter
@@ -123,44 +122,39 @@ class Output:
 
     # 複製處理
     def __Process_Task(self):
-        Work_State = []
         Record_Output = set()  # 用於紀錄已輸出的文件, 避免重複輸出
+        Task_Size = len(self.Output_Data)
 
-        for Copy_Path in self.Output_Data:
-
-            # 將檔案路徑的, 上一層資料夾, 與檔名分離出來, 組成輸出路徑
-            Output_Path = ""
-            Convert = Copy_Path.split("/")
-
-            if self.Attach_Source:
-                Output_Path = f"{self.Save_Path}/[{Convert[-2]}] {Convert[-1]}"
-            else:
-                Output_Path = f"{self.Save_Path}/{Convert[-1]}"
-
-                # 當沒有設置來源時, 進行重複檢查, 重複的自動添加來源
-                if Output_Path in Record_Output:
-                    Output_Path = f"{self.Save_Path}/{Convert[-2]}_{Convert[-1]}"
-                else:
-                    Record_Output.add(Output_Path)
-
-            # 輸出工作
-            Work = threading.Thread(target=self.Task_Mode, args=(Copy_Path, Output_Path))
-            Work_State.append(Work)
-            Work.start()
-
-        WorkLoad = len(Work_State)
-        Progress_Bar = [  # 進度條樣式配置
+        Progress_Bar = [
             " ",
             progressbar.Bar(marker="■", left="[", right="]"),
             " ",
             progressbar.Counter(),
-            f"/{WorkLoad}",
+            f"/{Task_Size}",
         ]
 
-        with progressbar.ProgressBar(widgets=Progress_Bar, max_value=WorkLoad) as bar:
-            for Index, Working in enumerate(Work_State):
-                bar.update(Index)
-                Working.join()
+        with progressbar.ProgressBar(widgets=Progress_Bar, max_value=Task_Size) as bar:
+            for Index, Copy_Path in enumerate(self.Output_Data):
+
+                # 將檔案路徑的, 上一層資料夾, 與檔名分離出來, 組成輸出路徑
+                Convert = Copy_Path.split("/")
+
+                if self.Attach_Source:
+                    Output_Path = f"{self.Save_Path}/[{Convert[-2]}] {Convert[-1]}"
+                else:
+                    Output_Path = f"{self.Save_Path}/{Convert[-1]}"
+
+                    # 當沒有設置來源時, 進行重複檢查, 重複的自動添加來源
+                    if Output_Path in Record_Output:
+                        Output_Path = f"{self.Save_Path}/{Convert[-2]}_{Convert[-1]}"
+                    else:
+                        Record_Output.add(Output_Path)
+
+                # 執行實際任務
+                self.Task_Mode(Copy_Path, Output_Path)
+
+                # 更新進度條
+                bar.update(Index + 1)
 
         # 開啟存檔位置
         self.Auto_Open and os.startfile(self.Save_Path)
@@ -196,7 +190,6 @@ class TypeSelection(Read, Output):
         # ! 使用 Repeat_Task 如果不是複製文件, 就不要選擇已經操作過的類型, 因為沒有根據選擇清理 Task_List, 重新選擇可能會導致找不到文件報錯
         while True:
             try:
-                Selected = None
                 SelectCode = Select or int(input("\n選擇輸出類型 (代號) : "))
 
                 if SelectCode == 0:
