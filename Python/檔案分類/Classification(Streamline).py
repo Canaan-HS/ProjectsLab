@@ -13,7 +13,7 @@ from rich.console import Console
 
 from utils import Restore_RPG, MAX_WORKERS, VALID_EXTENSIONS
 
-""" Versions 1.0.3 - V2
+""" Versions 1.0.4 - V2
 
     Todo - 精簡版檔案類型分類
 
@@ -22,8 +22,11 @@ from utils import Restore_RPG, MAX_WORKERS, VALID_EXTENSIONS
         * Python 3.13.5 64-bit
 
         * 第三方庫:
-        * rich
+        * tqdm
         * progressbar
+
+        * 個人模塊:
+        * utils
 
         ? 使用說明:
         * 運行前可調整 Select() 的參數, 參數說明於下方函數
