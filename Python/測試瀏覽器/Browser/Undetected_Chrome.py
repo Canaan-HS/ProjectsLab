@@ -46,6 +46,7 @@ class TestBrowser:
 
     def Options(self):
         self.Chrome.add_argument("--incognito")
+        self.Chrome.add_argument("--lang=en-US")
         self.Chrome.add_argument("--log-level=3")
         self.Chrome.add_argument("--no-first-run")
         self.Chrome.add_argument("--start-maximized")
