@@ -45,13 +45,11 @@ class TestBrowser:
         )
 
     def Options(self):
-        self.Chrome.add_argument("--incognito")
         self.Chrome.add_argument("--lang=en-US")
         self.Chrome.add_argument("--log-level=3")
         self.Chrome.add_argument("--no-first-run")
         self.Chrome.add_argument("--start-maximized")
         self.Chrome.add_argument("--disable-infobars")
-        self.Chrome.add_argument("--disable-extensions")
         self.Chrome.add_argument("--no-service-autorun")
         self.Chrome.add_argument("--disable-file-system")
         self.Chrome.add_argument("--disable-geolocation")
