@@ -489,7 +489,7 @@ class Hoyoverse:
         Genshin = self.Hoyo_Login_Confirm(
             8,
             "Genshin",
-            "https://genshin.hoyoverse.com/zh-tw/gift",
+            "https://genshin.hoyoverse.com/gift",
             "//span[@class='cdkey__user-btn']",
         )
 
