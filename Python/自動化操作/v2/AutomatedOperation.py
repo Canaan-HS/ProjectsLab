@@ -1,17 +1,22 @@
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By
-from Script import paramet, DO, DI
-from selenium import webdriver
-from bs4 import BeautifulSoup
-from datetime import datetime
-import threading
-import string
-import random
-import math
-import time
 import os
+import time
+import math
+import random
+import string
+import threading
+
+from datetime import datetime
+
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import ElementClickInterceptedException
+
+from Script import paramet, DO, DI
 
 
 class JKF:
@@ -271,7 +276,8 @@ class EHentai:
             const allow = new Set(["igneous", "ipb_member_id", "ipb_pass_hash"]);
 
             window.addEventListener("keydown", event => {
-                if (event.altKey && event.key.toLowerCase() == "g") {
+                /* ALT + Q */
+                if (event.altKey && event.key.toLowerCase() === "q") {
                     event.preventDefault();
 
                     const cookieDict = document.cookie.split("; ").reduce((acc, cookie) => {
@@ -343,17 +349,30 @@ class EHentai:
 
         return merge
 
-    def send_operate(self, Input, Xpath):
-        user = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, Xpath)))
-        user.click()
-        time.sleep(self.delay())
-        user.send_keys(Input)
+    # ! 網站變更後, 不太穩定
+    def send_operate(self, Xpath, Input=None):
+        state = False
+        element = WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, Xpath))
+        )
+        try:
+            ActionChains(self.driver).move_to_element(element).click().perform()
+            state = True
+        except ElementClickInterceptedException:
+            self.driver.execute_script("arguments[0].click();", element)
+            state = True
+        except:
+            self.driver.quit()
+
+        if Input is not None and state:
+            time.sleep(self.delay())
+            element.send_keys(Input)
 
     def Regist(self, Save: str):
         """
         Save 設置註冊紀錄的路徑
         """
-        self.start("https://forums.e-hentai.org/index.php?act=Reg&CODE=00")
+        self.start("https://forums.e-hentai.org/index.php?act=Reg")
 
         agree = WebDriverWait(self.driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//input[@id='agree_cbox']"))
@@ -369,31 +388,28 @@ class EHentai:
         # 取得名稱
         name = self.generator()
         # 登入名稱
-        self.send_operate(name, "//input[@id='reg-name']")
+        self.send_operate("//input[@id='reg-name']", name)
         # 顯示名稱
-        self.send_operate(name, "//input[@id='reg-members-display-name']")
+        self.send_operate("//input[@id='reg-members-display-name']", name)
 
         # 取得密碼
         password = self.generator()
         # 密碼
-        self.send_operate(password, "//input[@id='reg-password']")
+        self.send_operate("//input[@id='reg-password']", password)
         # 確認密碼
-        self.send_operate(password, "//input[@id='reg-password-check']")
+        self.send_operate("//input[@id='reg-password-check']", password)
 
         # 取得信箱
         mail = self.generator("mail")
         # 郵件
-        self.send_operate(mail, "//input[@id='reg-emailaddress']")
+        self.send_operate("//input[@id='reg-emailaddress']", mail)
         # 確認郵件
-        self.send_operate(mail, "//input[@id='reg-emailaddress-two']")
+        self.send_operate("//input[@id='reg-emailaddress-two']", mail)
 
         input("自行輸入安全碼後確認 : ")
 
         # 提交註冊
-        submit = WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//input[@type='submit']"))
-        )
-        submit.click()
+        self.send_operate("//input[@type='submit']")
 
         DO.json_record(
             Save,
@@ -422,21 +438,16 @@ class EHentai:
         """
 
         # https://e-hentai.org/ 登入
-        self.start("https://e-hentai.org/bounce_login.php?b=d&bt=1-1")
+        self.start("https://e-hentai.org/bounce_login.php")
 
         if bool(Account):
             account = Account.get("account", None)
             password = Account.get("password", None)
 
             if account and password:
-                self.send_operate(account, "//input[@name='UserName']")
-                self.send_operate(password, "//input[@name='PassWord']")
-
-                # input("機器人驗證 : ")
-                submit = WebDriverWait(self.driver, 10).until(
-                    EC.element_to_be_clickable((By.XPATH, "//input[@name='ipb_login_submit']"))
-                )
-                submit.click()
+                self.send_operate("//input[@name='UserName']", account)
+                self.send_operate("//input[@name='PassWord']", password)
+                self.send_operate("//input[@name='ipb_login_submit']")  # 登入
             else:
                 print("輸入正確的對應值: {'account': '', 'password': ''}")
                 self.driver.quit()
