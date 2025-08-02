@@ -83,7 +83,6 @@ class Parameters:
             self.Settings.add_argument("--headless")
         if userdata == "":
             userdata = DI.get_website_data(value)
-        self.Settings.add_argument("--incognito")
         self.Settings.add_argument("--lang=en-US")
         self.Settings.add_argument("--log-level=3")
         self.Settings.add_argument("--start-maximized")
