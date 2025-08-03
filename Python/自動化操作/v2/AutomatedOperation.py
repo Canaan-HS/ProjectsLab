@@ -14,7 +14,11 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import ElementClickInterceptedException
+from selenium.common.exceptions import (
+    WebDriverException,
+    ElementClickInterceptedException,
+    TimeoutException,
+)
 
 from Script import paramet, DO, DI
 
@@ -266,7 +270,9 @@ class EHentai:
     def __init__(self):
         self.driver = None
         self.cache = r"R:\EHentaiCache"
-        self.delay = lambda: round(random.uniform(1.1, 2.2), 1)
+        self.delay = lambda: (
+            max(1.0, random.gauss(1.6, 0.3)) if random.random() < 0.60 else random.uniform(0.8, 1.5)
+        )
         self.generate_str = string.digits + string.ascii_letters
         self.clearcache = lambda: os.system(f"rd /s /q {self.cache}")
 
@@ -330,8 +336,11 @@ class EHentai:
                     pass
 
                 time.sleep(3)
-        except Exception as e:  # 這邊很奇怪, 上面 quit 會直接跳例外
+        except WebDriverException:
+            pass
+        except Exception as e:
             print("資訊: ", e)
+        finally:
             self.driver.quit()
             self.clearcache()
             print("清除")
@@ -349,8 +358,8 @@ class EHentai:
 
         return merge
 
-    # ! 網站變更後, 不太穩定
-    def send_operate(self, Xpath, Input=None):
+    # ! selenium 更新後, 不太穩定
+    def operate_xpath(self, Xpath, Input=None):
         state = False
         element = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located((By.XPATH, Xpath))
@@ -368,48 +377,67 @@ class EHentai:
             time.sleep(self.delay())
             element.send_keys(Input)
 
+    def operate_js(self, Selector, Input=None):
+        element = None
+
+        try:
+            element = WebDriverWait(self.driver, 15).until(
+                lambda d: d.execute_script(f"return {Selector}")
+            )
+        except TimeoutException:
+            self.driver.quit()
+
+        try:
+            self.driver.execute_script("arguments[0].click();", element)
+
+            if Input is not None:
+                time.sleep(self.delay())  # 延遲一下, 避免被檢測
+                js_code = """
+                    const el = arguments[0];
+                    const value = arguments[1];
+                    el.value = value;
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                """
+                self.driver.execute_script(js_code, element, Input)
+
+        except Exception as e:
+            print(f"JS 操作失敗: {e}")
+            self.driver.quit()
+
     def Regist(self, Save: str):
         """
         Save 設置註冊紀錄的路徑
         """
         self.start("https://forums.e-hentai.org/index.php?act=Reg")
 
-        agree = WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//input[@id='agree_cbox']"))
-        )
-        agree.click()
-
-        register = WebDriverWait(self.driver, 5).until(
-            EC.element_to_be_clickable((By.XPATH, "//input[@value='Register']"))
-        )
-        time.sleep(self.delay())
-        register.click()
+        self.operate_js("document.getElementById('agree_cbox')")
+        self.operate_js("document.querySelector('input.button')")
 
         # 取得名稱
         name = self.generator()
         # 登入名稱
-        self.send_operate("//input[@id='reg-name']", name)
+        self.operate_js("document.getElementById('reg-name')", name)
         # 顯示名稱
-        self.send_operate("//input[@id='reg-members-display-name']", name)
+        self.operate_js("document.getElementById('reg-members-display-name')", name)
 
         # 取得密碼
         password = self.generator()
         # 密碼
-        self.send_operate("//input[@id='reg-password']", password)
+        self.operate_js("document.getElementById('reg-password')", password)
         # 確認密碼
-        self.send_operate("//input[@id='reg-password-check']", password)
+        self.operate_js("document.getElementById('reg-password-check')", password)
 
         # 取得信箱
         mail = self.generator("mail")
         # 郵件
-        self.send_operate("//input[@id='reg-emailaddress']", mail)
+        self.operate_js("document.getElementById('reg-emailaddress')", mail)
         # 確認郵件
-        self.send_operate("//input[@id='reg-emailaddress-two']", mail)
+        self.operate_js("document.getElementById('reg-emailaddress-two')", mail)
 
         input("自行輸入安全碼後確認 : ")
-
         # 提交註冊
-        self.send_operate("//input[@type='submit']")
+        self.operate_js("""document.querySelector("input[type='submit']")""")
 
         DO.json_record(
             Save,
@@ -437,17 +465,24 @@ class EHentai:
         JumpEx 自動跳轉到 Ex
         """
 
-        # https://e-hentai.org/ 登入
-        self.start("https://e-hentai.org/bounce_login.php")
+        login_url = "https://e-hentai.org/bounce_login.php"
+        self.start(login_url)
 
         if bool(Account):
             account = Account.get("account", None)
             password = Account.get("password", None)
 
             if account and password:
-                self.send_operate("//input[@name='UserName']", account)
-                self.send_operate("//input[@name='PassWord']", password)
-                self.send_operate("//input[@name='ipb_login_submit']")  # 登入
+                self.operate_js("""document.querySelector("input[name='UserName']")""", account)
+                self.operate_js("""document.querySelector("input[name='PassWord']")""", password)
+                self.operate_js("""document.querySelector("input[type='submit']")""")
+
+                # 等待登入跳轉
+                WebDriverWait(self.driver, 15).until(
+                    lambda driver: driver.current_url != login_url
+                )
+
+                self.driver.get("https://e-hentai.org/")
             else:
                 print("輸入正確的對應值: {'account': '', 'password': ''}")
                 self.driver.quit()
@@ -585,7 +620,7 @@ if __name__ == "__main__":
     # main.Regist("R:/")
 
     Account = DI.get_json(rf"{os.getcwd()}\Account.json")
-    User = Account["1"]
+    User = Account["6"]
     main.Login(Account={"account": User["account"], "password": User["password"]})
 
     # Cookie = DI.get_json(fr"{os.getcwd()}\EhCookie.json")
