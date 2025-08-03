@@ -1,14 +1,17 @@
 import os
 import shutil
+import threading
 import tkinter as tk
+
 from tkinter import filedialog
 from operator import itemgetter
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 
-import progressbar
+from tqdm import tqdm
 from rich.console import Console
 
-from utils import Restore_RPG, VALID_EXTENSIONS
+from utils import Restore_RPG, MAX_WORKERS, VALID_EXTENSIONS
 
 """ Versions 1.0.3 - V2
 
@@ -125,38 +128,33 @@ class Output:
     # 複製處理
     def __Process_Task(self):
         Record_Output = set()  # 用於紀錄已輸出的文件, 避免重複輸出
+        Lock = threading.Lock()  # 線程鎖
         Task_Size = len(self.Output_Data)
 
-        Progress_Bar = [
-            " ",
-            progressbar.Bar(marker="■", left="[", right="]"),
-            " ",
-            progressbar.Counter(),
-            f"/{Task_Size}",
-        ]
+        def Process_Start(Copy_Path):
+            Base_Name = os.path.basename(Copy_Path)
+            # 取得上一層資料夾名稱
+            Parent_Path = os.path.basename(os.path.dirname(Copy_Path))
 
-        with progressbar.ProgressBar(widgets=Progress_Bar, max_value=Task_Size) as bar:
-            for Index, Copy_Path in enumerate(self.Output_Data):
+            if self.Attach_Source:
+                Output_Path = os.path.join(self.Save_Path, f"[{Parent_Path}] {Base_Name}")
+            else:
+                Output_Path = os.path.join(self.Save_Path, Base_Name)
 
-                # 將檔案路徑的, 上一層資料夾, 與檔名分離出來, 組成輸出路徑
-                Convert = Copy_Path.split("/")
-
-                if self.Attach_Source:
-                    Output_Path = f"{self.Save_Path}/[{Convert[-2]}] {Convert[-1]}"
-                else:
-                    Output_Path = f"{self.Save_Path}/{Convert[-1]}"
-
-                    # 當沒有設置來源時, 進行重複檢查, 重複的自動添加來源
+                # 使用鎖來保護共享的 Record_Output
+                with Lock:
                     if Output_Path in Record_Output:
-                        Output_Path = f"{self.Save_Path}/{Convert[-2]}_{Convert[-1]}"
+                        # 當沒有設置來源時, 進行重複檢查, 重複的自動添加來源
+                        Output_Path = os.path.join(self.Save_Path, f"{Parent_Path}_{Base_Name}")
                     else:
+                        # 如果路徑不重複，使用它並記錄下來
                         Record_Output.add(Output_Path)
 
                 # 執行實際任務
                 self.Task_Work(Copy_Path, Output_Path)
 
-                # 更新進度條
-                bar.update(Index + 1)
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            list(tqdm(executor.map(Process_Start, self.Output_Data), total=Task_Size))
 
         # 開啟存檔位置
         self.Auto_Open and os.startfile(self.Save_Path)
@@ -167,7 +165,7 @@ class Output:
             if len(self.Output_Data) == 0 or self.Output_Data is None:
                 raise DataEmptyError()
 
-            os.mkdir(self.Save_Path)
+            os.mkdir(self.Save_Path)  # 創建輸出資料夾
             self.__Process_Task()
 
         except DataEmptyError:
@@ -209,7 +207,7 @@ class TypeSelection(Read, Output):
                     # 檢查是否為 RPG Maker 加密圖片類型
                     if f".{Type.lower()}" in VALID_EXTENSIONS:
 
-                        def rpg_restore_task(source_path, output_path):
+                        def Rpg_Restore_Task(source_path, output_path):
                             # 將輸出的副檔名強制變更為 .png
                             output_path_base, _ = os.path.splitext(output_path)
                             png_output_path = output_path_base + ".png"
@@ -222,7 +220,7 @@ class TypeSelection(Read, Output):
                             )
 
                         # 將任務切換為 RPG 圖片還原
-                        self.Task_Work = rpg_restore_task
+                        self.Task_Work = Rpg_Restore_Task
 
                     # 根據選擇類型, 取出完整數據中符合該副檔名的文件
                     self.Output_Data = [
