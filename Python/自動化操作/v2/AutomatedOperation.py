@@ -461,8 +461,6 @@ class EHentai:
 
         Cookie 傳入一個列表
         格式: [{"name": "ipb_member_id", "value": ""}, {"name": "ipb_pass_hash", "value": ""}]
-
-        JumpEx 自動跳轉到 Ex
         """
 
         login_url = "https://e-hentai.org/bounce_login.php"
@@ -478,9 +476,7 @@ class EHentai:
                 self.operate_js("""document.querySelector("input[type='submit']")""")
 
                 # 等待登入跳轉
-                WebDriverWait(self.driver, 15).until(
-                    lambda driver: driver.current_url != login_url
-                )
+                WebDriverWait(self.driver, 15).until(lambda driver: driver.current_url != login_url)
 
                 self.driver.get("https://e-hentai.org/")
             else:
@@ -491,9 +487,6 @@ class EHentai:
             for cookie in Cookie:
                 self.driver.add_cookie(cookie)
             self.driver.get("https://e-hentai.org/")
-
-        if JumpEx:
-            self.driver.get("https://exhentai.org/")
 
         threading.Thread(target=self.end).start()
 
@@ -619,8 +612,9 @@ if __name__ == "__main__":
     # ? 註冊 E-Hentai 與 登入
     # main.Regist("R:/")
 
+    # ALT + Q 擷取 Cookie
     Account = DI.get_json(rf"{os.getcwd()}\Account.json")
-    User = Account["6"]
+    User = Account["1"]
     main.Login(Account={"account": User["account"], "password": User["password"]})
 
     # Cookie = DI.get_json(fr"{os.getcwd()}\EhCookie.json")
