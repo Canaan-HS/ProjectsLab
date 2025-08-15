@@ -34,7 +34,7 @@ from Script import AutoCapture, Reques
 
 Config = {
     "DownloadPath": "R:/",  # 路徑結尾必須為斜線
-    "RequestDomain": "https://www.zerobywtar.com/",  # 域名修正: https://zerobyw.github.io/
+    "RequestDomain": "https://www.zerobywa.com/",  # 域名修正: https://zerobyw.github.io/
 }
 
 # ? 請求類的實例
@@ -178,6 +178,7 @@ class DownloadTask:
                     TrialLink = self.task_trial_error(
                         str(index), ImgLink.rsplit("/", 1)[0]
                     )  # 將尾部移除, 傳參給試錯組合
+
                     if TrialLink is not None:
                         self.task_download(FolderName, ImgSavePath, TrialLink)
                     else:  # ! 因為是模糊請求, 當試錯都失敗直接跳出迴圈 (所以根據試錯的邏輯, 可能會缺頁面)
