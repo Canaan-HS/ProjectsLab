@@ -1,2 +1,4 @@
 Import-Module ".\BackupCore.psm1"
-Main "$PSScriptRoot\BackupPath" (DefaultSavePath "SavePath")
+
+$SavePath = "SavePath"
+Main "$PSScriptRoot\$SavePath" (DefaultSavePath "$SavePath")
