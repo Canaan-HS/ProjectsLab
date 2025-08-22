@@ -27,7 +27,7 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
 
-// @require      https://update.greasyfork.org/scripts/487608/1616382/SyntaxLite_min.js
+// @require      https://update.greasyfork.org/scripts/487608/1647211/SyntaxLite_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js
 
@@ -108,9 +108,9 @@
 (function () {
     class AutoLogin {
         constructor() {
-            const url = new URL(Syn.$url);
+            const url = new URL(Lib.$url);
             this.URL = (url.origin + url.pathname).toLowerCase();
-            this.loginInfo = Syn.gV(Syn.$domain, {});
+            this.loginInfo = Lib.getV(Lib.$domain, {});
 
             this.observer = null;
             this.loginInProgress = false;
@@ -183,12 +183,12 @@
 
         _findSubmitButton(searchScope) {
             const submitRegex = /login|sign|submit|confirm|enter|next/i;
-            return Syn.$q("button[type='submit'], input[type='submit']", { root: searchScope }) ||
+            return Lib.$q("button[type='submit'], input[type='submit']", { root: searchScope }) ||
                 [...searchScope.querySelectorAll("button, [role='button']")].find(btn => submitRegex.test(btn.textContent));
         }
 
         _findLoginFields() {
-            const passwordField = Syn.$q("input[type='password']:not([disabled]):not([readonly])");
+            const passwordField = Lib.$q("input[type='password']:not([disabled]):not([readonly])");
             if (!passwordField || passwordField.offsetParent === null) return null;
 
             const loginForm = passwordField.closest('form');
@@ -242,7 +242,7 @@
                     let Info = Data[index] ?? false;
 
                     if (key === "Account" || key === "Password") {
-                        Info = this.algorithm.encry(Info, `${Syn.$domain}@Default_${key}@`);
+                        Info = this.algorithm.encry(Info, `${Lib.$domain}@Default_${key}@`);
                     } else if (key === "Autologin" && Info === "true") {
                         Info = true;
                     }
@@ -254,7 +254,7 @@
                 SaveBox["Encrypted"] = true;
 
                 setTimeout(() => {
-                    Syn.sV(Syn.$domain, Object.assign({ Url: this.URL }, SaveBox));
+                    Lib.setV(Lib.$domain, Object.assign({ Url: this.URL }, SaveBox));
                     this._createDeleteMenu();
                 }, 1000);
             } else {
@@ -264,7 +264,7 @@
 
         _createDeleteMenu() {
             this.deleteMenu ??= GM_registerMenuCommand("🚮 刪除登入資訊", () => {
-                Syn.dV(Syn.$domain);
+                Lib.delV(Lib.$domain);
                 GM_unregisterMenuCommand(this.deleteMenu);
                 this.deleteMenu = null;
             });
@@ -284,8 +284,8 @@
 
                 if (this.loginInfo.Encrypted) {
                     try {
-                        Account = this.algorithm.decrypt(Account, `${Syn.$domain}@Default_Account@`);
-                        Password = this.algorithm.decrypt(Password, `${Syn.$domain}@Default_Password@`);
+                        Account = this.algorithm.decrypt(Account, `${Lib.$domain}@Default_Account@`);
+                        Password = this.algorithm.decrypt(Password, `${Lib.$domain}@Default_Password@`);
                     } catch (e) {
                         console.error("解密失敗:", e);
                         this.loginInProgress = false;
@@ -309,7 +309,7 @@
         }
 
         run() {
-            Syn.Menu({
+            Lib.regMenu({
                 "📝 添加登入資訊": () => this._saveAccount()
             })
 
@@ -322,7 +322,7 @@
             this._attemptLogin();
 
             // 設置觀察者，應對動態載入的登入表單
-            this.observer = new MutationObserver(Syn.Throttle(() => {
+            this.observer = new MutationObserver(Lib.$throttle(() => {
                 this._attemptLogin();
             }, 1e3));
 
