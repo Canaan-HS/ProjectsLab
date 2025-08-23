@@ -6,77 +6,85 @@ import time
 import os
 import re
 
+
 class AutomaticCapture:
     def __init__(self):
         self.sound = f"{os.path.dirname(os.path.abspath(__file__))}\\Effects\\notify.wav"
-        self.UrlFormat = re.compile(r'^(?:http|ftp)s?://')
+        self.url_template = re.compile(r"^(?:http|ftp)s?://")
 
         self.match_url = None
         self.intercept_delay = None
 
-        self.clipboard_cache = None
-        self.download_list = set()
+        self.count = 0
+        self.save_type = None
+
+        self.clip_set = set()
         self.queue = queue.Queue()
 
-        self.generate_type = False
-        self.return_type = False
-        self.detection = True
-        self.count = 0
-        
+        self.on_clip = True
+        self.off_token = False
+        self.clip_cache = None
+
     def __verifica(self):
-        if self.match_url != None:
+        if self.match_url is not None:
             return True
         else:
             print("請先使用 settings(domainName) 設置域名")
 
-    def __trigger(self):
-        print("複製網址後自動擷取(Alt+S 開始下載):")
-        clipboard = threading.Thread(target=self.__Read_clipboard)
-        command = threading.Thread(target=self.__Download_command)
+    def __hotkey_trigger(self):
+        print("監聽剪貼簿 (Alt + S 觸發):")
 
-        clipboard.start()
-        command.start()
+        self.save_type = "set"
+        clip_task = threading.Thread(target=self.__read_clipboard)
+        monitor_hotkey = threading.Thread(target=self.__hotkey)
 
-        command.join()
-        clipboard.join()
-        
-    def __return_trigger(self):
-        print("複製網址後立即下載:")
-        self.return_type = True
-        threading.Thread(target=self.__Read_clipboard).start()
+        clip_task.start()
+        monitor_hotkey.start()
 
-    def __generate_trigger(self):
-        print("自動監聽剪貼簿觸發下載(只能手動停止程式):")
-        self.generate_type = True
-        threading.Thread(target=self.__Read_clipboard).start()
+        monitor_hotkey.join()
+        clip_task.join()
 
-    def __Read_clipboard(self):
-        pyperclip.copy('')
+    def __now_trigger(self):
+        print("複製網址後立即觸發:")
 
-        while self.detection:
-            clipboard = pyperclip.paste()
+        self.save_type = "queue"
+        self.off_token = True
+        threading.Thread(target=self.__read_clipboard).start()
 
-            if clipboard != self.clipboard_cache and self.match_url.match(clipboard):
+    def __lasting_trigger(self):
+        print("持續監聽剪貼簿並自動觸發 (手動停止程式):")
+
+        self.save_type = "queue"
+        threading.Thread(target=self.__read_clipboard).start()
+
+    def __read_clipboard(self):
+        pyperclip.copy("")
+
+        while self.on_clip:
+            clip = pyperclip.paste()
+
+            if clip != self.clip_cache and self.match_url.match(clip):
                 self.count += 1
-                print(f"擷取網址 [{self.count}] : {clipboard}")
-                self.download_list.add(clipboard)
-                self.clipboard_cache = clipboard
+                print(f"擷取網址 [{self.count}] : {clip}")
+                self.clip_cache = clip
 
-                if self.generate_type:
-                    self.queue.put(clipboard)
-                elif self.return_type:
-                    self.queue.put(clipboard)
-                    break
+                if self.save_type == "set":
+                    self.clip_set.add(clip)
+                elif self.save_type == "queue":
+                    self.queue.put(clip)
+
+                    if self.off_token:
+                        break
 
             time.sleep(self.intercept_delay)
 
-    def __Download_command(self):
+    def __hotkey(self):
         keyboard.wait("alt+s")
-        self.detection = False
+        self.on_clip = False
 
-    def settings(self, domainName:str, delay=0.05):
+    def settings(self, domainName: str, delay=0.3):
         try:
-            if self.UrlFormat.match(domainName):
+            if self.url_template.match(domainName):
                 self.match_url = re.compile(rf"{domainName}.*")
                 self.intercept_delay = delay
             else:
@@ -87,18 +95,19 @@ class AutomaticCapture:
     # 以list回傳所有擷取的網址
     def GetList(self):
         if self.__verifica():
-            self.__trigger()
+            self.__hotkey_trigger()
 
-            if len(self.download_list) > 0:
+            if len(self.clip_set) > 0:
                 os.system("cls")
-                return list(self.download_list)
+                return list(self.clip_set)
             else:
                 return None
 
     # 只會回傳一條網址 , 擷取多條就只回傳第一條
     def GetLink(self):
         if self.__verifica():
-            self.__return_trigger()
+            self.__now_trigger()
+
             while True:
                 if not self.queue.empty():
                     return self.queue.get()
@@ -107,14 +116,14 @@ class AutomaticCapture:
     # 以生成器的方式回傳
     def GetBuilder(self):
         if self.__verifica():
-            self.__trigger()
+            self.__hotkey_trigger()
 
-            if len(self.download_list) > 0:
+            if len(self.clip_set) > 0:
                 os.system("cls")
-                for link in list(self.download_list):
+                for link in list(self.clip_set):
                     yield link
             else:
-                return None
+                yield None
 
     # 特別的擷取方法
     def Unlimited(self):
@@ -124,10 +133,12 @@ class AutomaticCapture:
         * 使用一個迴圈接受此方法的回傳參數 , 並進行後續的處理
         """
         if self.__verifica():
-            self.__generate_trigger()
+            self.__lasting_trigger()
+
             while True:
                 if not self.queue.empty():
                     url = self.queue.get()
                     yield url
+
 
 AutoCapture = AutomaticCapture()
