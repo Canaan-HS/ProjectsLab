@@ -44,7 +44,7 @@ class TemplateGeneration(DataImport):
                     <div id="picture_indicator">1 / {{ total }}</div>
                     <div id="picture_container">
                         {% for src in data %}
-                        <img id="img-{{ loop.index }}" data-index="{{ loop.index }}" data-src="{{ src|safe }}">
+                        <img id="img-{{ loop.index0 }}" data-index="{{ loop.index0 }}" data-src="{{ src|safe }}">
                         {% endfor %}
                     </div>
                 </body>
