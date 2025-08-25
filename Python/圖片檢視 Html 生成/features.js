@@ -111,7 +111,7 @@ class Features {
         this.imageObserver = new IntersectionObserver(this._debounce(entries => {
             const intersectingEntry = entries.find(entry => entry.isIntersecting);
             if (intersectingEntry) {
-                const newIndex = +intersectingEntry.target.dataset.index - 1;
+                const newIndex = +intersectingEntry.target.dataset.index;
                 this._updateVisibleImages(newIndex, false);
             }
         }, 150), {
@@ -133,7 +133,7 @@ class Features {
 
         // 3. 執行滾動。因為沒有圖片被卸載，佈局是穩定的，滾動不會出錯。
         targetImage.scrollIntoView({
-            block: "center",
+            block: "start",
             behavior: behavior
         });
 
@@ -147,6 +147,30 @@ class Features {
             }));
         }, behavior === 'smooth' ? 800 : 100);
     }
+
+    _widthModify() {
+        this.setWidth = `${this._currentWidth()}%`;
+
+        document.addEventListener("keydown", event => {
+            const key = event.key;
+            if (key == "+" || key == "-") {
+
+                requestAnimationFrame(() => {
+                    this.setWidth = key == "+"
+                        ? `${Math.min(this._currentWidth() + 3, 100)}%`
+                        : `${Math.max(this._currentWidth() - 3, 1)}%`;
+
+                    this.rules.maxWidth = this.setWidth;
+
+                    if (this.seeImg) {
+                        this.seeImg.scrollIntoView({
+                            block: "nearest"
+                        });
+                    }
+                })
+            }
+        })
+    };
 
     initOnerror() {
         this.container.addEventListener("error", (e) => {
@@ -178,7 +202,7 @@ class Features {
                     this.setWidth = recordObj.width;
                 }
                 if (recordObj.index) {
-                    startIndex = Math.max(0, Math.min(parseInt(recordObj.index, 10) - 1, this.images.length - 1));
+                    startIndex = Math.max(0, Math.min(parseInt(recordObj.index, 10), this.images.length - 1));
                 }
             } catch (e) { console.error("解析 localStorage 紀錄失敗:", e); }
         }
@@ -190,6 +214,7 @@ class Features {
         this.indicator.addEventListener("click", () => {
             const numberStr = prompt(`輸入要跳轉的圖片編號 (1 - ${this.images.length}):`);
             if (!numberStr) return;
+
             const targetIndex = Math.round(Number(numberStr)) - 1;
             if (targetIndex >= 0 && targetIndex < this.images.length && this.images[targetIndex]) {
                 this._scrollToIndex(targetIndex, 'smooth');
