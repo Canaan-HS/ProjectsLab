@@ -20,7 +20,3 @@ test
 
 !DB.json
 !chromedriver.exe
-
-!PowerShell/Real-Esrgan-VideoUpscaler/*.exe
-!PowerShell/Real-Esrgan-VideoUpscaler/tools/*.exe
-PowerShell/Real-Esrgan-VideoUpscaler/realesrgan-models/*.html
