@@ -3,9 +3,9 @@ import shutil
 import threading
 import tkinter as tk
 
+from itertools import chain
 from tkinter import filedialog
-from operator import itemgetter
-from collections import Counter
+from collections import defaultdict, Counter
 from concurrent.futures import ThreadPoolExecutor
 
 from tqdm import tqdm
@@ -25,15 +25,18 @@ from utils import Restore_RPG, MAX_WORKERS, VALID_EXTENSIONS
         * tqdm
         * progressbar
 
-        * 個人模塊:
+        * 個人庫:
         * utils
 
         ? 使用說明:
-        * 運行前可調整 select() 的參數, 參數說明於下方函數
+        * 運行前可調整 select() 的參數, 說明於下方函數
         * 運行後選擇需分類檔案的 資料夾
         * 接著根據顯示的代號, 輸入代號選擇檔案類型 (如果只有一個類型會自動選擇)
         * 最後會以 (複製 or 移動) [可選的] 方式輸出, 輸出路徑在選擇的資料夾內部
         * 輸出的速度取決於硬碟讀寫速度
+
+        ? 開發說明:
+        * Class 之間是存在部份耦合的, 目的是減少傳遞參數, 偷懶的做法
 """
 
 console = Console()
@@ -46,8 +49,6 @@ def print(*args, **kwargs):
 class ReadFolder(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.folder_path = None
-        self.complete_data = None
 
         self.withdraw()  # 隱藏主視窗
         self.attributes("-topmost", True)  # 置頂主視窗
@@ -72,40 +73,39 @@ class ReadFolder(tk.Tk):
         return Read_Data
 
     # 獲取資料夾分類數據
-    def get_folder_groups(self, path=None):
+    def get_folder_groups(self, path=None) -> tuple[int, list]:
 
         self.folder_path = path  # 可直接給予測試用路徑
         data = self.__read_all_files() if path else self.__open_folder()
 
         # 緩存處理擴展名
         file_extension = None
-        # 保存所有檔案類型 用於顯示選擇
-        file_type = set()
         # 保存所有檔案類型 用於計算數量
         type_quantity = []
         # 保存所有檔案數據
-        complete_data = []
+        self.complete_data = defaultdict(list)
 
         for path, filebox in data.items():
             if len(filebox) != 0:  # 當他是 0 帶表示空資料夾
                 for name in filebox:
                     try:
-                        file_extension = name.rsplit(".", 1)[1].strip()
+                        _, suffix = os.path.splitext(name)
+
+                        if not suffix:  # 沒有副檔名
+                            continue
+
+                        file_extension = suffix.lstrip(".").lower()
                     except Exception:  # 可能有例外
-                        pass
+                        continue
 
-                    try:
-                        LowExtension = file_extension.lower()
+                    type_quantity.append(file_extension)
+                    self.complete_data[file_extension].append(
+                        os.path.join(path, name).replace(os.sep, "/")
+                    )
 
-                        file_type.add(LowExtension)
-                        type_quantity.append(LowExtension)
-                        complete_data.append(f"{path}/{name}".replace("\\", "/"))
-                    except Exception:
-                        print("無可分類檔案", style="bold red")
-                        os._exit(0)
-
-        self.complete_data = complete_data
-        return file_type, Counter(type_quantity)
+        # 總檔案數量, 檔案類型個別數量 (大到小排序) -> 結構 [(類型, 數量), (類型, 數量), ...]
+        self.type_quantity = Counter(type_quantity).most_common()
+        return len(type_quantity), self.type_quantity
 
 
 # 自訂例外
@@ -129,7 +129,7 @@ class OutputFile:
         )
 
     # 複製處理
-    def __Process_Task(self):
+    def __process_task(self):
         record_output = set()  # 用於紀錄已輸出的文件, 避免重複輸出
         lock = threading.Lock()  # 線程鎖
         task_size = len(self.output_data)
@@ -169,12 +169,12 @@ class OutputFile:
                 raise DataEmptyError()
 
             os.mkdir(self.save_path)  # 創建輸出資料夾
-            self.__Process_Task()
+            self.__process_task()
 
         except DataEmptyError:
             print("該路徑下, 無可操作的文件", style="bold red")
         except Exception:
-            self.__Process_Task()
+            self.__process_task()
 
 
 class TypeSelection(ReadFolder, OutputFile):
@@ -185,8 +185,6 @@ class TypeSelection(ReadFolder, OutputFile):
     # 選擇輸出類型
     def __choose(self, select: None):
 
-        # ! 懶得處理細節判斷
-        # ! 使用 Repeat_Task 如果不是複製文件, 就不要選擇已經操作過的類型, 因為沒有根據選擇清理 Task_List, 重新選擇可能會導致找不到文件報錯
         while True:
             try:
                 select_code = select or int(input("\n選擇輸出類型 (代號) : "))
@@ -195,10 +193,10 @@ class TypeSelection(ReadFolder, OutputFile):
                     print(f"你選擇了 : 全部\n", style="bold green")
                     selected = "ALL"
 
-                    self.output_data = self.complete_data  # 將完整數據賦予給輸出數據
+                    # 將完整數據賦予給輸出數據
+                    self.output_data = list(chain.from_iterable(self.complete_data.values()))
                 else:
-                    selected = self.task_list[select_code - 1][0]  # 根據索引取出選擇則字串
-
+                    selected = self.type_quantity[select_code - 1][0]  # 根據索引取出類型字串
                     print(f"你選擇了 : {selected}\n", style="bold green")
 
                     # 檢查是否為 RPG Maker 加密圖片類型
@@ -206,8 +204,8 @@ class TypeSelection(ReadFolder, OutputFile):
 
                         def rpg_restore_task(source_path, output_path):
                             # 將輸出的副檔名強制變更為 .png
-                            output_path_base, _ = os.path.splitext(output_path)
-                            png_output_path = output_path_base + ".png"
+                            base_output_path, _ = os.path.splitext(output_path)
+                            png_output_path = base_output_path + ".png"
 
                             # 執行還原任務
                             Restore_RPG(
@@ -219,10 +217,14 @@ class TypeSelection(ReadFolder, OutputFile):
                         # 將任務切換為 RPG 圖片還原
                         self.task_work = rpg_restore_task
 
-                    # 根據選擇類型, 取出完整數據中符合該副檔名的文件
-                    self.output_data = [
-                        item for item in self.complete_data if item.endswith(f".{selected}")
-                    ]
+                    # 根據選擇類型, 取出完整數據
+                    self.output_data = (
+                        self.complete_data.get(selected)
+                        if self.use_copy
+                        else self.complete_data.pop(
+                            selected
+                        )  # 不使用複製, 移除選中的數據 (避免直接操作已被移動的數據)
+                    )
 
                 # 生成保存路徑
                 self.save_path = (
@@ -238,8 +240,8 @@ class TypeSelection(ReadFolder, OutputFile):
                 if not self.repeat_task:
                     break
 
-            except Exception as e:
-                print(f"選擇錯誤: {e}", style="bold red")
+            except Exception:
+                print(f"選擇錯誤: 不存在的索引 或 文件已不存在", style="bold red")
 
     def select(
         self,
@@ -271,22 +273,17 @@ class TypeSelection(ReadFolder, OutputFile):
 
         while True:
             default_choose = None  # 預設選擇類型
-            file_type, type_quantity = self.get_folder_groups()
 
-            type_len = len(file_type)
+            total_quantity, type_quantity = self.get_folder_groups()
+            type_len = len(type_quantity)
+
             print(f"選擇路徑: {self.folder_path}\n", style="bold")
-
             if type_len > 1:  # 如果有多檔案類型才建立選擇
                 # 展示用數據建立
                 show_table = []
-                show_table.append(["[0]", "ALL", f"{len(self.complete_data)}"])
+                show_table.append(["[0]", "ALL", f"{total_quantity}"])
 
-                # Key = 類型, Value = 對應數量
-                sort_cache = {Type: type_quantity[Type] for Type in file_type}
-
-                # 使用數量由大到小排序
-                self.task_list = sorted(sort_cache.items(), key=itemgetter(1), reverse=True)
-                for Index, (Type, Count) in enumerate(self.task_list):
+                for Index, (Type, Count) in enumerate(type_quantity):
                     show_table.append([f"[{Index + 1}]", Type, Count])
 
                 # 顯示選擇
@@ -295,7 +292,6 @@ class TypeSelection(ReadFolder, OutputFile):
                     print("{:<10} {:<12} {}".format(row[0], row[1], row[2]), style="bold yellow")
             elif type_len == 1:
                 default_choose = 1
-                self.task_list = [[file_type.pop()]]
             else:
                 print("無可分類檔案", style="bold red")
                 continue
