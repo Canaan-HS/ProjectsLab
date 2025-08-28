@@ -38,48 +38,13 @@ class TemplateGeneration(DataImport):
                 <head>
                     <title>{{ title }}</title>
                     <script>{{ script }}</script>
-                    <style>
-                        body {
-                            margin: 0;
-                            padding: 0;
-                            background: rgb(110, 110, 110);
-                        }
-                        img {
-                            width: 100%;
-                            max-width: 55%;
-                            margin: 0 auto;
-                        }
-                        html {
-                            overflow: auto;
-                            scrollbar-width: none;
-                            -ms-overflow-style: none;
-                        }
-                        html::-webkit-scrollbar {
-                            display: none;
-                        }
-                        #picture_container img:hover {
-                            cursor: none;
-                        }
-                        #picture_indicator {
-                            position: fixed;
-                            top: 10px;
-                            right: 10px;
-                            background: rgba(0,0,0,0.3);
-                            color: #fff;
-                            padding: 4px 8px;
-                            border-radius: 6px;
-                            font-size: 14px;
-                            font-family: sans-serif;
-                            z-index: 9999;
-                            cursor: pointer;
-                        }
-                    </style>
+                    <style>{{ style }}</style>
                 </head>
                 <body>
                     <div id="picture_indicator">1 / {{ total }}</div>
                     <div id="picture_container">
                         {% for src in data %}
-                        <img id="img-{{ loop.index }}" data-index="{{ loop.index }}" src="{{ src|safe }}" loading="lazy" style="display: none;" onerror="this.remove()">
+                        <img id="img-{{ loop.index }}" data-index="{{ loop.index }}" data-src="{{ src|safe }}">
                         {% endfor %}
                     </div>
                 </body>
@@ -101,6 +66,7 @@ class TemplateGeneration(DataImport):
                 {
                     "title": self.create_name,
                     "script": Path("features.js").read_text(encoding="utf-8"),
+                    "style": Path("style.css").read_text(encoding="utf-8"),
                     "data": self.data_box,
                     "total": len(self.data_box),
                 }
