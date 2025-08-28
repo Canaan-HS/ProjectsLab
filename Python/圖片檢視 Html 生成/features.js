@@ -1,4 +1,4 @@
-class Additional_Features {
+class Features {
     constructor() {
         this.seeImg = null;
         this.setWidth = null;
@@ -192,6 +192,6 @@ class Additional_Features {
 }
 
 window.addEventListener("load", () => {
-    const features = new Additional_Features();
+    const features = new Features();
     features.initView();
 });
