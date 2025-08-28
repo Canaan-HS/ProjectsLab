@@ -1,17 +1,20 @@
 class Features {
     constructor() {
-        this.seeImg = null;
-        this.setWidth = null;
-        this.specifyIndex = null;
         this.title = document.title;
 
-        this.buffer = 1;
-        this.lastVisibleIndex = -1;
+        this.container = document.getElementById("picture_container");
+        this.images = [...this.container.querySelectorAll("img")];
+        this.indicator = document.getElementById("picture_indicator");
+        this.rules = document.getElementsByTagName("style")[0].sheet.cssRules[3].style;
+
         this.record = localStorage.getItem(`${this.title}-view`);
 
-        this.images = [...document.querySelectorAll("img")];
-        this.indicator = document.getElementById("picture_indicator");
-        this.rules = document.getElementsByTagName("style")[0].sheet.cssRules[1].style;
+        this.setWidth = null;
+        this.imageObserver = null;
+
+        this.loadRange = 5;
+        this.currentIndex = -1;
+        this.totalImages = this.images.length;
 
         this._currentWidth = () => parseInt(this.rules.maxWidth);
     }
@@ -20,178 +23,187 @@ class Features {
         let timer = null;
         return (...args) => {
             clearTimeout(timer);
-            timer = setTimeout(function () {
-                func(...args);
+            timer = setTimeout(() => {
+                func.apply(this, args);
             }, delay);
+        };
+    }
+
+    _loadImage(index) {
+        if (index >= 0 && index < this.images.length) {
+            const img = this.images[index];
+            if (img && !img.src) {
+                img.src = img.dataset.src;
+            }
         }
-    };
+    }
 
-    _focusImg() {
-        const observer = new IntersectionObserver(this._debounce(observed => {
-            observed.forEach(entry => {
-                if (entry.isIntersecting) {
-
-                    // ! 目前的寫法，無論是初始跳轉，還是手動跳轉，都無法直接顯示最後一張圖片，只能手動滾動
-
-                    const currentIndex = this.images.indexOf(entry.target);
-
-                    // 如果當前可見的圖片和上次一樣，就不做任何事
-                    if (currentIndex === this.lastVisibleIndex) {
-                        return;
-                    }
-
-                    const oldIndex = this.lastVisibleIndex;
-                    this.lastVisibleIndex = currentIndex; // 更新當前索引
-
-                    // 計算新的可見範圍
-                    const newStart = Math.max(0, currentIndex - this.buffer);
-                    const newEnd = Math.min(this.images.length - 1, currentIndex + this.buffer);
-
-                    // 計算舊的可見範圍
-                    const oldStart = Math.max(0, oldIndex - this.buffer);
-                    const oldEnd = Math.min(this.images.length - 1, oldIndex + this.buffer);
-
-                    // 顯示進入窗口的圖片
-                    for (let i = newStart; i <= newEnd; i++) {
-                        if ((i < oldStart || i > oldEnd) && this.images[i]) {
-                            this.images[i].style.display = "block";
-                        }
-                    }
-
-                    // 隱藏離開窗口的圖片
-                    for (let i = oldStart; i <= oldEnd; i++) {
-                        if ((i < newStart || i > newEnd) && this.images[i]) {
-                            this.images[i].style.display = "none";
-                        }
-                    }
-
-                    this.seeImg = entry.target;
-                    let index = this.seeImg.getAttribute("data-index");
-
-                    if (this.record) {
-                        this.record = false;
-                        // ? 有紀錄時 需要 -1 才是正確的
-                        index = Math.max(index - 1, 1);
-                    }
-
-                    if (this.specifyIndex) {
-                        index = this.specifyIndex;
-                        // ? 目前寫法用指定值 - 1 才是正確的 (不修跳轉後 第一次觸發下一張圖片時將無法正常頁數)
-                        this.lastVisibleIndex = index - 1;
-
-                        this.specifyIndex = null;
-                    }
-
-                    this.indicator.textContent = `${index} / ${this.images.length}`;
-                    localStorage.setItem(`${this.title}-view`, JSON.stringify({
-                        index,
-                        width: this.setWidth
-                    }))
-                }
-            })
-        }, 150), { threshold: 0.35 });
-
-        this.images.forEach(img => observer.observe(img));
-    };
-
-    _widthModify() {
-        this.setWidth = `${this._currentWidth()}%`;
-
-        document.addEventListener("keydown", event => {
-            const key = event.key;
-            if (key == "+" || key == "-") {
-
-                requestAnimationFrame(() => {
-                    this.setWidth = key == "+"
-                        ? `${Math.min(this._currentWidth() + 3, 100)}%`
-                        : `${Math.max(this._currentWidth() - 3, 1)}%`;
-
-                    this.rules.maxWidth = this.setWidth;
-
-                    if (this.seeImg) {
-                        this.seeImg.scrollIntoView({
-                            block: "nearest"
-                        });
-                    }
-                })
+    _unloadImage(index) {
+        if (index >= 0 && index < this.images.length) {
+            const img = this.images[index];
+            if (img && img.src) {
+                img.removeAttribute("src");
             }
-        })
-    };
+        }
+    }
 
-    initView() {
-        if (this.record) {
-            const recordObj = JSON.parse(this.record);
+    _updateIndicator() {
+        this.indicator.textContent = `${this.currentIndex + 1} / ${this.totalImages}`;
+    }
 
-            this.rules.maxWidth = recordObj.width;
-            this.setWidth = recordObj.width;
-
-            const index = Math.max(parseInt(recordObj.index), 1);
-            let img = document.getElementById(`img-${index}`);
-
-            if (!img) {
-                const images = new Map(this.images.map(img => [img.id, img]));
-
-                let count = 1;
-
-                while (count <= images.size) {
-                    if (index - count <= 0) break;
-
-                    // 往回找到可用圖片
-                    img = images.get(`img-${index - count}`);
-                    if (img) break;
-
-                    count++;
-                }
-            }
-
-            if (!img) return;
-
-            // ? 適應 _focusImg 的顯示，使用下一張會剛好是紀錄的
-            const nextImg = img.nextElementSibling;
-            if (index != 1 && nextImg) img = nextImg;
-
-            img.style.display = "block";
-            img.scrollIntoView({ block: "start" });
-        } else {
-            this.images[0].style.display = "block";
+    _updateVisibleImages(newIndex, isJumping = false) {
+        if (newIndex < 0 || newIndex >= this.images.length || newIndex === this.currentIndex) {
+            return;
         }
 
-        this.indicator.addEventListener("click", () => {
-            const numberStr = prompt("輸入要跳轉的圖片編號: ");
-            const numberInt = Math.round(Number(numberStr));
+        const oldIndex = this.currentIndex;
+        const lowerBound = newIndex - this.loadRange;
+        const upperBound = newIndex + this.loadRange;
 
-            if (!numberStr || !numberInt) return;
-
-            let imgElement = null;
-            if (numberInt >= 1 && numberInt < this.images.length) {
-                imgElement = this.images[numberInt]; // 實際上獲取的是下一張，但 _focusImg 會剛好顯示原本的
-            } else if (numberInt === this.images.length) {
-                imgElement = this.images[numberInt - 1]; // 最後一張需要特別處理
+        // 這種模式下，我們只加載目標範圍的圖片，絕不卸載任何圖片，以防止佈局變動。
+        if (isJumping) {
+            for (let i = lowerBound; i <= upperBound; i++) {
+                this._loadImage(i);
             }
+        }
+        // 這是由 IntersectionObserver 觸發的正常模式，執行滑動窗口邏輯。
+        else {
+            // 首次加載也走這個邏輯
+            if (oldIndex === -1) {
+                for (let i = lowerBound; i <= upperBound; i++) {
+                    this._loadImage(i);
+                }
+            } else {
+                const oldLowerBound = oldIndex - this.loadRange;
+                const oldUpperBound = oldIndex + this.loadRange;
 
-            if (!imgElement) {
-                alert("錯誤的範圍");
-                return;
+                // 卸載離開窗口的舊圖片
+                for (let i = oldLowerBound; i <= oldUpperBound; i++) {
+                    if (i < lowerBound || i > upperBound) this._unloadImage(i);
+                }
+                // 加載進入窗口的新圖片
+                for (let i = lowerBound; i <= upperBound; i++) {
+                    if (i < oldLowerBound || i > oldUpperBound) this._loadImage(i);
+                }
             }
+        }
 
-            // ! 直接跳尾頁會有一點問題
-            // ? 臨時暴力解法，直接顯示 imgElement 後跳轉，中間的並沒有顯示，所以實際滾動距離只有一點
-            // ? 再加上 _focusImg 就會將他拉回原本頁數 只跳 1~2 張左右，每次要操作 2 次才能正常跳轉，但先隱藏所有就能解決
-            document.querySelectorAll("img[style='display: block;']").forEach(img => {
-                img.style.display = "none";
-            });
+        this.currentIndex = newIndex;
+        this._updateIndicator();
 
-            this.specifyIndex = numberInt;
-            imgElement.style.display = "block";
-            imgElement.scrollIntoView({ block: "start" });
+        // 只有在自然滾動時才頻繁保存，避免跳轉時不必要的寫入
+        if (!isJumping) {
+            localStorage.setItem(`${this.title}-view`, JSON.stringify({
+                index: this.currentIndex + 1,
+                width: this.setWidth || this.rules.maxWidth,
+            }));
+        }
+    }
+
+    _reconnectObserver() {
+        this.imageObserver.disconnect();
+        this.images.forEach(img => {
+            if (img) this.imageObserver.observe(img);
+        });
+    }
+
+    _setupObserver() {
+        this.imageObserver = new IntersectionObserver(this._debounce(entries => {
+            const intersectingEntry = entries.find(entry => entry.isIntersecting);
+            if (intersectingEntry) {
+                const newIndex = +intersectingEntry.target.dataset.index - 1;
+                this._updateVisibleImages(newIndex, false);
+            }
+        }, 150), {
+            threshold: 0.35
+        });
+    }
+
+    _scrollToIndex(index, behavior = 'auto') {
+        const targetImage = this.images[index];
+        if (!targetImage) return;
+
+        // 1. [可選但推薦] 依然先斷開觀察者，作為雙重保險。
+        if (this.imageObserver) {
+            this.imageObserver.disconnect();
+        }
+
+        // 2. [關鍵] 以 "跳轉模式" 呼叫更新函式，只加載不卸載。
+        this._updateVisibleImages(index, true);
+
+        // 3. 執行滾動。因為沒有圖片被卸載，佈局是穩定的，滾動不會出錯。
+        targetImage.scrollIntoView({
+            block: "center",
+            behavior: behavior
         });
 
-        this._focusImg();
+        // 4. 等待滾動動畫結束後，重新連接觀察者，恢復正常偵測。
+        setTimeout(() => {
+            this._reconnectObserver();
+
+            localStorage.setItem(`${this.title}-view`, JSON.stringify({
+                index: this.currentIndex + 1,
+                width: this.setWidth || this.rules.maxWidth,
+            }));
+        }, behavior === 'smooth' ? 800 : 100);
+    }
+
+    initOnerror() {
+        this.container.addEventListener("error", (e) => {
+            const brokenImg = e.target;
+            if (brokenImg.tagName !== "IMG" || !brokenImg.src) return;
+
+            const errorIndex = this.images.indexOf(brokenImg);
+            if (errorIndex !== -1 && this.images[errorIndex] !== null) {
+                console.error(`圖片加載失敗，已移除: ${brokenImg.dataset.src}`);
+
+                this.imageObserver.unobserve(brokenImg);
+                brokenImg.style.display = "none";
+
+                this.images[errorIndex] = null;
+                this.totalImages--;
+
+                this._updateIndicator();
+            }
+        }, { capture: true });
+    }
+
+    initView() {
+        let startIndex = 0;
+        if (this.record) {
+            try {
+                const recordObj = JSON.parse(this.record);
+                if (recordObj.width) {
+                    this.rules.maxWidth = recordObj.width;
+                    this.setWidth = recordObj.width;
+                }
+                if (recordObj.index) {
+                    startIndex = Math.max(0, Math.min(parseInt(recordObj.index, 10) - 1, this.images.length - 1));
+                }
+            } catch (e) { console.error("解析 localStorage 紀錄失敗:", e); }
+        }
+
+        // 呼叫我們全新的、穩定的跳轉函式來進行初始化
+        this._scrollToIndex(startIndex, 'auto');
+        this._setupObserver();
+
+        this.indicator.addEventListener("click", () => {
+            const numberStr = prompt(`輸入要跳轉的圖片編號 (1 - ${this.images.length}):`);
+            if (!numberStr) return;
+            const targetIndex = Math.round(Number(numberStr)) - 1;
+            if (targetIndex >= 0 && targetIndex < this.images.length && this.images[targetIndex]) {
+                this._scrollToIndex(targetIndex, 'smooth');
+            } else {
+                alert("錯誤的範圍或該圖片已失效");
+            }
+        });
+
         this._widthModify();
-    };
+    }
 }
 
 window.addEventListener("load", () => {
     const features = new Features();
+    features.initOnerror();
     features.initView();
 });
