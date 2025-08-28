@@ -45,19 +45,41 @@ class TemplateGeneration(DataImport):
                             background: rgb(110, 110, 110);
                         }
                         img {
+                            width: 100%;
                             max-width: 55%;
-                            display: block;
                             margin: 0 auto;
+                        }
+                        html {
+                            overflow: auto;
+                            scrollbar-width: none;
+                            -ms-overflow-style: none;
+                        }
+                        html::-webkit-scrollbar {
+                            display: none;
                         }
                         #picture_container img:hover {
                             cursor: none;
                         }
+                        #picture_indicator {
+                            position: fixed;
+                            top: 10px;
+                            right: 10px;
+                            background: rgba(0,0,0,0.3);
+                            color: #fff;
+                            padding: 4px 8px;
+                            border-radius: 6px;
+                            font-size: 14px;
+                            font-family: sans-serif;
+                            z-index: 9999;
+                            cursor: pointer;
+                        }
                     </style>
                 </head>
                 <body>
-                    <div id = "picture_container">
+                    <div id="picture_indicator">1 / {{ total }}</div>
+                    <div id="picture_container">
                         {% for src in data %}
-                        <img id="Img_{{ loop.index }}" src="{{ src|safe }}" loading="lazy" onerror="errorRemove(this)">
+                        <img id="img-{{ loop.index }}" data-index="{{ loop.index }}" src="{{ src|safe }}" loading="lazy" style="display: none;" onerror="this.remove()">
                         {% endfor %}
                     </div>
                 </body>
@@ -79,7 +101,8 @@ class TemplateGeneration(DataImport):
                 {
                     "title": self.create_name,
                     "script": Path("features.js").read_text(encoding="utf-8"),
-                    "data": self.data_box
+                    "data": self.data_box,
+                    "total": len(self.data_box),
                 }
             )
 
