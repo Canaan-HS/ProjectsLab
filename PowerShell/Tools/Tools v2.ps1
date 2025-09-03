@@ -1454,7 +1454,7 @@ class Main {
                         @{name = "Level3"; dns = "209.244.0.3"; doh = $null },
                         @{name = "Level3"; dns = "209.244.0.4"; doh = $null }
                     )
-                    Asia   = @(
+                    Asia = @(
                         @{name = "臺灣網路資訊中心"; dns = "101.101.101.101"; doh = $null },
                         @{name = "臺灣網路資訊中心"; dns = "101.102.103.104"; doh = $null },
                         @{name = "中華電信"; dns = "168.95.1.1"; doh = $null },
