@@ -1,3 +1,4 @@
+$ProgressPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 function Input {
@@ -8,7 +9,8 @@ function Input {
 
     if ($foregroundColor -eq 'default') {
         return Read-Host "`n[37m[7m[1m$text[27m"
-    } else {
+    }
+    else {
         $Host.UI.RawUI.ForegroundColor = [ConsoleColor]::$foregroundColor
         $Host.UI.RawUI.BackgroundColor = [ConsoleColor]::'Black'
         return Read-Host "`n[1m$text"
@@ -41,7 +43,8 @@ function Delete {
                 $targetPath = if ($item -is [System.IO.FileSystemInfo]) { $item.FullName } else { $item }
                 Remove-Item -Path $targetPath -Recurse -Force -ErrorAction SilentlyContinue
                 Print "清理成功: $targetPath" 'Green'
-            } catch {
+            }
+            catch {
                 Print "清理失敗: $_" 'Red'
             }
         }
@@ -100,6 +103,10 @@ Delete @(
     # 舊的系統文件
     "$Windows.old"
 
+    # 系統核心暫存
+    "$Windows\Temp\"
+    "$Windows\prefetch\"
+
     # 刪除錯誤報告 和 系統日誌
     "$Windows\System32\winevt\Logs\"
     "$Program\Microsoft\Windows\WER\"
@@ -113,6 +120,11 @@ Delete @(
     # 舊版瀏覽器緩存
     "$Local\Microsoft\Windows\Explorer\thumbcache*"
 
+    # 驅動安裝解壓縮檔
+    "$C\AMD\"
+    "$C\INTEL\"
+    "$C\NVIDIA\"
+
     # 緩存數據
     "$C\*.tmp"
     "$C\*._mp"
@@ -120,18 +132,13 @@ Delete @(
     "$C\*.gid"
     "$C\*.chk"
     "$C\*.dlf"
-    "$C\AMD\"
-    "$C\INTEL\"
-    "$C\NVIDIA\"
     "$C\recycled\"
     "$C\OneDriveTemp"
     "$C\Program Files\Temp"
 
-    "$Windows\Temp\"
     "$Windows\*.bak"
     "$Windows\HELP\"
     "$Windows\KB*.log"
-    "$Windows\prefetch\"
     "$Windows\SystemTemp"
     "$Windows\logs\*.log"
     "$Windows\Panther\*.log"
@@ -139,9 +146,6 @@ Delete @(
     "$Windows\Logs\CBS\CbsPersist*.log"
     "$Windows\SoftwareDistribution\Download\"
     "$Windows\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization"
-
-    # 刪除有風險
-    "$Program\Package Cache\"
 
     "$User\Intel"
     "$User\.cache"
@@ -170,37 +174,38 @@ Delete @(
 Delete @(
     # Surfshark
     "$Local\Surfshark\Updates"
-    # nikke
-    "$Roaming\nikke_launcher\tbs_cache"
     # LINE
     "$Local\LINE\bin\old"
-    # Telegram
-    "$Roaming\Telegram Desktop\tdata\user_data"
-    # NVIDIA
-    "$LocalLow\NVIDIA\PerDriverVersion\DXCache"
     # IObit
     "$Program\IObit\Driver Booster\Download"
     "$Roaming\IObit\Software Updater\Log\*.dbg"
     "$Roaming\IObit\Software Updater\AutoLog\*.dbg"
-    # VSCode (刪除後會損壞部份功能)
-    "$Roaming\Code\logs"
-    "$Roaming\Code\CachedData"
-    "$Roaming\Code\User\History"
 )
 
 # ===== 掃描清理緩存類型文件 =====
 $findFolders = @($Roaming, $Local, $LocalLow)
-$cacheFolders = @(
-    'Temp', 'Logs', 'Crashpad', 'History', 'INetHistory',  'CrashDumps',
-    'Cache', 'Caches', 'lru-cache', 'librarycache', 'GPUCache', 'Code Cache', 'media_cache','MediaCache', 'DawnCache',
-    'INetCache', 'ShaderCache', 'GrShaderCache', 'ScriptCache', 'CacheStorage', 'extensions_crx_cache', 'webcache', 'LocalCache'
+$excludeFolders = @('Coodesker', 'globalStorage')
+$cacheFolders = [System.Collections.Generic.HashSet[string]]::new(
+    [string[]]@(
+        'Temp', 'Logs', 'Crashpad', 'History', 'INetHistory', 'CrashDumps',
+        'Cache', 'Caches', 'GLCache', 'DXCache', 'lru-cache', 'librarycache', 'GPUCache', 'Code Cache',
+        'media_cache', 'MediaCache', 'DawnCache', 'INetCache', 'ShaderCache', 'GrShaderCache',
+        'ScriptCache', 'CacheStorage', 'extensions_crx_cache', 'webcache'
+    ),
+    [System.StringComparer]::OrdinalIgnoreCase
 )
 
 foreach ($find in $findFolders) {
     $found = Get-ChildItem -Path $find -Recurse -Directory -ErrorAction SilentlyContinue |
-        Where-Object {
-            $cacheFolders.ToLower() -contains $_.Name.ToLower()
+    Where-Object {
+        if (-not $cacheFolders.Contains($_.Name)) { return $false }
+        foreach ($ex in $excludeFolders) {
+            if ($_.FullName.IndexOf($ex, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                return $false
+            }
         }
+        return $true
+    } | Select-Object -ExpandProperty FullName -Unique
 
     if ($found) { Delete $found }
 }
@@ -239,6 +244,6 @@ $choice = Input "選擇功能 [代號]"
 switch ($choice) {
     1 { Stop-Computer -Force }
     2 { Restart-Computer -Force }
-    3 { control sysdm.cpl,0,4 }
+    3 { control sysdm.cpl, 0, 4 }
     4 { exit }
 }
