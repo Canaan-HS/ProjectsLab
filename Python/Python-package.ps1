@@ -28,6 +28,7 @@ $Package = @(
     <# 測試與程式碼品質 - 測試框架與程式碼規範工具 #>
     "pytest" # 功能豐富的測試框架，支援參數化測試、夾具與插件系統
     "faker" # 測試數據生成器，產生各類假數據
+    "ruff" # 高效能 Python Linter 與格式化工具，可取代 flake8、black
     "flake8" # 代碼風格檢查工具，結合多種檢查器
     "black" # 自動代碼格式化工具，統一代碼風格
     "mypy" # 靜態類型檢查器，驗證類型註解
@@ -46,9 +47,6 @@ $Package = @(
 
     <# 反編譯與代碼分析 - Python 字節碼與二進制分析工具 #>
     "uncompyle6" # Python 字節碼反編譯器，支援多種 Python 版本
-    "decompyle3" # Python 3.7+ 字節碼反編譯工具
-    "ast" # 標準庫的抽象語法樹模組，用於代碼分析
-    "dis" # Python 標準庫的字節碼反彙編模組
     "radon" # 代碼複雜度分析工具
 
     <# 逆向工程與利用 - 二進制分析與漏洞利用工具 #>
@@ -75,6 +73,7 @@ $Package = @(
     <# Web 爬蟲與解析 - 網頁數據提取與處理框架 #>
     "lxml" # 高效能 XML/HTML 解析器，支援 XPath、XSLT，速度最快
     "beautifulsoup4" # 直覺易用的 HTML/XML 解析器，容錯能力強，適合處理不規範網頁
+    "selectolax" # 高效能 HTML/XML 解析器，速度比 beautifulsoup4 更快
     "Scrapy" # 完整爬蟲框架，提供請求排程、中介軟體、管道處理、分散式支援
     "requests-html" # 結合 requests 與解析功能，支援 JavaScript 渲染與 CSS 選擇器
 
@@ -88,9 +87,8 @@ $Package = @(
 
     <# 瀏覽器自動化 - 模擬瀏覽器行為與動態網頁處理 #>
     "selenium" # 跨瀏覽器自動化工具，支援完整瀏覽器操作與 JavaScript 執行
-    "playwright-python" # 微軟開發的現代瀏覽器自動化庫，更難被檢測，支援多標籤頁
-    "chromedriver_autoinstaller" # 自動下載安裝匹配 Chrome 版本的驅動程式
-    "webdriver_manager" # 管理多種瀏覽器驅動，支援 Chrome、Firefox、Edge 等
+    "playwright" # 微軟開發的現代瀏覽器自動化庫，更難被檢測 (首次使用需執行 playwright install)
+    "webdriver_manager" # 自動管理多種瀏覽器驅動，支援 Chrome、Firefox、Edge 等
     #! "browser-cookie3" # 從已安裝瀏覽器提取 cookies，用於模擬登入狀態
 
     <# 反爬蟲對抗與代理管理 - 繞過限制與匿名化工具 #>
@@ -99,11 +97,10 @@ $Package = @(
     "cloudscraper" # 專門繞過 Cloudflare 防護的工具，處理 JavaScript 挑戰
     "fake-useragent" # 隨機產生真實的 User-Agent 標頭
     "undetected_chromedriver" # 防檢測 Chrome 驅動，修改 WebDriver 特徵
-    #! "undetected-chromedriver2" # 防檢測 Chrome 驅動，修改 WebDriver 特徵 (新版本 Python 基本無法使用)
     "fingerprint-randomizer" # 瀏覽器指紋隨機化工具，修改 Canvas、WebGL 等特徵
 
     <# 驗證碼處理 - 自動化驗證突破 #>
-    "captcha-solver" # 多種驗證碼解決方案整合工具，支援圖像與互動式驗證碼
+    "twocaptcha-python" # 整合 2Captcha 驗證碼服務的 API
 
     <# 代理與 IP 管理 - 防止 IP 封鎖 #>
     #! "rotating-free-proxies" # 自動搜尋並使用免費代理伺服器
@@ -112,16 +109,17 @@ $Package = @(
     #! "mitmproxy" # 中間人代理工具，支援 HTTPS 流量檢查與修改
 
     <# 影音處理 - 音頻與視頻處理工具 #>
-    "ffmpeg-python" # 處理和處理影音檔案的工具
+    "ffmpeg-python" # FFmpeg 的 Python 封裝，處理影音檔案
+    "moviepy" # 影片編輯函式庫，支援剪輯、合成、轉場等
     "pyaudio" # 處理音訊流，支援錄音和播放
     "SpeechRecognition" # 語音識別庫，將語音轉換為文字
 
     <# 文字與自然語言處理 - 文本分析與語言處理工具 #>
-    "opencc" # 中文簡繁轉換工具，支援多種轉換模式
+    "opencc-python-reimplemented" # 中文簡繁轉換工具，支援多種轉換模式 (opencc 的純 python 實現)
     "nltk" # 自然語言處理工具包，提供分詞、詞性標註、語法分析等功能
     "spaCy" # 工業級自然語言處理庫，速度快且準確
     "transformers" # Hugging Face 的 NLP 模型庫，支援 BERT、GPT 等
-    "fuzzywuzzy" # 字符串模糊匹配庫，支援相似度比較
+    "thefuzz" # 字符串模糊匹配庫，支援相似度比較 (fuzzywuzzy 的後繼者)
     "jieba" # 中文分詞庫，支援自定義詞典
     "dateparser" # 強大的日期解析庫，支援多語言和相對時間
 
@@ -131,7 +129,8 @@ $Package = @(
     #! "glances" # 系統監控工具，提供 Web 界面和 API
     #! "memory_profiler" # 內存使用分析工具，監控 Python 程式內存
 
-    <# 日程安排 與 版本管理 #>
+    <# 日誌與版本管理 #>
+    "loguru" # 功能強大且簡單易用的日誌記錄庫
     "schedule" # 簡單的任務排程庫
     "APScheduler" # 高級任務調度庫，支援 cron 表達式
     "packaging" # 版本比較和語義化版本號解析
@@ -147,8 +146,6 @@ $Package = @(
     <# 終端工具 - 終端介面美化與進度顯示 #>
     "rich" # 強大的終端格式化庫，支援顏色、表格、語法高亮
     "tqdm" # 快速、可擴展的進度條庫，支援嵌套和並行
-    "progress" # 簡單的進度條顯示工具
-    "progressbar2" # progressbar 的升級版，增加了更多功能
     "alive-progress" # 動態進度條庫，支援複雜的進度顯示
     "tabulate" # 表格數據美觀列印工具
     #! "art" # ASCII 藝術文本生成庫
@@ -161,6 +158,7 @@ $Package = @(
 
     <# GUI 開發 - 圖形使用者介面開發工具 #>
     "tkinterdnd2" # 增強 tkinter 的拖曳功能
+    "customtkinter" # 基於 Tkinter 的現代化 UI 庫，提供美觀的元件
     "wxPython" # 跨平台 GUI 開發工具
     "PyQt6" # PyQt5 的升級版，支援更多特性和更新的 Qt 版本
     "PySide6" # PyQt 的開源替代品，由 Qt 官方維護
@@ -170,6 +168,19 @@ $Package = @(
     "Jinja2" # 模板引擎，常用於生成 HTML 內容
     "flask" # 輕量級 Web 應用框架
     "fastapi" # 高效能 Web 框架，適合構建 API
+
+    <# 混合式自動化框架 - 結合請求與瀏覽器操作 #>
+    "DrissionPage" # 結合 requests 的便捷與 selenium 的自動化能力，專為反爬蟲設計
+
+    <# AI 與機器學習 - 人工智慧與模型應用 #>
+    # 電腦視覺 (Computer Vision)
+    "ultralytics" # YOLOv8 物件偵測框架，易於使用且效能強大，適合圖像辨識任務
+    "easyocr" # 準確率高的光學字元辨識庫，可從圖片中提取文字
+    # 自然語言與大型語言模型 (NLP & LLM)
+    "langchain" # 大型語言模型應用開發框架，快速建構聊天機器人、RAG 應用
+    "openai" # OpenAI 官方 API 庫，用於存取 GPT 系列模型
+    # 模型部署與優化 (Model Deployment & Optimization)
+    #! "onnxruntime-gpu" # 高效能 AI 模型推理引擎，支援 ONNX 格式 (GPU 版本)
 
     <# 資料科學 - 數據分析與機器學習工具 #>
     "numpy" # 數值計算基礎庫，提供高效數組操作
