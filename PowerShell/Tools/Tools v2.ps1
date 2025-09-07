@@ -628,6 +628,10 @@ class Main {
             (index) {
                 # 開啟防火牆
                 Print "啟用中 =>`n" Green
+                Set-MpPreference -DisableRealtimeMonitoring $false
+                Set-MpPreference -DisableBehaviorMonitoring $false
+                Set-MpPreference -DisableIOAVProtection $false
+                Set-MpPreference -DisableScriptScanning $false
                 netsh advfirewall set allprofiles state on
                 netsh advfirewall firewall set rule all new enable=yes
                 $this.Menu()
@@ -635,6 +639,13 @@ class Main {
             (index) {
                 # 關閉防火牆
                 Print "禁用中 =>`n" Red
+                # 關閉 Defender 即時防護
+                Set-MpPreference -DisableRealtimeMonitoring $true
+                # 關閉行為監控
+                Set-MpPreference -DisableBehaviorMonitoring $true
+                Set-MpPreference -DisableIOAVProtection $true
+                Set-MpPreference -DisableScriptScanning $true
+                # 關閉防火牆
                 netsh advfirewall set allprofiles state off
                 netsh advfirewall firewall set rule all new enable=no
                 $this.Menu()
@@ -1454,7 +1465,7 @@ class Main {
                         @{name = "Level3"; dns = "209.244.0.3"; doh = $null },
                         @{name = "Level3"; dns = "209.244.0.4"; doh = $null }
                     )
-                    Asia = @(
+                    Asia   = @(
                         @{name = "臺灣網路資訊中心"; dns = "101.101.101.101"; doh = $null },
                         @{name = "臺灣網路資訊中心"; dns = "101.102.103.104"; doh = $null },
                         @{name = "中華電信"; dns = "168.95.1.1"; doh = $null },
@@ -1480,7 +1491,8 @@ class Main {
                 try {
                     $locationInfo = Invoke-RestMethod -Uri "https://ipinfo.io/json" -ErrorAction Stop
                     $area = $locationInfo.timezone.Split("/")[0]
-                } catch {
+                }
+                catch {
                     # 暫時不特別處理
                 }
 
