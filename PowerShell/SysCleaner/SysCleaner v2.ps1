@@ -98,6 +98,16 @@ Delete @(
 
 Start-Service -Name bits, wuauserv, cryptSvc, msiserver
 
+# ===== 清理 Windows Explorer 緩存 =====
+
+Stop-Process -Name explorer -Force
+
+Delete @(
+    "$Local\Microsoft\Windows\Explorer\"
+)
+
+Start-Process explorer.exe
+
 # ===== 清除系統基本緩存 =====
 Delete @(
     # 舊的系統文件
@@ -116,9 +126,6 @@ Delete @(
 
     # ASP.NET 應用程序的臨時編譯文件
     "$Windows\Microsoft.NET\Framework*\*\Temporary ASP.NET Files"
-
-    # 舊版瀏覽器緩存
-    "$Local\Microsoft\Windows\Explorer\thumbcache*"
 
     # 驅動安裝解壓縮檔
     "$C\AMD\"
