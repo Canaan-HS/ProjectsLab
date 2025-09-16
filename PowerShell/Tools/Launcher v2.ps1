@@ -31,7 +31,7 @@ function Request {
     try {
         $response = Invoke-WebRequest -Uri "$url" -Headers @{
             "Cache-Control" = "no-cache, no-store, must-revalidate"
-            "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+            "User-Agent"    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
         } -ErrorAction Stop
 
         if ($response.StatusCode -eq 200) {
@@ -215,7 +215,7 @@ try {
         $codeString = $null
         $remoteString = $null
 
-        foreach ($_ in 1..5) {
+        foreach ($none in 1..5) {
             $remoteString = Request $DownloadURL
             if ($remoteString -eq "Request failed") {
                 Print "請求失敗 重試 =>" Green
@@ -273,7 +273,8 @@ try {
 
         $Core.InvokeCode($codeString) # 運行代碼
     }
-} catch {
+}
+catch {
     Print "錯誤：$($_.Exception.Message)" Red
     Read-Host "[1mEnter 退出程式..."
 }
