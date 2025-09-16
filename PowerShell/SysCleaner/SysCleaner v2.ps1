@@ -185,19 +185,21 @@ Delete @(
     "$Local\LINE\bin\old"
     # IObit
     "$Program\IObit\Driver Booster\Download"
-    "$Roaming\IObit\Software Updater\Log\*.dbg"
     "$Roaming\IObit\Software Updater\AutoLog\*.dbg"
 )
 
 # ===== 掃描清理緩存類型文件 =====
 $findFolders = @($Roaming, $Local, $LocalLow)
-$excludeFolders = @('Coodesker', 'globalStorage')
+$excludeFolders = @('Coodesker', 'globalStorage', 'TokenBroker')
 $cacheFolders = [System.Collections.Generic.HashSet[string]]::new(
     [string[]]@(
-        'Temp', 'Logs', 'Crashpad', 'History', 'INetHistory', 'CrashDumps',
-        'Cache', 'Caches', 'GLCache', 'DXCache', 'lru-cache', 'librarycache', 'GPUCache', 'Code Cache',
+        'Temp', 'Log', 'Logs', 'Crashpad', 'History', 'INetHistory', 'CrashDumps',
+        'Cache', 'Cache2', '.cache', 'Caches', 'GLCache', 'DXCache', 'lru-cache',
+        '.tiny_cache', 'librarycache', 'GPUCache', 'Code Cache', 'AppCache', 'AssetCache',
+        'BrowserCache', 'ImageCache', 'CachedData', 'CachedExtensions', 'OfflineCache',
         'media_cache', 'MediaCache', 'DawnCache', 'INetCache', 'ShaderCache', 'GrShaderCache',
-        'ScriptCache', 'CacheStorage', 'extensions_crx_cache', 'webcache'
+        'ScriptCache', 'CacheStorage', 'webcache', 'extensions_crx_cache', '__pycache__', 'Telemetry',
+        'Temporary Internet Files'
     ),
     [System.StringComparer]::OrdinalIgnoreCase
 )
