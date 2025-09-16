@@ -92,6 +92,8 @@ class Parameters:
         self.Settings.add_argument(f"--remote-debugging-port={self.RandomPort()}")
         self.Settings.add_argument(f"--user-data-dir={userdata}")
 
+        self.Settings.add_argument("--remote-allow-origins=*")
+        self.Settings.add_argument("--disable-blink-features=AutomationControlled")
         self.Settings.add_experimental_option("excludeSwitches", ["enable-logging"])
         self.Settings.add_experimental_option("excludeSwitches", ["enable-automation"])
         self.Settings.add_experimental_option("useAutomationExtension", False)
