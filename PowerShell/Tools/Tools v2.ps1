@@ -677,18 +677,18 @@ class Main {
                 $DownloadURL = "https://raw.githubusercontent.com/Canaan-HS/Script-DataBase/refs/heads/main/Visual%20C%2B%2B/Visual.tar"
 
                 $InstallPackage = @( # 安裝包 與 安裝指令
-                    @{ package = "vcredist2005_x64.exe"; Order = "/q" }
-                    @{ package = "vcredist2008_x64.exe"; Order = "/qb" }
-                    @{ package = "vcredist2010_x64.exe"; Order = "/passive /norestart" }
-                    @{ package = "vcredist2012_x64.exe"; Order = "/passive /norestart" }
-                    @{ package = "vcredist2013_x64.exe"; Order = "/passive /norestart" }
-                    @{ package = "vcredist2015_2017_2019_2022_x64.exe"; Order = "/passive /norestart" }
+                    @{ package = "vcredist2005_x64.exe"; order = "/q" }
+                    @{ package = "vcredist2008_x64.exe"; order = "/qb" }
+                    @{ package = "vcredist2010_x64.exe"; order = "/passive /norestart" }
+                    @{ package = "vcredist2012_x64.exe"; order = "/passive /norestart" }
+                    @{ package = "vcredist2013_x64.exe"; order = "/passive /norestart" }
+                    @{ package = "vcredist2015_2017_2019_2022_x64.exe"; order = "/passive /norestart" }
                 )
 
                 # 有重複的先進行刪除
                 if (Test-Path $DownloadPath) { Remove-Item $DownloadPath -Force }
 
-                Print "檔案較大請稍後 - 安裝包日期 : 2024 年 10 月"
+                Print "檔案較大請稍後 - 安裝包日期 : 2025 年 07 月"
                 Print "`n===== Visual C++ 開始下載 ====="
 
                 # 請求數據
@@ -704,7 +704,7 @@ class Main {
                     foreach ($install in $InstallPackage) {
                         $Path = "$([Main]::Temp)\$($install.package)" # 合併路徑
                         if (Test-Path $Path) {
-                            Start-Process -FilePath $Path -ArgumentList $install.Order -Wait -NoNewWindow
+                            Start-Process -FilePath $Path -ArgumentList $install.order -Wait -NoNewWindow
                             Remove-Item $Path -Force # 安裝完成刪除
                         }
                     }
