@@ -697,7 +697,6 @@ class Main {
                     # 避免意外在檢測是否存在
 
                     tar -xvf $DownloadPath -C $env:Temp
-                    Remove-Item $DownloadPath -Force # 解壓後刪除
 
                     # 遍歷安裝程式
                     Print "`n===== 開始安裝 ====="
