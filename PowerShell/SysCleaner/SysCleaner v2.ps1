@@ -190,7 +190,8 @@ Delete @(
 
 # ===== 掃描清理緩存類型文件 =====
 $findFolders = @($Roaming, $Local, $LocalLow)
-$excludeFolders = @('Coodesker', 'globalStorage', 'TokenBroker')
+$excludeFolders = @('Coodesker', '_vendor', 'globalStorage', 'TokenBroker')
+# 這是一個強刪功能, 需要搭配排除, 不然存在誤刪
 $cacheFolders = [System.Collections.Generic.HashSet[string]]::new(
     [string[]]@(
         'Temp', 'Log', 'Logs', 'Crashpad', 'History', 'INetHistory', 'CrashDumps',
