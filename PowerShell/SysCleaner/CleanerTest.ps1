@@ -1,9 +1,12 @@
+$currentRoot = $PSScriptRoot
+$outFile = Join-Path $currentRoot "scan.txt"
+
 $Roaming = $env:AppData
 $Local = $env:LocalAppData
 $LocalLow = "$(split-path $Roaming)\LocalLow"
 
 $findFolders = @($Roaming, $Local, $LocalLow)
-$excludeFolders = @('Coodesker', 'globalStorage', 'TokenBroker')
+$excludeFolders = @('Coodesker', '_vendor', 'globalStorage', 'TokenBroker')
 $cacheFolders = [System.Collections.Generic.HashSet[string]]::new(
     [string[]]@(
         'Temp', 'Log', 'Logs', 'Crashpad', 'History', 'INetHistory', 'CrashDumps',
@@ -30,9 +33,7 @@ foreach ($find in $findFolders) {
     } | Select-Object -ExpandProperty FullName -Unique
 
     if ($found) {
-        $found | ForEach-Object {
-            write-host $_
-        }
+        $found | Out-File -FilePath $outFile -Append -Encoding UTF8
     }
 }
 
