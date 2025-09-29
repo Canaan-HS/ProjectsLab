@@ -39,7 +39,7 @@ if ($resolution -match "^\d+x\d+$") {
 # 如果是 4K 以上 → 優先使用 ffplay
 if ($width -ge 3840 -or $height -ge 2160) {
     if (Get-Command ffplay -ErrorAction SilentlyContinue) {
-        Start-Process "ffplay" -ArgumentList "-loop", "0", "`"$videoPath`""
+        Start-Process ffplay -ArgumentList "-loop", "0", "-infbuf", "-seek_interval", "3", "`"$videoPath`"" -NoNewWindow
     }
     elseif ($potPlayerPath) {
         Start-Process $potPlayerPath -ArgumentList "`"$videoPath`""
