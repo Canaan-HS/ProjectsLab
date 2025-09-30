@@ -9,52 +9,71 @@ param (
 
 # 嘗試取得 PotPlayer 路徑
 $potPlayerPath = (Get-StartApps | Where-Object { $_.AppID -like "*PotPlayerMini64.exe" }).AppID
+# 嘗試取得 Windows Media Player 路徑
+$mediaPlayerPath = "$env:ProgramFiles\Windows Media Player\wmplayer.exe"
 
 # 取得解析度（需要 ffprobe）
 if (Get-Command ffprobe -ErrorAction SilentlyContinue) {
-    $resolution = & ffprobe -v quiet -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 $videoPath 2>$null
-} else {
-    $resolution = $null
+    $arguments = @(
+        '-v', 'quiet',
+        '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height:format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        $videoPath
+    )
+
+    $info = & ffprobe @arguments 2>$null
 }
 
-if (-not $resolution) {
-    if ($potPlayerPath) {
-        Start-Process $potPlayerPath -ArgumentList "`"$videoPath`""
+function reTry {
+    param (
+        [boolean]$skipPotPlayer = $false,
+        [boolean]$skipWindowsMediaPlayer = $false
+    )
+
+    # PotPlayer
+    if ($potPlayerPath -and -not $skipPotPlayer) {
+        try {
+            Start-Process $potPlayerPath -ArgumentList "`"$videoPath`""
+        }
+        catch {
+            reTry -skipPotPlayer $true
+            return
+        }
     }
+    # Windows Media Player
+    elseif ((Test-Path $mediaPlayerPath) -and -not $skipWindowsMediaPlayer) {
+        try {
+            Start-Process $mediaPlayerPath -ArgumentList "`"$videoPath`""
+        } 
+        catch {
+            reTry -skipWindowsMediaPlayer $true
+            return
+        }
+    }
+    # default
     else {
         Start-Process "explorer.exe" -ArgumentList "`"$videoPath`""
     }
+
     exit
 }
 
-# 解析度解析
-if ($resolution -match "^\d+x\d+$") {
-    $parts = $resolution -split "x"
-    $width = [int]$parts[0]
-    $height = [int]$parts[1]
-} else {
-    $width = $height = 0
+if (-not $info) { reTry }
+
+$width = [int]$info[0]
+$height = [int]$info[1]
+$duration = [math]::Ceiling([double]$info[2])
+
+# 判斷解析度 >= 4K 或長度 <= 20 秒
+if (($width -ge 3840 -or $height -ge 2160) -or ($duration -le 20)) {
+    # ffplay
+    if (Get-Command ffplay -ErrorAction SilentlyContinue) {
+        Start-Process ffplay -ArgumentList "-fs", "-loop", "0", "-infbuf", "-seek_interval", "3", "`"$videoPath`"" -NoNewWindow
+        exit
+    }
+
+    reTry
 }
 
-# 如果是 4K 以上 → 優先使用 ffplay
-if ($width -ge 3840 -or $height -ge 2160) {
-    if (Get-Command ffplay -ErrorAction SilentlyContinue) {
-        Start-Process ffplay -ArgumentList "-loop", "0", "-infbuf", "-seek_interval", "3", "`"$videoPath`"" -NoNewWindow
-    }
-    elseif ($potPlayerPath) {
-        Start-Process $potPlayerPath -ArgumentList "`"$videoPath`""
-    }
-    elseif (Test-Path "$env:ProgramFiles\Windows Media Player\wmplayer.exe") {
-        Start-Process "$env:ProgramFiles\Windows Media Player\wmplayer.exe" -ArgumentList "`"$videoPath`""
-    }
-    else {
-        Start-Process "explorer.exe" -ArgumentList "`"$videoPath`""
-    }
-}
-# PotPlayer
-elseif ($potPlayerPath) {
-    Start-Process $potPlayerPath -ArgumentList "`"$videoPath`""
-}
-else {
-    Start-Process "explorer.exe" -ArgumentList "`"$videoPath`""
-}
+reTry
