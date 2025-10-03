@@ -72,9 +72,20 @@ function reTry {
 
 if (-not $info) { reTry }
 
-$width = [int]$info[0]
-$height = [int]$info[1]
-$duration = [math]::Ceiling([double]$info[2])
+$infoLength = $info.Length
+if ($infoLength -eq 3) {
+    $width = [int]$info[0]
+    $height = [int]$info[1]
+    $duration = [math]::Ceiling([double]$info[2])
+}
+elseif ($infoLength -eq 2) {
+    $dims = $info[0] -split ','
+    $width = [int]$dims[0]
+    $height = [int]$dims[1]
+    $duration = [math]::Ceiling([double]$info[1])
+} else {
+    reTry
+}
 
 # 判斷解析度 >= 4K 或長度 <= 20 秒
 if (($width -ge 3840 -or $height -ge 2160) -or ($duration -le 20)) {
