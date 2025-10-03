@@ -7,18 +7,29 @@ param (
     目前電腦內 PotPlayer 使用 madVR 播放 4k 會掉 fps
 #>
 
-# 嘗試取得 PotPlayer 路徑
-$potPlayerPath = (Get-StartApps | Where-Object { $_.AppID -like "*PotPlayerMini64.exe" }).AppID
+# 嘗試從環境變數取得 PotPlayer 路徑
+$potPlayerPath = $env:PotPlayerPath
 # 嘗試取得 Windows Media Player 路徑
 $mediaPlayerPath = "$env:ProgramFiles\Windows Media Player\wmplayer.exe"
+
+if (-not $potPlayerPath -or -not (Test-Path $potPlayerPath)) {
+    # 環境變數不存在或路徑失效，使用 Get-StartApps 查找
+    $potPlayerPath = (Get-StartApps | Where-Object { $_.AppID -like "*PotPlayerMini64.exe" }).AppID
+
+    # 找到更新使用者環境變數
+    if ($potPlayerPath) {
+        [Environment]::SetEnvironmentVariable("PotPlayerPath", $potPlayerPath, "User")
+    }
+}
 
 # 取得解析度（需要 ffprobe）
 if (Get-Command ffprobe -ErrorAction SilentlyContinue) {
     $arguments = @(
-        '-v', 'quiet',
+        '-v', 'error',
         '-select_streams', 'v:0',
         '-show_entries', 'stream=width,height:format=duration',
-        '-of', 'default=noprint_wrappers=1:nokey=1',
+        '-read_intervals', '%+#0',
+        '-of', 'csv=p=0',
         $videoPath
     )
 
@@ -72,8 +83,6 @@ if (($width -ge 3840 -or $height -ge 2160) -or ($duration -le 20)) {
         Start-Process ffplay -ArgumentList "-fs", "-loop", "0", "-infbuf", "-seek_interval", "3", "`"$videoPath`"" -NoNewWindow
         exit
     }
-
-    reTry
 }
 
 reTry
