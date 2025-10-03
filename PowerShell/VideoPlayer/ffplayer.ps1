@@ -4,9 +4,9 @@ param (
 
 $argu = @(
     "-fs",
-    "-stats",
     "-infbuf",
     "-noborder",
+    "-volume", "100",
     "`"$mediaPath`""
 )
 
