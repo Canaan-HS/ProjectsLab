@@ -4,7 +4,6 @@ Invoke-ps2exe `
     -MTA `
     -noConsole `
     -supportOS `
-    -requireAdmin `
     -Product "VideoPlayer" `
     -Version "1.0.0.0" `
     -Description "VideoPlayer" `
