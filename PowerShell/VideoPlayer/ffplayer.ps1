@@ -6,6 +6,7 @@ $argu = @(
     "-fs",
     "-infbuf",
     "-noborder",
+    "-loop", "0",
     "-volume", "100",
     "`"$mediaPath`""
 )
