@@ -1,14 +1,36 @@
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName PresentationFramework
 
-function DefaultSavePath {
+$Roaming = $env:AppData
+$Local = $env:LocalAppData
+$LocalLow = $Local + "Low"
+
+function DefaultPath {
     # 使用者預設的 LocalLow 目錄路徑
     param (
         [string]$ChildPath
     )
 
-    $Path = Join-Path "$($env:LOCALAPPDATA)Low" $ChildPath
+    $Path = Join-Path $LocalLow $ChildPath
     return $Path # 不做路徑檢查
+}
+
+function LocalPath {
+    param (
+        [string]$ChildPath
+    )
+
+    $Path = Join-Path $Local $ChildPath
+    return $Path
+}
+
+function RoamingPath {
+    param (
+        [string]$ChildPath
+    )
+
+    $Path = Join-Path $Roaming $ChildPath
+    return $Path
 }
 
 function UpperPath {
@@ -146,22 +168,31 @@ function Main {
     $xmlReader = [System.Xml.XmlReader]::Create($reader)
     $window = [Windows.Markup.XamlReader]::Load($xmlReader)
 
-    
+    $removeTarget = [System.Collections.Generic.HashSet[string]]::new(
+        [string[]]@(
+            "Player.log", "Player-prev.log", "output_log.txt"
+        ),
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
 
     $BackUpParent = Split-Path $BackUpPath
     function BackUpErrorShow {
         [System.Windows.Forms.MessageBox]::Show("路徑錯誤", "找不到存檔相關路徑", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
     $window.FindName("OpenBackUpPath").Add_Click({
-            if (Test-Path $BackUpParent) { Start-Process $BackUpParent } else { BackUpErrorShow }
+            if (Test-Path $BackUpPath) { Start-Process $BackUpPath } else { BackUpErrorShow }
         })
     $window.FindName("BackupSave").Add_Click({
             if (Test-Path $SavePath) {
-                # 刪除 Player.log, Player-prev.log
-                Get-ChildItem -Path $SavePath -Include "Player.log", "Player-prev.log" -File -Recurse | ForEach-Object {
-                    try { Remove-Item -Path $_.FullName -Force -ErrorAction Stop } catch {}
+                Get-ChildItem -Path $SavePath -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+                    if ($removeTarget.Contains($_.Name)) {
+                        try {
+                            Remove-Item -Path $_.FullName -Force -ErrorAction Stop
+                        }
+                        catch {}
+                    }
                 }
-            
+
                 CopyFile $SavePath $BackUpParent
                 $expectedBackupPath = Join-Path $BackUpParent (Split-Path $SavePath -Leaf)
                 if (Test-Path $expectedBackupPath) {
@@ -181,7 +212,7 @@ function Main {
         [System.Windows.Forms.MessageBox]::Show("路徑錯誤", "找不到備份相關路徑", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
     }
     $window.FindName("OpenSavePath").Add_Click({
-            if (Test-Path $SaveParent) { Start-Process $SaveParent } else { SaveErrorShow }
+            if (Test-Path $SavePath) { Start-Process $SavePath } else { SaveErrorShow }
         })
     $window.FindName("RestoreSave").Add_Click({
             if (Test-Path $BackUpPath) {
