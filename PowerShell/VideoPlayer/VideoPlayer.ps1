@@ -8,7 +8,7 @@ param (
 #>
 
 # 嘗試從環境變數取得 PotPlayer 路徑
-$potPlayerPath = $env:PotPlayerPath
+$potPlayerPath = $env:POT_PLAYER_PATH
 # 嘗試取得 Windows Media Player 路徑
 $mediaPlayerPath = "$env:ProgramFiles\Windows Media Player\wmplayer.exe"
 
@@ -18,7 +18,7 @@ if (-not $potPlayerPath -or -not (Test-Path $potPlayerPath)) {
 
     # 找到更新使用者環境變數
     if ($potPlayerPath) {
-        [Environment]::SetEnvironmentVariable("PotPlayerPath", $potPlayerPath, "User")
+        [Environment]::SetEnvironmentVariable("POT_PLAYER_PATH", $potPlayerPath, "User")
     }
 }
 
