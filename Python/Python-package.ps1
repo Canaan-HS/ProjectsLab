@@ -115,7 +115,6 @@ $Package = @(
     "SpeechRecognition" # 語音識別庫，將語音轉換為文字
 
     <# 文字與自然語言處理 - 文本分析與語言處理工具 #>
-    "opencc-python-reimplemented" # 中文簡繁轉換工具，支援多種轉換模式 (opencc 的純 python 實現)
     "nltk" # 自然語言處理工具包，提供分詞、詞性標註、語法分析等功能
     "spaCy" # 工業級自然語言處理庫，速度快且準確
     "transformers" # Hugging Face 的 NLP 模型庫，支援 BERT、GPT 等
@@ -159,7 +158,7 @@ $Package = @(
     <# GUI 開發 - 圖形使用者介面開發工具 #>
     "tkinterdnd2" # 增強 tkinter 的拖曳功能
     "customtkinter" # 基於 Tkinter 的現代化 UI 庫，提供美觀的元件
-    "wxPython" # 跨平台 GUI 開發工具
+    # "wxPython" # 跨平台 GUI 開發工具
     "PyQt6" # PyQt5 的升級版，支援更多特性和更新的 Qt 版本
     "PySide6" # PyQt 的開源替代品，由 Qt 官方維護
     "pystray" # 建立系統托盤圖示和選單
@@ -235,21 +234,43 @@ function Print {
     Write-Host "[1m$text" -ForegroundColor $foreColor -BackgroundColor $backColor
 }
 
+$hasUv = Get-Command uv -ErrorAction SilentlyContinue
+if ($hasUv) {
+    $cmd = @{
+        exe       = "uv"
+        install   = @("pip", "install", "--system")
+        uninstall = @("pip", "uninstall", "--system")
+        updatepip = @("pip", "install", "--upgrade", "pip", "--system")
+        updatepkg = @("pip", "install", "--upgrade", "--system")
+        freeze    = @("pip", "freeze", "--system")
+    }
+}
+else {
+    $cmd = @{
+        exe       = "pip"
+        install   = @("install")
+        uninstall = @("uninstall")
+        updatepip = @("install", "--upgrade", "pip")
+        updatepkg = @("install", "--upgrade")
+        freeze    = @("freeze")
+    }
+}
+
 function Install {
     Print "===================="
-    Print "PIP Update =>" Yellow
+    Print "UV|PIP Update =>" Yellow
     Print "====================`n"
 
-    python.exe -m pip install --upgrade pip
-    pip install --upgrade wheel
-    pip install --upgrade setuptools
+    & $cmd.exe @($cmd.updatepip)
+    & $cmd.exe @($cmd.updatepkg + "wheel")
+    & $cmd.exe @($cmd.updatepkg + "setuptools")
 
     Print "`n===================="
     Print "Install Package" Yellow
     Print "====================`n"
 
     foreach ($package in $Package) {
-        pip install --upgrade $package
+        & $cmd.exe @($cmd.install + @("--upgrade", $package))
     }
 
     Print "`n===================="
@@ -264,8 +285,16 @@ function Uninstall {
     Print "Uninstall Package" Red
     Print "====================`n"
 
-    # 這會刪除所有的庫, 並不僅限於這邊的
-    pip freeze | ForEach-Object { pip uninstall -y $_ }
+    # pip freeze | ForEach-Object { pip uninstall -y $_ }
+
+    & $cmd.exe @($cmd.freeze) | ForEach-Object {
+        if ($hasUv) {
+            & $cmd.exe @($cmd.uninstall + $_) # uv 不需要 -y
+        }
+        else {
+            & $cmd.exe @($cmd.uninstall + @("-y", $_))
+        }
+    }
 
     Print "`n===================="
     Print "Uninstall Is Complete" Red
