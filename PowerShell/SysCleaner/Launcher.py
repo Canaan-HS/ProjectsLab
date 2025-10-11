@@ -9,7 +9,7 @@ import socket
 import time
 import os
 
-""" Versions 1.0.3
+""" Versions 1.0.3 (不再使用)
 
 - 進階版檢測
 
@@ -18,11 +18,12 @@ import os
 
 """
 
+
 class Read_web_page:
     def __init__(self, CacheName, CheckLink):
         self.URL = CheckLink
         self.Location = rf"{os.environ["LOCALAPPDATA"]}\{CacheName}.bat"
-        
+
         self.connection = False
 
         self.content = None
@@ -45,7 +46,7 @@ class Read_web_page:
         reques = requests.get(self.URL)
         if reques.status_code == 200:
             self.connection = True
-        self.content = reques.text.split('\n')
+        self.content = reques.text.split("\n")
 
         date_processing = self.content[1].split(" ")
         date_processing = f"{date_processing[3]} {date_processing[4]}"
@@ -55,7 +56,7 @@ class Read_web_page:
 
     def Local_request(self):
         data_box = []
-        with open(self.Location ,"r", encoding="utf-8") as f:
+        with open(self.Location, "r", encoding="utf-8") as f:
             data_box.append(f.readlines())
 
         date_processing = data_box[0][1].split(" ")
@@ -77,9 +78,17 @@ class Read_web_page:
                 if os.path.exists(self.Location):
                     self.Local_request()
 
-                    if v(self.Web_Version) > v(self.Local_Version) or self.Web_LastEditTime > self.Local_LastEditTime:
+                    if (
+                        v(self.Web_Version) > v(self.Local_Version)
+                        or self.Web_LastEditTime > self.Local_LastEditTime
+                    ):
                         with open(self.Location, "w", encoding="utf-8") as f:
-                            for text in tqdm(self.content.items(), ncols=80, desc="更新", bar_format="{l_bar}{bar}"):
+                            for text in tqdm(
+                                self.content.items(),
+                                ncols=80,
+                                desc="更新",
+                                bar_format="{l_bar}{bar}",
+                            ):
                                 f.write(text + "\n")
                                 time.sleep(0.001)
                 else:
@@ -104,10 +113,11 @@ class Read_web_page:
         except Exception:
             messagebox.showerror("異常狀況", "發生了異常無法運行", parent=None)
 
+
 if __name__ == "__main__":
     print("更新檢測...")
     read = Read_web_page(
-        "eJy9VEEOwC",
-        "https://raw.githubusercontent.com/Canaan-HS/Implementation-Project/refs/heads/Main/Command%20Prompt/SysClean/SysClean.bat"
+        "",
+        "",
     )
     read.Enable_Tool()
