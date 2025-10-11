@@ -3,7 +3,7 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force # 給予臨時
 Add-Type -AssemblyName System.Windows.Forms
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-function Print {
+function print {
     param (
         [string]$text,
         [string]$foreColor = "White",
@@ -13,7 +13,7 @@ function Print {
 }
 
 # 檢查網路連線
-function CheckNetwork {
+function checkNetwork {
     # 檢查網路連接
     try {
         Test-Connection -ComputerName "8.8.8.8" -Count 1 -ErrorAction Stop
@@ -25,7 +25,7 @@ function CheckNetwork {
 }
 
 # 請求網路數據
-function Request {
+function request {
     # 請求數據
     param ([string]$url)
     try {
@@ -38,7 +38,7 @@ function Request {
             return $response.Content
         }
         else {
-            return "Request failed"
+            return "request failed"
         }
     }
     catch {
@@ -47,7 +47,7 @@ function Request {
 }
 
 # 生成隨機字串
-function RandomString {
+function randomString {
     param (
         [int]$length
     )
@@ -63,8 +63,8 @@ function RandomString {
     return $randomString
 }
 
-$String = @{
-    ToMD5 = {
+$string = @{
+    toMD5 = {
         param ([string]$string, [int]$byte = 32)
         try {
             $md5 = [System.Security.Cryptography.MD5]::Create()
@@ -76,10 +76,10 @@ $String = @{
             return $lowerHash.Substring(0, [System.Math]::Min($byte, $lowerHash.Length))
         }
         catch {
-            return (RandomString $byte)
+            return (randomString $byte)
         } 
     };
-    ToSHA = {
+    toSHA = {
         param ([string]$string, [int]$byte = 256)
         try {
             $sha256 = [System.Security.Cryptography.SHA256]::Create()
@@ -91,7 +91,7 @@ $String = @{
             return $lowerHash.Substring(0, [System.Math]::Min($byte, $lowerHash.Length))
         }
         catch {
-            return (RandomString 32)
+            return (randomString 32)
         }
     }
 }
@@ -107,17 +107,17 @@ class ProcessingCore {
         $this.path = $path
     }
 
-    [string]Read() {
+    [string]readRaw() {
         # 讀取文件
         return Get-Content -Path $this.path -Raw
     }
 
-    [void]OutputEncrypt([string]$content) {
+    [void]outputEncrypt([string]$content) {
         # 輸出加密文件
-        Set-Content -Path $this.path -Value $this.Encrypt($content) -Encoding UTF8
+        Set-Content -Path $this.path -Value $this.encrypt($content) -Encoding UTF8
     }
 
-    [string]Encrypt([string]$plainText) {
+    [string]encrypt([string]$plainText) {
         # AES 加密
         $encryptor = $this.aes.CreateEncryptor($this.aes.Key, $this.aes.IV)
         $plainTextBytes = [System.Text.Encoding]::UTF8.GetBytes($plainText)
@@ -125,7 +125,7 @@ class ProcessingCore {
         return [Convert]::ToBase64String($encryptedBytes)
     }
 
-    [string]Decrypt([string]$cipherText) {
+    [string]decrypt([string]$cipherText) {
         # AES 解密
         $decryptor = $this.aes.CreateDecryptor($this.aes.Key, $this.aes.IV)
         $cipherTextBytes = [Convert]::FromBase64String($cipherText)
@@ -133,77 +133,76 @@ class ProcessingCore {
         return [System.Text.Encoding]::UTF8.GetString($decryptedBytes)
     }
 
-    [string]GetDecrypt() {
+    [string]getDecrypt() {
         # 獲取解密字串
-        return $this.Decrypt($this.Read())
+        return $this.decrypt($this.readRaw())
     }
 
-    [string]OutputAndGet([string]$content) {
+    [string]outputAndGet([string]$content) {
         # 輸出並回傳加密結果
-        $this.OutputEncrypt($content)
+        $this.outputEncrypt($content)
         if (Test-Path $this.path) {
-            return $this.GetDecrypt()
+            return $this.getDecrypt()
         }
         else {
             return $null
         }
     }
 
-    [void]InvokeCode([string]$code) {
+    [void]invokeCode([string]$code) {
         # 運行解密字串
         try {
             Clear-Host
             Invoke-Expression $code
         }
         catch {
-            Print "錯誤：$($_.Exception.Message)" Red
+            print "錯誤：$($_.Exception.Message)" Red
             Read-Host "[1mEnter 退出程式..."
         }
     }
 }
 
 try {
-    Print "============= 檢查更新 =============" Yellow
+    print "============= 檢查更新 =============" Yellow
 
-    $InfoHash = $null
     try {
         # 取得使用者電腦資訊
-        $BiosInfo = Get-WmiObject -Class Win32_BIOS | Select-Object -Property SerialNumber
-        $BaseBoard = Get-WmiObject -Class Win32_BaseBoard | Select-Object -Property Product, SerialNumber
-        $UserInfo = Get-WmiObject -Class Win32_ComputerSystem | Select-Object -Property PrimaryOwnerName, Name
-        $InfoHash = &($String.ToMD5) "$($UserInfo.PrimaryOwnerName)$($UserInfo.Name)$($BiosInfo.SerialNumber)$($BaseBoard.Product)$($BaseBoard.SerialNumber) - Tools v2"
+        $biosInfo = Get-WmiObject -Class Win32_BIOS | Select-Object -Property SerialNumber
+        $baseBoard = Get-WmiObject -Class Win32_BaseBoard | Select-Object -Property Product, SerialNumber
+        $userInfo = Get-WmiObject -Class Win32_ComputerSystem | Select-Object -Property PrimaryOwnerName, Name
+        $infoHash = &($string.toMD5) "$($userInfo.PrimaryOwnerName)$($userInfo.Name)$($biosInfo.SerialNumber)$($baseBoard.Product)$($baseBoard.SerialNumber) - Tools v2"
     }
     catch {
-        $InfoHash = &($String.ToMD5) "Author: Canaan HS - Tools v2"
+        $infoHash = &($string.toMD5) "Author: Canaan HS - Tools v2"
     }
 
     # 資訊哈希值, 合併成 保存目錄路徑
-    $LocalFile = "$env:Temp\$InfoHash"
-    $FileExists = { return Test-Path $LocalFile }
-    $DownloadURL = "https://raw.githubusercontent.com/Canaan-HS/ProjectsLab/refs/heads/main/PowerShell/Tools/Tools%20v2.ps1"
+    $localFile = "$env:Temp\$infoHash"
+    $fileExists = Test-Path $localFile
+    $updateURL = "https://raw.githubusercontent.com/Canaan-HS/ProjectsLab/refs/heads/main/PowerShell/Tools/Tools%20v2.ps1"
 
     # 處理核心 實例化 (生成加密用 key, iv)
     $Core = [ProcessingCore]::new(
-        [System.Text.Encoding]::UTF8.GetBytes($InfoHash.Substring(0, 16)),
-        [System.Text.Encoding]::UTF8.GetBytes($InfoHash.Substring(16, 16)),
-        $LocalFile
+        [System.Text.Encoding]::UTF8.GetBytes($infoHash.Substring(0, 16)),
+        [System.Text.Encoding]::UTF8.GetBytes($infoHash.Substring(16, 16)),
+        $localFile
     )
 
-    if (-not (CheckNetwork)) {
+    if (-not (checkNetwork)) {
         # 沒有網路
-        $Message = [System.Windows.Forms.MessageBox]::Show(
+        $message = [System.Windows.Forms.MessageBox]::Show(
             "無法獲取更新, 是否嘗試啟動本地文件", "沒有網路",
             [System.Windows.Forms.MessageBoxButtons]::OKCancel,
             [System.Windows.Forms.MessageBoxIcon]::Information
         )
-        if ($Message -eq "Cancel") { exit }
+        if ($message -eq "Cancel") { exit }
 
-        if (& $FileExists) {
+        if ($fileExists) {
             # 有本地文件 => 解碼運行
-            $Core.InvokeCode($Core.GetDecrypt())
+            $Core.invokeCode($Core.getDecrypt())
         }
         else {
-            $Message = [System.Windows.Forms.MessageBox]::Show(
+            $message = [System.Windows.Forms.MessageBox]::Show(
                 "本地無啟動文件", "找不到文件",
                 [System.Windows.Forms.MessageBoxButtons]::OK,
                 [System.Windows.Forms.MessageBoxIcon]::Error
@@ -211,18 +210,14 @@ try {
         }
     }
     else {
-        # 有網路
-        $codeString = $null
-        $remoteString = $null
-
         foreach ($none in 1..5) {
-            $remoteString = Request $DownloadURL
-            if ($remoteString -eq "Request failed") {
-                Print "請求失敗 重試 =>" Green
+            $remoteString = request $updateURL
+            if ($remoteString -eq "request failed") {
+                print "請求失敗 重試 =>" Green
                 continue
             }
             elseif ($remoteString -eq "Update address to change") {
-                $Message = [System.Windows.Forms.MessageBox]::Show(
+                $message = [System.Windows.Forms.MessageBox]::Show(
                     "更新地址已變更 將嘗試開啟本地文件", "地址已變更",
                     [System.Windows.Forms.MessageBoxButtons]::OK,
                     [System.Windows.Forms.MessageBoxIcon]::Warning
@@ -237,33 +232,33 @@ try {
         }
 
         $remoteStringValid = $null -ne $remoteString # 檢查遠端狀態
-        if ((& $FileExists) -and $remoteStringValid) {
+        if ($fileExists -and $remoteStringValid) {
             # 有本地文件, 且有遠端數據
-            $RemoteHash = &($String.ToSHA) $remoteString # 遠端哈希值
-            $codeString = $Core.GetDecrypt() # 獲取本地代碼字串
-            $LocalHash = &($String.ToSHA) $codeString # 本地哈希值
+            $remoteHash = &($string.toSHA) $remoteString # 遠端哈希值
+            $codeString = $Core.getDecrypt() # 獲取本地代碼字串
+            $localHash = &($string.toSHA) $codeString # 本地哈希值
 
-            if (-not($RemoteHash -eq $LocalHash)) {
+            if (-not($remoteHash -eq $localHash)) {
                 # 哈希值不同 (需要更新)
-                $codeString = $Core.OutputAndGet($remoteString) # 輸出加密 並獲取結果
+                $codeString = $Core.outputAndGet($remoteString) # 輸出加密 並獲取結果
 
                 # 大於 32 的哈希數才是真正的更新, 不然就是 Catch 部份的隨機值
-                if ($RemoteHash.Length -gt 32) {
-                    Print "數據已更新" Green
+                if ($remoteHash.Length -gt 32) {
+                    print "數據已更新" Green
                     Start-Sleep -Seconds 1
                 }
             }
         }
-        elseif (-not((& $FileExists)) -and $remoteStringValid) {
+        elseif (-not($fileExists) -and $remoteStringValid) {
             # 沒有本地文件, 但有遠端數據
-            $codeString = $Core.OutputAndGet($remoteString) # 輸出加密 並獲取結果
+            $codeString = $Core.outputAndGet($remoteString) # 輸出加密 並獲取結果
         }
-        elseif ((& $FileExists) -and -not $remoteStringValid) {
+        elseif ($fileExists -and -not $remoteStringValid) {
             # 只有本地文件
-            $codeString = $Core.GetDecrypt()
+            $codeString = $Core.getDecrypt()
         }
         else {
-            $Message = [System.Windows.Forms.MessageBox]::Show(
+            $message = [System.Windows.Forms.MessageBox]::Show(
                 "本地無啟動文件", "找不到文件",
                 [System.Windows.Forms.MessageBoxButtons]::OK,
                 [System.Windows.Forms.MessageBoxIcon]::Error
@@ -271,10 +266,10 @@ try {
             exit
         }
 
-        $Core.InvokeCode($codeString) # 運行代碼
+        $Core.invokeCode($codeString) # 運行代碼
     }
 }
 catch {
-    Print "錯誤：$($_.Exception.Message)" Red
+    print "錯誤：$($_.Exception.Message)" Red
     Read-Host "[1mEnter 退出程式..."
 }
