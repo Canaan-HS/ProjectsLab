@@ -1,4 +1,4 @@
-from Script.AutomaticCapture import AutoCapture
+from Script import AutoCapture
 from collections import OrderedDict
 from concurrent.futures import *
 from multiprocessing import *
