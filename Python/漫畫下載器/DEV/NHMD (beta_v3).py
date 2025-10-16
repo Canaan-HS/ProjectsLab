@@ -1,4 +1,4 @@
-from Script import AutoCapture, Reques, Get
+from Script import AutoCapture, Request, Get
 from collections import OrderedDict
 from concurrent.futures import *
 from multiprocessing import *
@@ -122,14 +122,14 @@ Read = Read()
 # Todo [ 數據請求 ]
 class DataRequest:
     def __init__(self):
-        self.Reques = None  # ? 宣告, 由下方繼承後定義
+        self.Request = None  # ? 宣告, 由下方繼承後定義
         self.domain = "https://nhentai.net"
 
     def get(self, link, result="tree") -> object:
-        return self.Reques.http2_get(link, result)
+        return self.Request.http2_get(link, result)
 
     def async_http_get(self, link) -> object:
-        return self.Reques.async_http_get(link)
+        return self.Request.async_http_get(link)
 
 
 # Todo [ 下載連結驗證 分類 ]
@@ -278,7 +278,7 @@ class NHentaidownloader(Validation):
         self.ProtectionDelay = DownloadDelay  # 下載延遲
         self.MaxProcess = MaxConcurrentDownload
         self.ProcessDelay = ProcessCreationDelay  # 進程創建延遲
-        self.Reques = Reques(Browser.lower().capitalize(), CookieSource)
+        self.Request = Request(Browser.lower().capitalize(), CookieSource)
 
     # ? [ 下載請求 ]
     def download_request(self, link):
