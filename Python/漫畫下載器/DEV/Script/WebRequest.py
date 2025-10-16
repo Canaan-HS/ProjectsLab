@@ -16,15 +16,15 @@ class CarryHead:
     # 使用 navigator.userAgent 直接獲取
     Head = {
         "Google": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
         },
         "Edge": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0"
         },
     }
 
 
-class Reques(CarryHead):
+class Requests(CarryHead):
     def __init__(self, headers: dict | str = "Google", cookies: dict = None):
         """
         * headers: 自定字典或是, "Google" or "Edge"
@@ -167,3 +167,6 @@ class Reques(CarryHead):
         async with session.get(url, headers=self.headers, cookies=self.cookies) as response:
             content = await response.text()
             return etree.HTML(content)
+
+
+Request = Requests()
