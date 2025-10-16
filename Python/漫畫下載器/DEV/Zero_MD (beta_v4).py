@@ -7,7 +7,7 @@ from concurrent.futures import *
 
 import opencc
 from rich.console import Console
-from Script import AutoCapture, Reques
+from Script import AutoCapture, Request
 
 """ Versions 1.0.1 (Beta)
 
@@ -15,7 +15,7 @@ from Script import AutoCapture, Reques
 
         ? (開發/運行環境):
         * Python 3.12.10 64-bit
-        * 個人依賴庫 -> Script 資料夾內所有文件 (AutoCapture, Reques)
+        * 個人依賴庫 -> Script 資料夾內所有文件 (AutoCapture, Request)
 
         ? 功能說明:
         * 自動處理下載數據
@@ -37,9 +37,6 @@ Config = {
     "RequestDomain": "https://www.zerobywa.com/",  # 域名修正: https://zerobyw.github.io/
 }
 
-# ? 請求類的實例
-request = Reques()
-
 # ? 複寫原生打印
 console = Console()
 print = lambda *args, **kwargs: console.print(*args, **kwargs)
@@ -58,7 +55,7 @@ def GetMeta(Url: str):
     if re.match(Allow, Url):
         try:
             # ? 請求數據
-            tree = request.http2_get(Url, "tree")
+            tree = Request.http2_get(Url, "tree")
 
             # ? 取得漫畫名稱
             name = re.match(
@@ -110,7 +107,7 @@ class DownloadTask:
 
     # ? 下載任務
     def task_download(self, FolderName: str, SavePath: str, ImgLink: str):
-        response = request.http2_get(ImgLink, "none")
+        response = Request.http2_get(ImgLink, "none")
 
         if response.status_code == 200:
             # 創建資料夾 (寫在這的原因, 是避免在開始請求前, 就直接創資料夾, 如果請求失敗就會有一堆空資料夾)
@@ -134,7 +131,7 @@ class DownloadTask:
             ]:
                 test_link = f"{Url}/{Page.zfill(Mantissa)}.{Extension}"
 
-                if request.http2_head(test_link) == 200:
+                if Request.http2_head(test_link) == 200:
                     # ? 成功的改變預設的 , 尾數 / 擴展名
                     self.Mantissa = Mantissa
                     self.Extension = Extension
