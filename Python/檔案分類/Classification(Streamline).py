@@ -123,9 +123,9 @@ class OutputFile:
 
         self.save_path = None
         self.output_data = None
-        self.move_output = lambda Source_Path, output_path: shutil.move(Source_Path, output_path)
-        self.copy_output = lambda Source_Path, output_path: shutil.copyfile(
-            Source_Path, output_path
+        self.move_output = lambda source_path, output_path: shutil.move(source_path, output_path)
+        self.copy_output = lambda source_path, output_path: shutil.copyfile(
+            source_path, output_path
         )
 
     # 複製處理
@@ -199,8 +199,10 @@ class TypeSelection(ReadFolder, OutputFile):
                     selected = self.type_quantity[select_code - 1][0]  # 根據索引取出類型字串
                     print(f"你選擇了 : {selected}\n", style="bold green")
 
+                    lower_selected = selected.lower()
+
                     # 檢查是否為 RPG Maker 加密圖片類型
-                    if f".{selected.lower()}" in VALID_EXTENSIONS:
+                    if f".{lower_selected}" in VALID_EXTENSIONS:
 
                         def rpg_restore_task(source_path, output_path):
                             # 將輸出的副檔名強制變更為 .png
@@ -216,6 +218,20 @@ class TypeSelection(ReadFolder, OutputFile):
 
                         # 將任務切換為 RPG 圖片還原
                         self.task_work = rpg_restore_task
+
+                    elif lower_selected == "nlch":
+                        # 針對特定遊戲的臨時任務 (未來可能會移除)
+
+                        def nlch_to_webm(source_path, output_path):
+                            base_output_path, _ = os.path.splitext(output_path)
+                            webm_output_path = base_output_path + ".webm"
+                            (
+                                shutil.copyfile(source_path, webm_output_path)
+                                if self.use_copy
+                                else shutil.move(source_path, webm_output_path)
+                            )
+
+                        self.task_work = nlch_to_webm
 
                     # 根據選擇類型, 取出完整數據
                     self.output_data = (
