@@ -30,7 +30,7 @@ class Requests(CarryHead):
         * headers: 自定字典或是, "Google" or "Edge"
         * cookies: 傳入字典 cookie
         """
-        self.client = httpx.Client(http2=True, timeout=3)
+        self.client = httpx.Client(http2=True, timeout=5)
         self.session = requests.Session()
         self.headers = (
             self.Head[headers.capitalize()]
@@ -94,7 +94,10 @@ class Requests(CarryHead):
         """
         try:
             return self.__Parse(
-                self.session.get(url, headers=self.headers, cookies=self.cookies, timeout=3), type
+                self.session.get(
+                    url, headers=self.headers, cookies=self.cookies, stream=True, timeout=5
+                ),
+                type,
             )
         except requests.exceptions.Timeout:
             return SimpleNamespace(text="Request Timeout", status_code=408)
