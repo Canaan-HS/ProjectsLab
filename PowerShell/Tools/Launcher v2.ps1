@@ -182,7 +182,7 @@ try {
     $updateURL = "https://raw.githubusercontent.com/Canaan-HS/ProjectsLab/refs/heads/main/PowerShell/Tools/Tools%20v2.ps1"
 
     # 處理核心 實例化 (生成加密用 key, iv)
-    $Core = [ProcessingCore]::new(
+    $core = [ProcessingCore]::new(
         [System.Text.Encoding]::UTF8.GetBytes($infoHash.Substring(0, 16)),
         [System.Text.Encoding]::UTF8.GetBytes($infoHash.Substring(16, 16)),
         $localFile
@@ -199,7 +199,7 @@ try {
 
         if ($fileExists) {
             # 有本地文件 => 解碼運行
-            $Core.invokeCode($Core.getDecrypt())
+            $core.invokeCode($core.getDecrypt())
         }
         else {
             $message = [System.Windows.Forms.MessageBox]::Show(
@@ -235,12 +235,12 @@ try {
         if ($fileExists -and $remoteStringValid) {
             # 有本地文件, 且有遠端數據
             $remoteHash = &($string.toSHA) $remoteString # 遠端哈希值
-            $codeString = $Core.getDecrypt() # 獲取本地代碼字串
+            $codeString = $core.getDecrypt() # 獲取本地代碼字串
             $localHash = &($string.toSHA) $codeString # 本地哈希值
 
             if (-not($remoteHash -eq $localHash)) {
                 # 哈希值不同 (需要更新)
-                $codeString = $Core.outputAndGet($remoteString) # 輸出加密 並獲取結果
+                $codeString = $core.outputAndGet($remoteString) # 輸出加密 並獲取結果
 
                 # 大於 32 的哈希數才是真正的更新, 不然就是 Catch 部份的隨機值
                 if ($remoteHash.Length -gt 32) {
@@ -251,11 +251,11 @@ try {
         }
         elseif (-not($fileExists) -and $remoteStringValid) {
             # 沒有本地文件, 但有遠端數據
-            $codeString = $Core.outputAndGet($remoteString) # 輸出加密 並獲取結果
+            $codeString = $core.outputAndGet($remoteString) # 輸出加密 並獲取結果
         }
         elseif ($fileExists -and -not $remoteStringValid) {
             # 只有本地文件
-            $codeString = $Core.getDecrypt()
+            $codeString = $core.getDecrypt()
         }
         else {
             $message = [System.Windows.Forms.MessageBox]::Show(
@@ -266,7 +266,7 @@ try {
             exit
         }
 
-        $Core.invokeCode($codeString) # 運行代碼
+        $core.invokeCode($codeString) # 運行代碼
     }
 }
 catch {
