@@ -70,7 +70,7 @@ class TestBrowser:
             self.CachePath = UserDate
 
         self.Driver = Chrome(
-            version_main=140,
+            version_main=142,
             advanced_elements=True,
             options=self.Options(),
             driver_executable_path=self.DriverPath,
