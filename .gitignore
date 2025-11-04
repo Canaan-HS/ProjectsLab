@@ -17,6 +17,7 @@ test
 
 *VENV*
 *default
+pnpm-lock.yaml
 
 !DB.json
 !chromedriver.exe
