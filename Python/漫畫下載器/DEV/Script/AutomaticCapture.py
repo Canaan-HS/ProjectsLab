@@ -93,7 +93,7 @@ class AutomaticCapture:
             print("錯誤的網址格式")
 
     # 以list回傳所有擷取的網址
-    def GetList(self):
+    def get_list(self):
         if self.__verifica():
             self.__hotkey_trigger()
 
@@ -104,7 +104,7 @@ class AutomaticCapture:
                 return None
 
     # 只會回傳一條網址 , 擷取多條就只回傳第一條
-    def GetLink(self):
+    def get_link(self):
         if self.__verifica():
             self.__now_trigger()
 
@@ -114,7 +114,7 @@ class AutomaticCapture:
                 time.sleep(0.1)
 
     # 以生成器的方式回傳
-    def GetBuilder(self):
+    def get_builder(self):
         if self.__verifica():
             self.__hotkey_trigger()
 
@@ -126,7 +126,7 @@ class AutomaticCapture:
                 yield None
 
     # 特別的擷取方法
-    def Unlimited(self):
+    def unlimited(self):
         """
         這是一個無限擷取的函數 , 沒有快捷停止 , 只能手動中止程式
         * 使用方法 :
@@ -141,4 +141,4 @@ class AutomaticCapture:
                     yield url
 
 
-AutoCapture = AutomaticCapture()
+capture = AutomaticCapture()
