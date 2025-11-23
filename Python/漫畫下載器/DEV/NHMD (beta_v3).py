@@ -1,4 +1,4 @@
-from Script import AutoCapture, Request, Get
+from Script import capture, Fetch, request_cookie
 from collections import OrderedDict
 from concurrent.futures import *
 from multiprocessing import *
@@ -34,7 +34,7 @@ import os
         * 設置完成後啟用程式 即可自動擷取剪貼簿 擷取完成透過熱鍵 觸發請求下載
 
         ? 更新說明:
-        * 許久沒維護 大概無法正常運行
+        * 許久沒維護 大概無法運行
 """
 
 os.chdir(Path(__file__).parent)
@@ -42,7 +42,7 @@ os.chdir(Path(__file__).parent)
 
 # Todo [ 手動獲取Cookie, 並保存Josn文件 ]
 def cookie_get():
-    return Get.AGCookie("https://nhentai.net/", rf"{os.getcwd()}\Cookie\NHCookies")
+    return request_cookie.manual_get("https://nhentai.net/", rf"{os.getcwd()}\Cookie\NHCookies")
 
 
 class Set:
@@ -278,7 +278,7 @@ class NHentaidownloader(Validation):
         self.ProtectionDelay = DownloadDelay  # 下載延遲
         self.MaxProcess = MaxConcurrentDownload
         self.ProcessDelay = ProcessCreationDelay  # 進程創建延遲
-        self.Request = Request(Browser.lower().capitalize(), CookieSource)
+        self.Request = Fetch(Browser.lower().capitalize(), CookieSource)
 
     # ? [ 下載請求 ]
     def download_request(self, link):
@@ -551,10 +551,10 @@ if __name__ == "__main__":
         CookieSource=Read("cookie"),
     )
 
-    AutoCapture.settings("https://nhentai.net/")
-    capture = AutoCapture.GetList()
-    if capture is not None:
-        nh.download_request(capture)
+    capture.settings("https://nhentai.net/")
+    capture_list = capture.get_list()
+    if capture_list is not None:
+        nh.download_request(capture_list)
     else:
         print("無擷取內容")
         os._exit(0)
