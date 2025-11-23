@@ -1,3 +1,3 @@
-from .AutomaticCapture import AutoCapture
-from .GetCookiesAutomatically import Get
-from .WebRequest import Request
+from .AutomaticCapture import AutomaticCapture, capture
+from .GetCookiesAutomatically import AutomationRequest, request_cookie
+from .WebRequest import Fetch, fetch
