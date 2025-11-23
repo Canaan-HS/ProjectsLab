@@ -1,6 +1,9 @@
+import re
+import tkinter as tk  # 用來獲取螢幕解析度以置中視窗
+
 import cv2
 import numpy as np
-import tkinter as tk  # 用來獲取螢幕解析度以置中視窗
+
 from init import config, match_threshold, safe_confidence
 
 
@@ -14,46 +17,57 @@ class FastSolver:
         self.grid = [row[:] for row in grid]
         self.moves = []
 
-    def get_rect_info(self, r1, c1, r2, c2):
-        total = 0
-        count = 0
-        for r in range(r1, r2 + 1):
-            for c in range(c1, c2 + 1):
-                val = self.grid[r][c]
-                total += val
-                if val > 0:
-                    count += 1
-        return total, count
+    def _build_prefix(self):
+        ps = [[0] * (self.cols + 1) for _ in range(self.rows + 1)]
+        pc = [[0] * (self.cols + 1) for _ in range(self.rows + 1)]
+        for r in range(self.rows):
+            row_sum = 0
+            row_cnt = 0
+            for c in range(self.cols):
+                v = self.grid[r][c]
+                row_sum += v
+                row_cnt += 1 if v > 0 else 0
+                ps[r + 1][c + 1] = ps[r][c + 1] + row_sum
+                pc[r + 1][c + 1] = pc[r][c + 1] + row_cnt
+        return ps, pc
+
+    @staticmethod
+    def _rect_sum(prefix, r1, c1, r2, c2):
+        return (
+            prefix[r2 + 1][c2 + 1]
+            - prefix[r1][c2 + 1]
+            - prefix[r2 + 1][c1]
+            + prefix[r1][c1]
+        )
 
     def solve(self):
         while True:
-            candidates = []
+            ps, pc = self._build_prefix()
+            best_move = None
+            best_key = None
             for r1 in range(self.rows):
                 for c1 in range(self.cols):
                     for r2 in range(r1, self.rows):
                         for c2 in range(c1, self.cols):
-                            total, count = self.get_rect_info(r1, c1, r2, c2)
-                            if total == 10 and count > 0:
+                            total = self._rect_sum(ps, r1, c1, r2, c2)
+                            if total == 10:
+                                count = self._rect_sum(pc, r1, c1, r2, c2)
+                                if count <= 0:
+                                    continue
                                 area = (r2 - r1 + 1) * (c2 - c1 + 1)
                                 is_straight = (r1 == r2) or (c1 == c2)
                                 type_priority = 0 if is_straight else 1
-                                candidates.append(
-                                    {
-                                        "move": (r1, c1, r2, c2),
-                                        "count": count,
-                                        "type": type_priority,
-                                        "area": area,
-                                    }
-                                )
+                                key = (count, type_priority, area)
+                                if best_key is None or key < best_key:
+                                    best_key = key
+                                    best_move = (r1, c1, r2, c2)
                             if total > 10:
                                 break
 
-            if not candidates:
+            if best_move is None:
                 break
-            candidates.sort(key=lambda x: (x["count"], x["type"], x["area"]))
 
-            best = candidates[0]
-            move = best["move"]
+            move = best_move
             self.moves.append(move)
 
             r1, c1, r2, c2 = move
@@ -72,15 +86,26 @@ def load_templates():
         print(f"❌ 錯誤：找不到 templates 資料夾: {config.templates_path}")
         return {}
 
-    for i in range(1, 10):
-        img_path = config.templates_path / f"{i}.png"
-        if img_path.exists():
-            img = cv2.imdecode(np.fromfile(str(img_path), dtype=np.uint8), cv2.IMREAD_COLOR)
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            norm = cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX)
-            templates[i] = norm
+    template_paths = sorted(config.templates_path.glob("*.png"))
+    loaded = 0
+    for img_path in template_paths:
+        if img_path.name.lower() == "screenshot.png":
+            continue
 
-    print(f"✅ 已載入 {len(templates)} 個樣板")
+        m = re.match(r"^(\d+)", img_path.stem)
+        if not m:
+            continue
+
+        num = int(m.group(1))
+        img = cv2.imdecode(np.fromfile(str(img_path), dtype=np.uint8), cv2.IMREAD_COLOR)
+        if img is None:
+            continue
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        norm = cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX)
+        templates.setdefault(num, []).append(norm)
+        loaded += 1
+
+    print(f"✅ 已載入 {loaded} 個樣板 (分類數: {len(templates)})")
     return templates
 
 
@@ -92,17 +117,18 @@ def match_number(cell_img, templates):
     best_score = -1
     best_num = None
 
-    for num, tmpl in templates.items():
-        h_tmpl, w_tmpl = tmpl.shape[:2]
-        if h_tmpl > h_cell or w_tmpl > w_cell:
-            continue
+    for num, tmpls in templates.items():
+        for tmpl in tmpls:
+            h_tmpl, w_tmpl = tmpl.shape[:2]
+            if h_tmpl > h_cell or w_tmpl > w_cell:
+                continue
 
-        res = cv2.matchTemplate(norm, tmpl, cv2.TM_CCOEFF_NORMED)
-        _, max_val, _, _ = cv2.minMaxLoc(res)
+            res = cv2.matchTemplate(norm, tmpl, cv2.TM_CCOEFF_NORMED)
+            _, max_val, _, _ = cv2.minMaxLoc(res)
 
-        if max_val > best_score:
-            best_score = max_val
-            best_num = num
+            if max_val > best_score:
+                best_score = max_val
+                best_num = num
 
     return (best_num, best_score) if best_score > match_threshold else (None, best_score)
 
