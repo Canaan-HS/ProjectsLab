@@ -5,6 +5,7 @@ import json
 import time
 import os
 
+
 class Chrome(uc.Chrome):
     def __del__(self):
         try:
@@ -12,7 +13,8 @@ class Chrome(uc.Chrome):
         except:
             pass
 
-#! 較新的 Python 不支援以下語法, 此實現已經很久沒維護
+
+# ! 較新的 Python 不支援以下語法, 此實現已經很久沒維護
 class AutomationRequest:
     def __init__(self):
         self.driver_path = rf"{os.path.dirname(os.path.abspath(__file__))}\driver\chromedriver.exe"
@@ -45,24 +47,24 @@ class AutomationRequest:
 
     def __Setting_Options(self):
         self.Settings.add_argument("--incognito")
-        self.Settings.add_argument('--log-level=3')
-        self.Settings.add_argument('--no-first-run')
+        self.Settings.add_argument("--log-level=3")
+        self.Settings.add_argument("--no-first-run")
         self.Settings.add_argument("--headless=new")
-        self.Settings.add_argument('--disable-infobars')
+        self.Settings.add_argument("--disable-infobars")
         self.Settings.add_argument("--disable-extensions")
-        self.Settings.add_argument('--no-service-autorun')
+        self.Settings.add_argument("--no-service-autorun")
         self.Settings.add_argument("--disable-file-system")
         self.Settings.add_argument("--disable-geolocation")
-        self.Settings.add_argument('--password-store=chrome')
-        self.Settings.add_argument('--disable-notifications')
-        self.Settings.add_argument("--disable-popup-blocking") 
-        self.Settings.add_argument('--no-default-browser-check')
+        self.Settings.add_argument("--password-store=chrome")
+        self.Settings.add_argument("--disable-notifications")
+        self.Settings.add_argument("--disable-popup-blocking")
+        self.Settings.add_argument("--no-default-browser-check")
         self.Settings.add_argument("--profile-directory=Default")
-        self.Settings.add_argument('--disable-blink-features=AutomationControlled')
+        self.Settings.add_argument("--disable-blink-features=AutomationControlled")
         self.Settings.add_argument(f"--remote-debugging-port={random.randint(1024, 65535)}")
         return self.Settings
 
-    def __Loading_Display(self, time: int):
+    def __loading_display(self, time: int):
         self.load += 1
 
         if self.load > 3:
@@ -71,21 +73,21 @@ class AutomationRequest:
         else:
             print(f"\r獲取中[{time}秒]{self.show * self.load}", end="", flush=True)
 
-    def __Get_Settings(self):
+    def __get_settings(self):
         return Chrome(
             version_main=123,
             user_multi_procs=True,
             advanced_elements=True,
             options=self.__Setting_Options(),
-            driver_executable_path=self.driver_path
+            driver_executable_path=self.driver_path,
         )
-        
-    def __LoadWait(self):
+
+    def __load_wait(self):
         WebDriverWait(self.driver, 10).until(
             lambda driver: driver.execute_script("return document.readyState") == "complete"
         )
-    
-    def AGCookie(self, url: str, json: str):
+
+    def auto_get(self, url: str, json: str):
         """
         自動請求 Cookie
         >>> 參數
@@ -103,15 +105,17 @@ class AutomationRequest:
             if json.find(".json") != -1:
                 json = json.rsplit(".", 1)[0]
 
-            self.driver = self.__Get_Settings()
+            self.driver = self.__get_settings()
             self.driver.get(url)
-            self.__LoadWait()
-            self.driver.execute_script('Object.defineProperty(navigator, "webdriver", {get: () => undefined})')
+            self.__load_wait()
+            self.driver.execute_script(
+                'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
+            )
 
             while True:
                 cookies = self.driver.get_cookies()
                 for index in range(len(cookies)):
-                    name = cookies[index]['name']
+                    name = cookies[index]["name"]
                     value = cookies[index]["value"]
                     self.cookie[name] = value
 
@@ -123,36 +127,38 @@ class AutomationRequest:
                     time.sleep(1)
 
                     # 超時 30 秒退出
-                    if self.timeout > 30: 
+                    if self.timeout > 30:
                         raise Exception()
 
-                self.__Loading_Display(self.timeout)
+                self.__loading_display(self.timeout)
         except Exception as e:
             self.driver.close()
             return False
 
-    def MGCookie(self, url: str, json: str):
+    def manual_get(self, url: str, json: str):
         """
-    手動請求 Cookie
-    >>> 參數
+        手動請求 Cookie
+        >>> 參數
 
-    *   url  請求的連結
-    *   json 請求成功後創建的 .json 名稱 (不需要打.json)
+        *   url  請求的連結
+        *   json 請求成功後創建的 .json 名稱 (不需要打.json)
 
-    >>> 說明
+        >>> 說明
 
-    *   呼叫後會啟用網頁窗口 , 等待登入後 , 鍵入 y 進行取得
-    *   該窗口網站並不會記錄登入狀態 , 所以每次呼叫都要重登
-    """
+        *   呼叫後會啟用網頁窗口 , 等待登入後 , 鍵入 y 進行取得
+        *   該窗口網站並不會記錄登入狀態 , 所以每次呼叫都要重登
+        """
         print("啟動窗口等待獲取 cookie ==>")
         try:
             if json.find(".json") != -1:
                 json = json.rsplit(".", 1)[0]
 
-            self.driver = self.__Get_Settings()
+            self.driver = self.__get_settings()
             self.driver.get(url)
-            self.__LoadWait()
-            self.driver.execute_script('Object.defineProperty(navigator, "webdriver", {get: () => undefined})')
+            self.__load_wait()
+            self.driver.execute_script(
+                'Object.defineProperty(navigator, "webdriver", {get: () => undefined})'
+            )
 
             while True:
                 confirm = input("請[登入帳號後]鍵入 (y) 進行獲取 : ")
@@ -161,7 +167,7 @@ class AutomationRequest:
                     cookies = self.driver.get_cookies()
 
                     for index in range(len(cookies)):
-                        name = cookies[index]['name']
+                        name = cookies[index]["name"]
                         value = cookies[index]["value"]
                         self.cookie[name] = value
 
@@ -178,8 +184,9 @@ class AutomationRequest:
         except Exception as e:
             return False
 
-    def __OutputCookie(self,name):
-        with open(f"{name}.json" , "w") as file:
-            file.write(json.dumps(self.cookie, indent=4, separators=(',', ':')))
- 
-Get = AutomationRequest()
+    def __OutputCookie(self, name):
+        with open(f"{name}.json", "w") as file:
+            file.write(json.dumps(self.cookie, indent=4, separators=(",", ":")))
+
+
+request_cookie = AutomationRequest()
