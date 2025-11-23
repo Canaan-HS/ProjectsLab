@@ -7,7 +7,7 @@ from concurrent.futures import *
 
 import opencc
 from rich.console import Console
-from Script import AutoCapture, Request
+from Script import capture, fetch
 
 """ Versions 1.0.1 (Beta)
 
@@ -15,7 +15,7 @@ from Script import AutoCapture, Request
 
         ? (開發/運行環境):
         * Python 3.12.10 64-bit
-        * 個人依賴庫 -> Script 資料夾內所有文件 (AutoCapture, Request)
+        * 個人依賴庫 -> Script 資料夾內所有文件 (capture, fetch)
 
         ? 功能說明:
         * 自動處理下載數據
@@ -55,7 +55,7 @@ def GetMeta(Url: str):
     if re.match(Allow, Url):
         try:
             # ? 請求數據
-            tree = Request.http2_get(Url, "tree")
+            tree = fetch.http2_get(Url, "tree")
 
             # ? 取得漫畫名稱
             name = re.match(
@@ -107,7 +107,7 @@ class DownloadTask:
 
     # ? 下載任務
     def task_download(self, FolderName: str, SavePath: str, ImgLink: str):
-        response = Request.http2_get(ImgLink, "none")
+        response = fetch.http2_get(ImgLink, "none")
 
         if response.status_code == 200:
             # 創建資料夾 (寫在這的原因, 是避免在開始請求前, 就直接創資料夾, 如果請求失敗就會有一堆空資料夾)
@@ -131,7 +131,7 @@ class DownloadTask:
             ]:
                 test_link = f"{Url}/{Page.zfill(Mantissa)}.{Extension}"
 
-                if Request.http2_head(test_link) == 200:
+                if fetch.http2_head(test_link) == 200:
                     # ? 成功的改變預設的 , 尾數 / 擴展名
                     self.Mantissa = Mantissa
                     self.Extension = Extension
@@ -254,7 +254,7 @@ class ZeroDownloader(DownloadTask):
 
 if __name__ == "__main__":
     CustomRange = lambda start, end: [chapter for chapter in range(start, end + 1)]
-    AutoCapture.settings(Config["RequestDomain"])
+    capture.settings(Config["RequestDomain"])
 
     """
         ~ 創建任務的方法 ~
@@ -273,7 +273,7 @@ if __name__ == "__main__":
     # Todo -> 下方創建方式擇一使用, 使用其中一個時, 將另一個註解
 
     # ? 監聽剪貼簿自動創建任務
-    Download.CreateTask(AutoCapture.GetLink())
+    Download.CreateTask(capture.get_link())
 
     # ? 自定下載任務 (模板), 範圍設置 -> (1 or [1, 2, 3] or CustomRange(1, 3))
     # Download.CreateTask("Url", Chapter=CustomRange(1, 10), Mantissa=2, Exten="jpg", Special=True)
