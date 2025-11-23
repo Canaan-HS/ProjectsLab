@@ -12,19 +12,19 @@ Todo    適用於 Python 3.10+
 """
 
 
-class CarryHead:
+class Headers:
     # 使用 navigator.userAgent 直接獲取
-    Head = {
+    browser_head = {
         "Google": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
         },
         "Edge": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0"
         },
     }
 
 
-class Requests(CarryHead):
+class Fetch(Headers):
     def __init__(self, headers: dict | str = "Google", cookies: dict = None):
         """
         * headers: 自定字典或是, "Google" or "Edge"
@@ -33,15 +33,15 @@ class Requests(CarryHead):
         self.client = httpx.Client(http2=True, timeout=5)
         self.session = requests.Session()
         self.headers = (
-            self.Head[headers.capitalize()]
+            self.browser_head[headers.capitalize()]
             if isinstance(headers, str)
             else headers if isinstance(headers, dict) else None
         )
         self.cookies = cookies
 
     # 解析要回傳的類型
-    def __Parse(self, respon, type):
-        Parse = {
+    def __parse(self, respon, type):
+        parse = {
             "none": lambda: respon,
             "text": lambda: respon.text,
             "content": lambda: respon.content,
@@ -51,9 +51,9 @@ class Requests(CarryHead):
         }
 
         try:
-            return Parse.get(type)()
+            return parse.get(type)()
         except:
-            return Parse.get("none")()
+            return parse.get("none")()
 
     def Elapsed_Time(func):
         """
@@ -71,7 +71,7 @@ class Requests(CarryHead):
 
     def head(self, url: str) -> int:
         try:
-            return self.__Parse(
+            return self.__parse(
                 self.session.head(url, headers=self.headers, cookies=self.cookies, timeout=3),
                 "status",
             )
@@ -93,7 +93,7 @@ class Requests(CarryHead):
         "bf" => bs4 進行解析
         """
         try:
-            return self.__Parse(
+            return self.__parse(
                 self.session.get(
                     url, headers=self.headers, cookies=self.cookies, stream=True, timeout=5
                 ),
@@ -104,7 +104,7 @@ class Requests(CarryHead):
 
     def http2_head(self, url: str) -> int:
         try:
-            return self.__Parse(
+            return self.__parse(
                 self.client.head(url, headers=self.headers, cookies=self.cookies), "status"
             )
         except httpx.ConnectTimeout:
@@ -125,7 +125,7 @@ class Requests(CarryHead):
         "bf" => bs4 進行解析
         """
         try:
-            return self.__Parse(
+            return self.__parse(
                 self.client.get(url, headers=self.headers, cookies=self.cookies), type
             )
         except httpx.ConnectTimeout:
@@ -172,4 +172,4 @@ class Requests(CarryHead):
             return etree.HTML(content)
 
 
-Request = Requests()
+fetch = Fetch()
