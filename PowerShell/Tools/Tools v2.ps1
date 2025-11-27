@@ -434,7 +434,7 @@ class Main {
                 Print ""
                 Print "  更新資訊:"
                 Print ""
-                Print "   1. IDM 授權更新"
+                Print "   1. IDM 授權功能停用 (等待新的授權方案)"
                 Print "----------------------------------"
                 $this.WaitBack()
             }
@@ -1187,10 +1187,11 @@ class Main {
                 $this.WaitBack()
             }
             (index) {
+                Print "目前無法使用該功能" Red
+                $this.WaitBack()
+
                 # IDM 授權
-                # https://github.com/Coporton/IDM-Activation-Script (目前使用)
-                # https://github.com/lstprjct/IDM-Activation-Script
-                # https://github.com/kamrullab/idm
+                # https://github.com/tytsxai/IDM-Activation-Script-Chinese (可能的替用)
 
                 $this.Authorize(
                     "IDM-Activation-Script-main.zip",
