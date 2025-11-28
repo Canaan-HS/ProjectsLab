@@ -37,4 +37,4 @@ foreach ($find in $findFolders) {
     }
 }
 
-write-host "掃描完成"
+Read-host "掃描完成, 按任意鍵退出"
