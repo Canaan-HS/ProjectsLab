@@ -34,7 +34,7 @@ from Script import capture, fetch
 
 Config = {
     "DownloadPath": "R:/",  # 路徑結尾必須為斜線
-    "RequestDomain": "https://www.zerobywa.com/",  # 域名修正: https://zerobyw.github.io/
+    "RequestDomain": "https://www.zerobywb.com/",  # 域名修正: https://zerobyw.github.io/
 }
 
 # ? 複寫原生打印
