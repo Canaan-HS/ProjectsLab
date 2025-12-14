@@ -33,7 +33,7 @@ base_config = {
         "rows": 16,
         "cols": 10,
         "start_x": 710,
-        "start_y": 230,
+        "start_y": 228,
         "step_x": 51.8,
         "step_y": 51.8,
         "roi_w": 32,
