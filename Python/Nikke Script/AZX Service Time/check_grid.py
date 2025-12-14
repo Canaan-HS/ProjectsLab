@@ -20,11 +20,11 @@ def check_grid_overlay():
             x = int(curr_x)
             y = int(curr_y)
 
-            # 畫出紅框
-            cv2.rectangle(debug_img, (x, y), (x + config.roi_w, y + config.roi_h), (0, 0, 255), 2)
+            # 畫出框
+            cv2.rectangle(debug_img, (x, y), (x + config.roi_w, y + config.roi_h), (0, 255, 0), 2)
 
             # 畫出中心點
-            cv2.circle(debug_img, (x + config.roi_w // 2, y + config.roi_h // 2), 2, (0, 255, 0), -1)
+            cv2.circle(debug_img, (x + config.roi_w // 2, y + config.roi_h // 2), 2, (0, 0, 255), -1)
 
     # 縮放顯示
     scale = 0.8
