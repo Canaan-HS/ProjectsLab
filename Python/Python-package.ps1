@@ -256,6 +256,13 @@ else {
     }
 }
 
+<#
+掃描所有安裝包並建立 requirements.txt
+pip freeze > requirements.txt
+
+直接在 powershell 中使用 freeze 掃描後 使用 uv 更新
+pip freeze | ForEach-Object { uv pip install --upgrade $_ }
+#>
 function Install {
     Print "===================="
     Print "UV|PIP Update =>" Yellow
@@ -280,12 +287,14 @@ function Install {
     Exit
 }
 
+<#
+批量卸載所有包
+pip freeze | ForEach-Object { pip uninstall -y $_ }
+#>
 function Uninstall {
     Print "`n===================="
     Print "Uninstall Package" Red
     Print "====================`n"
-
-    # pip freeze | ForEach-Object { pip uninstall -y $_ }
 
     & $cmd.exe @($cmd.freeze) | ForEach-Object {
         if ($hasUv) {
