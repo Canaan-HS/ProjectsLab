@@ -45,54 +45,26 @@ function FetchModel {
 
 function FetchDependent {
     param (
-        [string]$FetchPath, # 抓取依賴檔案路徑
-        [boolean]$Init = $false # 初始化進程
+        [string]$fetchPath # 抓取依賴檔案路徑
     )
 
-    $srmdFolder = "models-srmd"
-    $rifeFolder = "rife-models"
-    $realesrganFolder = "realesrgan-models"
-
-    $ffmpegPath = "$FetchPath\tools\ffmpeg.exe"
-    $ffprobePath = "$FetchPath\tools\ffprobe.exe"
-
-    $srmdPath = "$FetchPath\srmd-ncnn-vulkan.exe"
-    $rifePath = "$FetchPath\rife-ncnn-vulkan.exe"
-    $realesrganPath = "$FetchPath\realesrgan-ncnn-vulkan.exe"
-
-    # 關閉多餘的進程
-    if ($Init) {
-        Get-Process -Name "ffmpeg", "ffprobe", "rife-ncnn-vulkan", "realesrgan-ncnn-vulkan" -ErrorAction SilentlyContinue | Stop-Process -Force
-        write-host "初始化進程完成"
-    }
+    $ffmpegPath = Join-Path $fetchPath "tools\ffmpeg.exe"
+    $ffprobePath = Join-Path $fetchPath "tools\ffprobe.exe"
 
     # 判斷依賴檔案
     @(
         $ffmpegPath,
-        $ffprobePath,
-        $srmdPath,
-        $rifePath,
-        $realesrganPath
+        $ffprobePath
     ) | ForEach-Object {
         if (-not(Test-Path -LiteralPath $_)) {
-            Write-Host "[依賴取得失敗] $_"
+            Write-Error "[依賴取得失敗] $_"
             exit
         }
     }
-
-    FetchModel "$FetchPath\$srmdFolder" # 只用於驗證
-    $rifeModelList = FetchModel "$FetchPath\$rifeFolder"
-    $realesrganModelList = FetchModel "$FetchPath\$realesrganFolder"
 
     Write-Host "獲取依賴完成`n"
     return @{
         ffmpeg = $ffmpegPath
         ffprobe = $ffprobePath
-        srmd = $srmdPath
-        rife = $rifePath
-        realesr = $realesrganPath
-        rifeModelList = $rifeModelList
-        realesrganModelList = $realesrganModelList
-        realesrganModelFolder = $realesrganFolder
     }
 }
