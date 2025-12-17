@@ -13,8 +13,7 @@ function Parse {
 function GetStreamsInfo {
     param (
         [string]$Video, # 影片路徑
-        [int]$targetFPS, # 目標的 FPS
-        [int]$scaleFactor # 縮放乘數
+        [int]$targetFPS # 目標的 FPS
     )
 
     try {
@@ -32,10 +31,10 @@ function GetStreamsInfo {
 
         $totalFrames = [int]$videoStream.nb_frames # 總共幀數 (擷圖的總數)
         $totalDuration = [double]$videoStream.duration # 總時長（秒）
-        $fillerFrame = [int]($totalFrames * $fpsFactor) # 計算補幀後的框架數
+        $finalFrames = [int]($totalFrames * $fpsFactor) # 計算補幀後的框架數
 
         return @(
-            $width, $height, $fps, $totalDuration, $totalFrames, $fillerFrame
+            $width, $height, $fps, $totalDuration, $totalFrames, $finalFrames
         )
     } catch {
         write-host ("獲取媒體資訊時發生錯誤: " + $_.Exception.Message)
