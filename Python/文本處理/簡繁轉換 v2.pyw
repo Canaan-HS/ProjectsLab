@@ -24,6 +24,7 @@ import pyperclip
         $ opencc
         $ chardet
         $ pyperclip
+        $ tkinterdnd2
 
         ~ 使用說明:
         > 文本轉換:
