@@ -747,19 +747,6 @@ $UV = @{
         # 取得分段數
         $UV.chunksCount = $UV.chunks.Count
 
-        # -------- 預計算各階段解析度變化 (用於除錯資訊) --------
-        $preScale = if ($UV.preProcessRules[(& $PARAMETER.GetResolution $UV.height)]) { 
-            $UV.preProcessRules[(& $PARAMETER.GetResolution $UV.height)][1] 
-        }
-        else { 1 }
-        
-        $stageInfo = @{
-            "階段1_原始"   = "$($UV.width)x$($UV.height)"
-            "階段2_預處理後" = "$($UV.width * $preScale)x$($UV.height * $preScale)"
-            "階段3_補幀後"  = "$($UV.width * $preScale)x$($UV.height * $preScale) (解析度不變)"
-            "階段4_超分後"  = "$($UV.width * $preScale * $UV.scaleFactor)x$($UV.height * $preScale * $UV.scaleFactor)"
-        }
-
         # -------- 輸出除錯資訊 --------
         @{
             "Meta" = @{
@@ -783,7 +770,6 @@ $UV = @{
                     "合併目錄"  = $UV.workDir
                     "緩存目錄"  = $UV.cacheDir
                 }
-                "解析度變化" = $stageInfo
                 "模型資訊"  = @{
                     "預處理程式"  = $UV.preProcessCall
                     "預處理模型"  = $UV.preProcessModels
@@ -821,7 +807,7 @@ $UV = @{
 
 # --- 使用範例 ---
 $UV.videoPath = "R:\Test-2.mp4"
-$UV.upscaler = "realesrgan"
+$UV.upscaler = "realcugan"
 $UV.interpolator = "rife"
 $UV.interpolatorModelIndex = 1
 $UV.targetFPS = 0
@@ -831,7 +817,7 @@ $UV.frameCacheFormat = "png"
 $UV.cacheDirectory = ""
 $UV.outputResolution = "1920x1080"
 $UV.fastEncode = $true
-$UV.chunkDurationSec = 30
+$UV.chunkDurationSec = 15
 
 # 執行
 & $UV.Start
