@@ -1,15 +1,17 @@
-# import threading
-import msvcrt
+import os
+import json
 
 # import time
-import json
-import os
+import msvcrt
 
-from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.console import Console
-from rich.table import Table
-from lxml import etree
+# import threading
+
 import httpx
+
+from lxml import etree
+from rich.table import Table
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 # 複寫原生打印方式
 console = Console()
