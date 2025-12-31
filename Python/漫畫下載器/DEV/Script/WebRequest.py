@@ -1,9 +1,12 @@
-from types import SimpleNamespace
-from bs4 import BeautifulSoup
-from lxml import etree
-import requests
-import httpx
 import time
+
+from types import SimpleNamespace
+
+import httpx
+import requests
+
+from lxml import html, etree
+from bs4 import BeautifulSoup
 
 """
 Todo    適用於 Python 3.10+
@@ -16,10 +19,10 @@ class Headers:
     # 使用 navigator.userAgent 直接獲取
     browser_head = {
         "Google": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
         },
         "Edge": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0"
         },
     }
 
@@ -47,6 +50,7 @@ class Fetch(Headers):
             "content": lambda: respon.content,
             "status": lambda: respon.status_code,
             "tree": lambda: etree.HTML(respon.text),
+            "html": lambda: html.fromstring(respon.text),
             "bf": lambda: BeautifulSoup(respon.text, "html.parser"),
         }
 
@@ -86,10 +90,11 @@ class Fetch(Headers):
 
         >>> [ type ]
         要獲取的結果類型
-        ("none" / "text" / "content" / "status" / "tree" / "bf")
+        ("none" | "text" | "content" | "status" | "tree" | "html" | "bf")
 
         "none" => 無處理
-        "tree" => lxml 進行解析
+        "tree" => lxml 進行解析, 適用 xml 使用 xpath
+        "html" => lxml 進行解析, 適用 html 使用 cssselect
         "bf" => bs4 進行解析
         """
         try:
@@ -118,10 +123,11 @@ class Fetch(Headers):
 
         >>> [ type ]
         要獲取的結果類型
-        ("none" / "text" / "content" / "status" / "tree" / "bf")
+        ("none" | "text" | "content" | "status" | "tree" | "html" | "bf")
 
         "none" => 無處理
-        "tree" => lxml 進行解析
+        "tree" => lxml 進行解析, 適用 xml 使用 xpath
+        "html" => lxml 進行解析, 適用 html 使用 cssselect
         "bf" => bs4 進行解析
         """
         try:
@@ -131,7 +137,7 @@ class Fetch(Headers):
         except httpx.ConnectTimeout:
             return SimpleNamespace(text="Request Timeout", status_code=408)
 
-    async def async_http_get(self, url: str) -> object:
+    async def async_http_get(self, url: str, type: str = "text") -> object:
         """
         *   異步 Get 請求
 
@@ -147,9 +153,9 @@ class Fetch(Headers):
         """
         async with httpx.AsyncClient(http2=True) as client:
             response = await client.get(url, headers=self.headers, cookies=self.cookies)
-            return etree.HTML(response.text)
+            return self.__parse(response.text, type)
 
-    async def async_get(self, url: str, session) -> object:
+    async def async_get(self, url: str, session, type: str = "text") -> object:
         """
         *   異步 Get 請求
 
@@ -169,7 +175,7 @@ class Fetch(Headers):
         """
         async with session.get(url, headers=self.headers, cookies=self.cookies) as response:
             content = await response.text()
-            return etree.HTML(content)
+            return self.__parse(content, type)
 
 
 fetch = Fetch()
