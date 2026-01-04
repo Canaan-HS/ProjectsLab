@@ -51,6 +51,13 @@ function Delete {
     }
 }
 
+function Test-CommandExists {
+    param(
+        [string]$Name
+    )
+    return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
+}
+
 Print "========================================================================================================================" 'Red'
 Print "                                                 系統清理程式 v2 (實驗版)" 'Magenta'
 Print "========================================================================================================================" 'White'
@@ -222,6 +229,10 @@ foreach ($find in $findFolders) {
 
 # ===== 調用系統清理 並檢查錯誤 =====
 Start-Process cleanmgr.exe -ArgumentList "/sagerun:99"
+
+# ===== NPM 清理 =====
+if (Test-CommandExists 'npm') { npm cache verify }
+if (Test-CommandExists 'pnpm') { pnpm store prune }
 
 Clear-Host
 Print "`n安全移除系統內隱藏檔案(這需要花一段時間)`n" 'Yellow'
