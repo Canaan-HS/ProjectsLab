@@ -6,14 +6,22 @@ from Script import fetch, capture
 def open_href(url: str):
     if not url:
         return
+
     url = url.replace("redirect", "twjn")
-    tree = fetch.http2_get(url, "tree")
+    element = fetch.http3_get(
+        url,
+        cookies={
+            "cf_clearance": ""
+        },
+        type="html",
+    )
 
     try:
-        href = tree.xpath("//strong/a/@href")[0]
+        href = element.cssselect("a")[0].get("href")
         if href:
             os.system(f"fp {href}")  # 調用個人環境 cli 播放器
-    except:
+    except Exception as e:
+        print(e)
         pass
 
 
