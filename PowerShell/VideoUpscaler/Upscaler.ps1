@@ -804,7 +804,7 @@ $UV = @{
     interpolator           = "rife"   # 補幀算法 (rife [品質佳速度快] | ifrnet [品質高速度慢])
     <#
         ? 補幀算法模型
-        ! 使用不可自訂的模型會自訂將原始 FPS * 2
+        ! 使用不可自訂的模型會自動將原始 FPS * 2
         * ifrnet: 1=IFRNet_L_GoPro | 2=IFRNet_Vimeo90K | 3=IFRNet_L_Vimeo90K (只有 GoPro 可自訂 FPS)
         * rife: 1=rife-v4.26 | 2=rife-anime (只有 rife-v4.26 可自訂 FPS)
     #>
