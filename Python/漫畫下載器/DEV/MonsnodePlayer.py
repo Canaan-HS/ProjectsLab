@@ -1,9 +1,8 @@
 import os
 from Script import fetch, capture
 
+
 # 臨時撰寫 個人用途的工具
-
-
 def open_href(url: str):
     if not url:
         return
