@@ -51,13 +51,15 @@ import os
 # 下載位置設置
 dir = os.path.abspath("R:/")
 
+
 # (該網站會每過一段時間會改域名 , 在此處更改即可繼續使用)
 def DomainName():
     return "http://www.zerobyw8.com/"
 
+
 class ZeroDownloader:
     def __init__(self):
-        """ #_#_#_#_#_#_#_#_#_#_#_#_#_#_#
+        """#_#_#_#_#_#_#_#_#_#_#_#_#_#_#
         Todo ----------------------------
             *  { 進程處理 }
             ?  [ ProcessDelay ] 創建進程 的 延遲秒數
@@ -65,7 +67,7 @@ class ZeroDownloader:
         Todo ----------------------------
         """
         self.ProcessDelay = 1
-        self.MaxProcesses = cpu_count() - 1 # cpu 核心數
+        self.MaxProcesses = cpu_count() - 1  # cpu 核心數
 
         """ #_#_#_#_#_#_#_#_#_#_#_#_#_#_#
         Todo ----------------------------
@@ -75,9 +77,9 @@ class ZeroDownloader:
             ?  [ UrlFormat ] 篩選正確的該網站網址格式
         Todo ----------------------------
         """
-        self.Filter = r'[^\d.-]'
+        self.Filter = r"[^\d.-]"
         self.NameFormat = r"^(.*?)【"
-        self.UrlFormat = fr"{DomainName()}plugin\.php\?id=(.*)"
+        self.UrlFormat = rf"{DomainName()}plugin\.php\?id=(.*)"
 
         """ #_#_#_#_#_#_#_#_#_#_#_#_#_#_#
         Todo ----------------------------
@@ -127,12 +129,14 @@ class ZeroDownloader:
         StartTime = time.time()
         converter = opencc.OpenCC("s2twp.json")
 
-        if re.match(self.UrlFormat,url):
+        if re.match(self.UrlFormat, url):
             try:
                 tree = self.reques.http2_get(url, "tree")
 
                 # 漫畫名稱處理
-                name = re.match(self.NameFormat , tree.xpath("//h3[@class='uk-heading-line mt10 m10']/text()")[0])
+                name = re.match(
+                    self.NameFormat, tree.xpath("//h3[@class='uk-heading-line mt10 m10']/text()")[0]
+                )
                 self.Manga_name = converter.convert(name.group(1))
 
                 # 獲取漫畫話數 and 漫畫連結
@@ -140,15 +144,18 @@ class ZeroDownloader:
                     self.Comics_number.append(re.sub(self.Filter, "", link.xpath("./text()")[0]))
                     self.Comics_link.append(f"{DomainName()}/{link.get('href').split('./')[1]}")
 
-                self.Comic_link_format = tree.xpath("//div[@class='uk-width-medium']/img")[0].get('src')
-                self.request_status = True # 判斷是否完全請求到數據
+                self.Comic_link_format = tree.xpath("//div[@class='uk-width-medium']/img")[0].get(
+                    "src"
+                )
+                self.request_status = True  # 判斷是否完全請求到數據
 
-                print("[獲取完成] 耗時 %.3f 秒\n" %((time.time() - StartTime)))
-                
+                print("[獲取完成] 耗時 %.3f 秒\n" % ((time.time() - StartTime)))
+
             except Exception as e:
                 print(f"域名錯誤 , 或是伺服器問題! {e}")
 
-        else:print("不符合的網址格式")
+        else:
+            print("不符合的網址格式")
 
     # 加速下載方法
     def accelerate(self, special, folder_name, number):
@@ -166,18 +173,20 @@ class ZeroDownloader:
             for i in range(1000):
                 # 頁數格式判斷
                 if len(self.Mantissa) == 3:
-                    page = int(pages)+i
+                    page = int(pages) + i
                     page = f"{page:03d}"
                 elif len(self.Mantissa) == 2:
-                    page = int(pages)+i
+                    page = int(pages) + i
                     page = f"{page:02d}"
                 elif len(self.Mantissa) == 1:
-                    page = int(pages)+i
+                    page = int(pages) + i
                     page = f"{page:01d}"
 
                 if special:
                     # 特別漫畫連結的格式
-                    ComicLink = f"{self.domain}{self.location}/{number}sheng/{page}.{self.FileExtension}"
+                    ComicLink = (
+                        f"{self.domain}{self.location}/{number}sheng/{page}.{self.FileExtension}"
+                    )
                 else:
                     # 一般漫畫連結的格式
                     ComicLink = f"{self.domain}{self.location}/{number}/{page}.{self.FileExtension}"
@@ -191,7 +200,7 @@ class ZeroDownloader:
                 if Data_status != 200:
                     if self.retry:
                         Try = self.Automatic_Trial_And_Error(ComicLink)
-                        if Try != None:
+                        if Try is not None:
                             self.download(folder_name, Save, Try)
                             count += 1
                         else:
@@ -204,25 +213,25 @@ class ZeroDownloader:
             print(f"第 {number} 話 [共 {count} 頁] - 下載完成", flush=True)
 
     # 自動下載方法
-    def Automatic(self, url:str, retry=True):
+    def Automatic(self, url: str, retry=True):
 
         # 請求數據
         self.data_processing(url)
         self.retry = retry
 
         if self.request_status:
-            Manga_name = self.Manga_name # 漫畫名稱
-            self.Ffolder(rf"{dir}{Manga_name}") # 創建漫畫資料夾
-            self.domain = DomainName().replace("www","tupa") # 圖片請求域名格式變更
+            Manga_name = self.Manga_name  # 漫畫名稱
+            self.Ffolder(rf"{dir}{Manga_name}")  # 創建漫畫資料夾
+            self.domain = DomainName().replace("www", "tupa")  # 圖片請求域名格式變更
 
-            link = self.Comic_link_format.split("/") # 連結處理
-            self.location = f"{link[-4]}/{link[-3]}" # 網址連結的位置
+            link = self.Comic_link_format.split("/")  # 連結處理
+            self.location = f"{link[-4]}/{link[-3]}"  # 網址連結的位置
 
-            end = link[-1].split(".") # 網址尾部處理
-            self.Mantissa = end[0] # 連結尾數
-            self.FileExtension = end[1] # 連結擴展名
-            
-            for number in self.Comics_number: # 漫畫話數
+            end = link[-1].split(".")  # 網址尾部處理
+            self.Mantissa = end[0]  # 連結尾數
+            self.FileExtension = end[1]  # 連結擴展名
+
+            for number in self.Comics_number:  # 漫畫話數
                 # 特別章節
                 special = False
                 # 判斷特別章節
@@ -268,9 +277,8 @@ class ZeroDownloader:
                         time.sleep(self.ProcessDelay)
             """
 
-
     # 自訂下載方法
-    def Custom(self,url:str, chapter=None, mantissa=3, FE="png", retry=True, special=False):
+    def Custom(self, url: str, chapter=None, mantissa=3, FE="png", retry=True, special=False):
 
         # 尾數轉換字串
         def mantissa_conversion(mantissa):
@@ -289,7 +297,7 @@ class ZeroDownloader:
 
         if self.request_status:
 
-            """ ____________ 初始值設置 ____________ """
+            """____________ 初始值設置 ____________"""
 
             Manga_name = self.Manga_name
             Comics_number = None
@@ -305,17 +313,17 @@ class ZeroDownloader:
             """ ____________ 章節數設置 ____________ """
 
             # 設置是list(多重設置)
-            if isinstance(chapter,list):
+            if isinstance(chapter, list):
                 Comics_number = chapter
             # 沒有設置(預設)
-            elif chapter == None:
+            elif chapter is None:
                 Comics_number = self.Comics_number
             # 有設置某參數
             else:
                 Comics_number = list(str(chapter))
 
             """ ____________ 開始請求下載 ____________ """
-            
+
             for number in Comics_number:
                 if number == self.cache:
                     folder_name = rf"{dir}{Manga_name}\{Manga_name} - 第{number}特別話"
@@ -351,8 +359,10 @@ class ZeroDownloader:
 
     # 資料夾創建
     def Ffolder(self, FolderName):
-        try:os.mkdir(FolderName) 
-        except:pass
+        try:
+            os.mkdir(FolderName)
+        except:
+            pass
 
     # 自動測試正確的格式
     def Automatic_Trial_And_Error(self, url):
@@ -363,7 +373,13 @@ class ZeroDownloader:
         page = int(initial[1].split(".")[0])
 
         # 尾數格式
-        mantissa_combination = [f"{page:01d}", f"{page:02d}", f"{page:03d}", f"{page:04d}", f"{page:05d}"]
+        mantissa_combination = [
+            f"{page:01d}",
+            f"{page:02d}",
+            f"{page:03d}",
+            f"{page:04d}",
+            f"{page:05d}",
+        ]
         # 擴展格式
         extension_combination = ["jpg", "png", "gif", "jpeg"]
 
@@ -392,23 +408,26 @@ class ZeroDownloader:
             if not os.path.exists(folder_name):
                 self.Ffolder(folder_name)
 
-            with open(save_name,"wb") as f:
+            with open(save_name, "wb") as f:
                 f.write(Data.content)
 
         return Data.status_code
 
+
 #################################################################################
+
 
 # 快速設置範圍
 def custom_range(start, end):
-    for chapter in range(start, end+1):
+    for chapter in range(start, end + 1):
         CB.append(chapter)
+
 
 if __name__ == "__main__":
     zero = ZeroDownloader()
     CB = []
 
-#################################################################################
+    #################################################################################
 
     """ 自動下載說明
 
@@ -424,7 +443,7 @@ if __name__ == "__main__":
     # capture = AutoCapture.GetLink()
     # zero.Automatic(capture)
 
-#################################################################################
+    #################################################################################
 
     """ 自訂下載說明
 
