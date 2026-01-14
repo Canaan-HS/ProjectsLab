@@ -16,39 +16,44 @@ os.chdir(dir)
 # 無法下載第一話就需要VIP權限的(第一話可直接觀看,第二話需要VIP,這種的可以)
 # 早期製作 (早期寫法難以維護,不做後續優化更新)
 
+
 def Converter(language):
-    converter = opencc.OpenCC('s2twp.json')
+    converter = opencc.OpenCC("s2twp.json")
     return converter.convert(language)
 
-def download(comicname,number,pages,comicurl,_format):
+
+def download(comicname, number, pages, comicurl, _format):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
     }
-    comic = requests.get(f"http://www.zerobyw3.com/manhua/{comicurl}",headers=headers)
+    comic = requests.get(f"http://www.zerobyw3.com/manhua/{comicurl}", headers=headers)
     if comic.status_code == 200:
-        with open(f"{comicname} 第{number}話 - {int(pages)+1}.{_format}","wb") as f:
-                f.write(comic.content)
+        with open(f"{comicname} 第{number}話 - {int(pages) + 1}.{_format}", "wb") as f:
+            f.write(comic.content)
 
-def special_format(link,url):
+
+def special_format(link, url):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
     }
     if url.find("special") != -1:
         try:
-            request = requests.get(link,headers=headers)
+            request = requests.get(link, headers=headers)
             request = BeautifulSoup(request.text, "html.parser")
-            request = request.select('img#img_0')[0].get('src').split("/")[-1].split(".")[0]
-        except:pass
+            request = request.select("img#img_0")[0].get("src").split("/")[-1].split(".")[0]
+        except:
+            pass
 
         return request
 
-def default_download(allchapters,alllinks,finallink,comicname):
+
+def default_download(allchapters, alllinks, finallink, comicname):
     cache = coding = ""
     ImageFormat = finallink.split(".")[1]
-    for idx , chapters in enumerate(allchapters):
+    for idx, chapters in enumerate(allchapters):
         if chapters == cache:
             coding = f"{chapters}sheng"
-            pages = special_format(alllinks[idx],"special")
+            pages = special_format(alllinks[idx], "special")
         else:
             coding = chapters
             pages = finallink.split("/")[2].split(".")[0]
@@ -57,24 +62,28 @@ def default_download(allchapters,alllinks,finallink,comicname):
             for i in range(1000):
                 time.sleep(0.1)
                 if len(pages) == 3:
-                    page = int(pages)+i
+                    page = int(pages) + i
                     page = f"{page:03d}"
                 elif len(pages) == 2:
-                    page = int(pages)+i
+                    page = int(pages) + i
                     page = f"{page:02d}"
                 elif len(pages) == 1:
-                    page = int(pages)+i
+                    page = int(pages) + i
                     page = f"{page:01d}"
-                picturelink = "{}/{}/{}.{}".format(finallink.split("/")[0],coding,page,ImageFormat)
+                picturelink = "{}/{}/{}.{}".format(
+                    finallink.split("/")[0], coding, page, ImageFormat
+                )
                 if i < 10:
-                    i = "0"+str(i)
-                comic = executor.submit(download,comicname,coding,i,picturelink,ImageFormat)
-                if int(comic.result().status_code) != 200:break
+                    i = "0" + str(i)
+                comic = executor.submit(download, comicname, coding, i, picturelink, ImageFormat)
+                if int(comic.result().status_code) != 200:
+                    break
                 print(picturelink)
         idx + 1
 
-def custom_download(url,chapter,Format,ImageFormat):
-     
+
+def custom_download(url, chapter, Format, ImageFormat):
+
     head = {
         "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
         "Accept-Encoding": "gzip, deflate",
@@ -84,29 +93,31 @@ def custom_download(url,chapter,Format,ImageFormat):
         "DNT": "1",
         "Pragma": "no-cache",
         "sec-gpc": "1",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
     }
-    req1 = requests.get(url,headers=head)
+    req1 = requests.get(url, headers=head)
     ma = BeautifulSoup(req1.text, "html.parser")
     comicname = Converter(ma.find("h3", class_=("uk-heading-line mt10 m10")).text.split(" ")[0])
     comiclink = f"http://www.zerobyw3.com/{ma.select_one('div.muludiv a')['href'].split('./')[1]}"
-    req2 = requests.get(comiclink,headers=head)
+    req2 = requests.get(comiclink, headers=head)
     mb = BeautifulSoup(req2.text, "html.parser")
     try:
-        finallink = mb.select('img#img_0')[0].get('src').split("manhua/")[1]
+        finallink = mb.select("img#img_0")[0].get("src").split("manhua/")[1]
         pages = int(finallink.split("/")[2].split(".")[0])
         with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
             for i in range(1000):
-                pages = pages+i
+                pages = pages + i
                 p = f"{pages:0{Format}d}"
-                picturelink = "{}/{}/{}.{}".format(finallink.split("/")[0],chapter,p,ImageFormat)
+                picturelink = "{}/{}/{}.{}".format(finallink.split("/")[0], chapter, p, ImageFormat)
                 if i < 10:
-                    i = "0"+str(i)
-                comic = executor.submit(download,comicname,chapter,i,picturelink,ImageFormat)
+                    i = "0" + str(i)
+                comic = executor.submit(download, comicname, chapter, i, picturelink, ImageFormat)
                 print(comic.result().url)
-                if int(comic.result().status_code) != 200:break
+                if int(comic.result().status_code) != 200:
+                    break
     except:
         print("不支援第一話就需要VIP的漫畫")
+
 
 def download_settings(url):
     head = {
@@ -119,23 +130,24 @@ def download_settings(url):
         "ost": "tupa.zerobyw4090.com",
         "ragma": "no-cache",
         "ec-gpc": "1",
-        "ser-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
+        "ser-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
     }
-    requests1 = requests.get(url,headers=head)
+    requests1 = requests.get(url, headers=head)
     ma = BeautifulSoup(requests1.text, "html.parser")
     allchapters = []
     alllinks = []
     comicname = Converter(ma.find("h3", class_=("uk-heading-line mt10 m10")).text.split(" ")[0])
     comiclink = f"http://www.zerobyw3.com/{ma.select_one('div.muludiv a')['href'].split('./')[1]}"
     for i in ma.select("div.uk-grid-collapse.uk-child-width-1-4")[0].find_all("a"):
-        allchapters.append(''.join(re.findall(r'\d+', i.text)))
+        allchapters.append("".join(re.findall(r"\d+", i.text)))
     for i in ma.select("div.uk-grid-collapse.uk-child-width-1-4")[0].find_all("a"):
         alllinks.append(f"http://www.zerobyw3.com/{i.get('href').split('./')[1]}")
-    requests2 = requests.get(comiclink,headers=head)
+    requests2 = requests.get(comiclink, headers=head)
     mb = BeautifulSoup(requests2.text, "html.parser")
-    finallink = mb.select('img#img_0')[0].get('src').split("manhua/")[1]
-    default_download(allchapters,alllinks,finallink,comicname)
-            
+    finallink = mb.select("img#img_0")[0].get("src").split("manhua/")[1]
+    default_download(allchapters, alllinks, finallink, comicname)
+
+
 if __name__ == "__main__":
 
     """懶人批量下載"""
