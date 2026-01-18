@@ -2,42 +2,48 @@
 # ffprobe -v quiet -print_format json -show_streams -show_format "影片路徑"
 
 function Parse {
-    param (
-        [object]$param,
-        [boolean]$toInt
-    )
-
+    param ([object]$param, [boolean]$toInt)
     return ($param -is [string]) ? ($toInt ? [int]$param : $param) : ($toInt ? [int]$param[0] : $param[0])
 }
 
+# 解析幀率字串 (如 "24000/1001")
+function ParseFrameRate([string]$fpsString) {
+    if (-not $fpsString -or $fpsString -eq "0/0") { return 0 }
+    $parts = $fpsString -split "/"
+    $denom = if ([int]$parts[1] -eq 0) { 1 } else { [int]$parts[1] }
+    return [Math]::Round([double]$parts[0] / $denom, 2)
+}
+
 function GetStreamsInfo {
-    param (
-        [string]$Video, # 影片路徑
-        [int]$targetFPS # 目標的 FPS
-    )
+    param ([string]$Video, [int]$targetFPS)
 
-    try {
-        # 取得媒體完整資訊
-        $videoStream = (& ffprobe -v quiet -print_format json -show_streams -show_format $Video | ConvertFrom-Json).streams | Where-Object { $_.codec_type -eq 'video' }
+    $mediaInfo = & ffprobe -v quiet -print_format json -show_streams -show_format $Video | ConvertFrom-Json
+    $stream = $mediaInfo.streams | Where-Object { $_.codec_type -eq 'video' } | Select-Object -First 1
+    $format = $mediaInfo.format
 
-        # 處理回傳所需數據
-        $width = [int]$videoStream.width # 基本寬
-        $height = [int]$videoStream.height # 基本高
+    $width = [int]$stream.width
+    $height = [int]$stream.height
 
-        $frame_rate = ($videoStream.avg_frame_rate -split "/")
-        $fps = [int]([int]$frame_rate[0] / [int]$frame_rate[1]) # 每幀張數 Fps
+    # 幀率 (優先 avg_frame_rate)
+    $fps = ParseFrameRate $stream.avg_frame_rate
+    if ($fps -eq 0) { $fps = ParseFrameRate $stream.r_frame_rate }
 
-        $fpsFactor = [Math]::Max($targetFPS / $fps, 1) # 根據目標 FPS, 計算出 FPS 乘數
+    # 時長 (優先 stream，備用 format，最後單獨查詢)
+    $totalDuration = if ($stream.duration) { [double]$stream.duration } 
+    elseif ($format.duration) { [double]$format.duration }
+    else { [double](& ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $Video) }
 
-        $totalFrames = [int]$videoStream.nb_frames # 總共幀數 (擷圖的總數)
-        $totalDuration = [double]$videoStream.duration # 總時長（秒）
-        $finalFrames = [int]($totalFrames * $fpsFactor) # 計算補幀後的框架數
+    # 總幀數 (優先 stream，備用計算，最後實際計數)
+    $totalFrames = if ($stream.nb_frames) { [int]$stream.nb_frames }
+    elseif ($totalDuration -gt 0 -and $fps -gt 0) { [int][Math]::Ceiling($totalDuration * $fps) }
+    else { [int](& ffprobe -v quiet -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of default=noprint_wrappers=1:nokey=1 $Video) }
 
-        return @(
-            $width, $height, $fps, $totalDuration, $totalFrames, $finalFrames
-        )
-    } catch {
-        write-host ("獲取媒體資訊時發生錯誤: " + $_.Exception.Message)
-        exit
-    }
+    # 補幀後幀數
+    $fpsFactor = [Math]::Max($targetFPS / $fps, 1)
+    $finalFrames = [int]($totalFrames * $fpsFactor)
+
+    # 檢測是否有音頻流
+    $hasAudio = $null -ne ($mediaInfo.streams | Where-Object { $_.codec_type -eq 'audio' } | Select-Object -First 1)
+
+    return @($width, $height, $fps, $totalDuration, $totalFrames, $finalFrames, $hasAudio)
 }
