@@ -434,7 +434,9 @@ class Main {
                 Print ""
                 Print "  更新資訊:"
                 Print ""
-                Print "   1. IDM 授權功能停用 (等待新的授權方案)"
+                Print "   1. IDM 授權功能變更 (實驗性)"
+                Print ""
+                Print "   2. DNS 優化功能改進"
                 Print "----------------------------------"
                 $this.WaitBack()
             }
@@ -1187,18 +1189,16 @@ class Main {
                 $this.WaitBack()
             }
             (index) {
-                Print "目前無法使用該功能" Red
-                $this.WaitBack()
-
                 # IDM 授權
-                # https://github.com/tytsxai/IDM-Activation-Script-Chinese (可能的替用)
+                # https://github.com/tytsxai/IDM-Activation-Script-Chinese
+                # https://github.com/zinzied/IDM-Freezer-Activation-Tool
 
                 $this.Authorize(
-                    "IDM-Activation-Script-main.zip",
-                    "https://github.com/Coporton/IDM-Activation-Script/releases/download/Latest/IDM-Activation-Script-main.zip",
-                    "IDM-Activation-Script-main/IASL.cmd"
+                    "$($this.MD5("zied")).cmd",
+                    "https://raw.githubusercontent.com/zinzied/IDM-Freezer-Activation-Tool/refs/heads/main/zied.cmd", $null
                 )
 
+                $this.WaitBack()
                 <#
                 $this.Authorize(
                     "$($this.MD5("IASL")).cmd",
@@ -1444,46 +1444,64 @@ class Main {
 
                 $dnsServers = @{
                     Global = @(
+                        # Cloudflare - 全球最快的公共DNS
                         @{name = "Cloudflare"; dns = "1.1.1.1"; doh = "https://cloudflare-dns.com/dns-query" },
                         @{name = "Cloudflare"; dns = "1.0.0.1"; doh = "https://cloudflare-dns.com/dns-query" },
+
+                        # Google Public DNS - 穩定可靠
                         @{name = "Google"; dns = "8.8.8.8"; doh = "https://dns.google/dns-query" },
                         @{name = "Google"; dns = "8.8.4.4"; doh = "https://dns.google/dns-query" },
-                        @{name = "IBM"; dns = "9.9.9.9"; doh = "https://dns.quad9.net/dns-query" },
-                        @{name = "IBM"; dns = "9.9.9.10"; doh = "https://dns.quad9.net/dns-query" },
+
+                        # Quad9 - 安全過濾，阻擋惡意網站
+                        @{name = "Quad9"; dns = "9.9.9.9"; doh = "https://dns.quad9.net/dns-query" },
+                        @{name = "Quad9"; dns = "149.112.112.112"; doh = "https://dns.quad9.net/dns-query" },
+
+                        # Control D - 無過濾版本
                         @{name = "Control D"; dns = "76.76.2.0"; doh = "https://dns.controld.com/dns-query" },
                         @{name = "Control D"; dns = "76.76.10.0"; doh = "https://dns.controld.com/dns-query" },
+
+                        # AdGuard DNS - 廣告與追蹤阻擋
                         @{name = "AdGuard"; dns = "94.140.14.14"; doh = "https://dns.adguard.com/dns-query" },
                         @{name = "AdGuard"; dns = "94.140.15.15"; doh = "https://dns.adguard.com/dns-query" },
-                        @{name = "Open"; dns = "208.67.222.222"; doh = "https://doh.opendns.com/dns-query" },
-                        @{name = "Open"; dns = "208.67.220.220"; doh = "https://doh.opendns.com/dns-query" }
+
+                        # Cisco OpenDNS - 內容過濾與安全防護
+                        @{name = "OpenDNS"; dns = "208.67.222.222"; doh = "https://doh.opendns.com/dns-query" },
+                        @{name = "OpenDNS"; dns = "208.67.220.220"; doh = "https://doh.opendns.com/dns-query" }
                     )
+
                     Europe = @(
-                        @{name = "Comodo Secure"; dns = "8.26.56.26"; doh = "https://doh.secure-dns.com/dns-query" },
-                        @{name = "Comodo Secure"; dns = "8.20.247.20"; doh = "https://doh.secure-dns.com/dns-query" },
-                        @{name = "德國 Watch"; dns = "84.200.69.80"; doh = $null },
-                        @{name = "德國 Watch"; dns = "84.200.70.40"; doh = $null },
-                        @{name = "Level3"; dns = "209.244.0.3"; doh = $null },
-                        @{name = "Level3"; dns = "209.244.0.4"; doh = $null }
+                        # Comodo Secure DNS - 威脅防護
+                        @{name = "Comodo"; dns = "8.26.56.26"; doh = $null },
+                        @{name = "Comodo"; dns = "8.20.247.20"; doh = $null },
+
+                        # NextDNS - 可自訂過濾規則
+                        @{name = "NextDNS"; dns = "45.90.28.0"; doh = "https://dns.nextdns.io/dns-query" },
+                        @{name = "NextDNS"; dns = "45.90.30.0"; doh = "https://dns.nextdns.io/dns-query" },
+
+                        # CleanBrowsing - 家庭安全過濾
+                        @{name = "CleanBrowsing"; dns = "185.228.168.9"; doh = "https://doh.cleanbrowsing.org/doh/family-filter/" },
+                        @{name = "CleanBrowsing"; dns = "185.228.169.9"; doh = "https://doh.cleanbrowsing.org/doh/family-filter/" }
                     )
+
                     Asia   = @(
-                        @{name = "臺灣網路資訊中心"; dns = "101.101.101.101"; doh = $null },
-                        @{name = "臺灣網路資訊中心"; dns = "101.102.103.104"; doh = $null },
-                        @{name = "中華電信"; dns = "168.95.1.1"; doh = $null },
-                        @{name = "中華電信"; dns = "168.95.192.1"; doh = $null },
-                        @{name = "Ali"; dns = "223.5.5.5"; doh = "https://dns.alidns.com/dns-query" },
-                        @{name = "Ali"; dns = "223.6.6.6"; doh = "https://dns.alidns.com/dns-query" }
+                        # TWNIC 臺灣網路資訊中心 - 台灣本地最低延遲
+                        @{name = "TWNIC"; dns = "101.101.101.101"; doh = "https://dns.twnic.tw/dns-query" },
+                        @{name = "TWNIC"; dns = "101.102.103.104"; doh = "https://dns.twnic.tw/dns-query" },
+
+                        # HiNet 中華電信 - 台灣用戶首選
+                        @{name = "HiNet"; dns = "168.95.1.1"; doh = $null },
+                        @{name = "HiNet"; dns = "168.95.192.1"; doh = $null },
+
+                        # IIJ Public DNS - 日本網際網路先驅，亞洲優質節點
+                        @{name = "IIJ"; dns = "103.2.57.5"; doh = $null },
+                        @{name = "IIJ"; dns = "103.2.57.6"; doh = $null }
                     )
                 }
 
                 Print " ================================================== "
                 Print "     自動開始配置時 建議不要有消耗網路流量的操作" Cyan
-                Print "   根據環境不同 可能出現延遲顯示都是 0 這是正常的" Cyan
+                Print "           這個操作需要一些時間 請稍後..." Cyan
                 Print " ================================================== "
-
-                $this.DoubleConfirm({
-                        Print "`n這個操作需要一些時間 請稍後...`n"
-                        Start-Sleep -Seconds 1
-                    })
 
                 $area = $null
                 $testServers = $dnsServers.Global
@@ -1500,18 +1518,18 @@ class Main {
                     $testServers += $dnsServers[$area]
                 }
 
-                Print "===== 開始測試延遲 ======`n"
-                Clear-DnsClientCache # 清除 DNS 緩存
+                Print "`n===== 開始測試延遲 ======`n"
+
+                Clear-DnsClientCache
                 $pingResults = @{} # 存儲每個 DNS 伺服器的平均延遲
                 $testDomains = @(
                     "x.com",
-                    "www.facebook.com",
-                    "github.com",
                     "www.reddit.com",
-                    "www.youtube.com",
-                    "www.bilibili.com",
-                    "chatgpt.com",
-                    "claude.ai"
+                    "www.gamer.com.tw",
+                    "www.instagram.com",
+                    "github.com",
+                    "huggingface.co",
+                    "www.youtube.com"
                 )
 
                 $jobs = @() # 存儲 job 物件
@@ -1527,20 +1545,48 @@ class Main {
                     $runspace = [powershell]::Create()
                     $runspace.RunspacePool = $runspacePool
 
-                    $runspace.AddScript({ # 添加要執行的腳本塊
+                    $runspace.AddScript({
                             param($server, $testDomains)
+
                             $totalTime = 0
                             $successCount = 0
+                            $timeoutMs = 5000 # 超時限制時間
 
-                            # 對每個域名測試 3 次
+                            # 對每個域名測試 2 次
                             foreach ($domain in $testDomains) {
-                                for ($i = 0; $i -lt 3; $i++) {
-                                    $dnsResult = Measure-Command { Resolve-DnsName -Name $domain -Server $server.dns -ErrorAction SilentlyContinue } # 測量 DNS 解析時間
-                                    if ($dnsResult) {
-                                        $successCount++
-                                        $totalTime += $dnsResult.TotalMilliseconds
+                                for ($i = 0; $i -lt 2; $i++) {
+
+                                    try {
+                                        # 使用 .NET 異步 DNS 解析
+                                        # 舊版使用 Resolve-DnsName -Name -Server -ErrorAction -DnsOnly
+                                        $dnsQuery = $null
+                                        $task = [System.Net.Dns]::GetHostEntryAsync($domain)
+
+                                        $dnsResult = Measure-Command {
+                                            # 等待結果或超時
+                                            if ($task.Wait($timeoutMs)) {
+                                                # 消除變量未聲明警告
+                                                [Diagnostics.CodeAnalysis.SuppressMessage("PSUseDeclaredVarsMoreThanAssignments", "dnsQuery")]
+                                                $dnsQuery = $task.Result
+                                            }
+                                            else {
+                                                # 超時取消任務
+                                                $task.Dispose()
+                                            }
+                                        }
+
+                                        # 檢查查詢成功且未超時
+                                        if ($dnsQuery -and $dnsResult.TotalMilliseconds -lt $timeoutMs) {
+                                            $successCount++
+                                            $totalTime += $dnsResult.TotalMilliseconds
+                                        }
                                     }
-                                    Start-Sleep -Milliseconds 150 # 避免過載
+                                    catch {
+                                        # 查詢失敗，跳過此次測試，繼續下一個
+                                    }
+
+                                    # 短暫等待以避免過快查詢
+                                    Start-Sleep -Milliseconds 100
                                 }
                             }
 
@@ -1548,7 +1594,7 @@ class Main {
                             if ($successCount -gt 0) {
                                 [PSCustomObject]@{
                                     Key   = @($server.name, $server.dns, $server.doh)
-                                    Value = ($totalTime / $successCount)
+                                    Value = [math]::Round(($totalTime / $successCount), 2)
                                 }
                             }
                         })
@@ -1556,21 +1602,30 @@ class Main {
                     $runspace.AddArgument($server)
                     $runspace.AddArgument($testDomains)
 
-                    $jobs += [PSCustomObject]@{ # 存儲 job 物件
+                    $jobs += [PSCustomObject]@{
                         Runspace    = $runspace
-                        AsyncResult = $runspace.BeginInvoke() # 異步執行腳本
+                        AsyncResult = $runspace.BeginInvoke()
                     }
                 }
 
                 # 等待所有 job 完成並處理結果
                 foreach ($job in $jobs) {
 
-                    $result = $job.Runspace.EndInvoke($job.AsyncResult) # 等待腳本執行完成，並獲取結果
-                    $job.Runspace.Dispose() # 清理 PowerShell 物件
-
-                    if ($result) {
-                        $pingResults[$result.Key] = $result.Value # 在主線程中處理並行線程的結果
-                        Print "$($result.Key[0]) | $($result.Key[1]) | $([math]::Round($result.Value, 1)) ms" Yellow # 列印結果
+                    try {
+                        $result = $job.Runspace.EndInvoke($job.AsyncResult) # 等待腳本執行完成，並獲取結果
+        
+                        if ($result) {
+                            $pingResults[$result.Key] = $result.Value
+                            Print "$($result.Key[0]) | $($result.Key[1]) | $([math]::Round($result.Value, 1)) ms" Yellow
+                        }
+                    }
+                    catch {
+                        # 如果整個 runspace 出錯，記錄但繼續處理下一個
+                        Print "DNS 測試失敗: $($_.Exception.Message)" Red
+                    }
+                    finally {
+                        # 清理 PowerShell 物件
+                        $job.Runspace.Dispose()
                     }
                 }
 
@@ -1578,7 +1633,7 @@ class Main {
                 $runspacePool.Close()
                 $runspacePool.Dispose()
 
-                Print "===== 延遲測試完成 (等候處理) ======`n"
+                Print "`n===== 延遲測試完成 (等候處理) ======`n"
 
                 # 按平均延遲排序，選出最短的兩個 DNS 伺服器
                 $sortedResults = $pingResults.GetEnumerator() | Sort-Object Value
@@ -1595,7 +1650,6 @@ class Main {
 
                 # 重置網路
                 ipconfig /release
-                Clear-DnsClientCache
                 netsh interface ip delete arpcache
                 netsh winsock reset
                 netsh int ip reset
@@ -1617,8 +1671,6 @@ class Main {
                         Add-DnsClientDohServerAddress -ServerAddress $otherDNS -DohTemplate $otherdoh -AllowFallbackToUdp $true -AutoUpgrade $true -ErrorAction SilentlyContinue
                     }
                 }
-
-                Print "`n===== 配置完成 ======`n"
 
                 Print "慣用配置: $($idiomaticResults[0]) | $idiomaticDNS" Green
                 Print "其他配置: $($otherResults[0]) | $otherDNS" Green
