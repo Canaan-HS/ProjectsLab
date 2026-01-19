@@ -138,8 +138,7 @@ class Fetch:
             print(f"[{func.__name__}] 耗時: {end_time - start_time:.4f} 秒 | URL: {url}")
             return result
 
-        if __name__ == "__main__":
-            return wrapper
+        return wrapper if __name__ == "__main__" else func
 
     # ================= 同步請求 =================
 
