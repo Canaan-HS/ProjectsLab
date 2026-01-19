@@ -99,9 +99,6 @@ class DataProcessing:
             "gb18030": lambda Btext: self.decode(Btext, "gb18030"),
         }
 
-        # 專門處理 json (特殊用途)
-        self.json_process = {"enable": False, "support_str": "*.json"}
-
     # 過濾文件類型
     def filter_type(self, path, data):
         if data.rsplit(".", 1)[-1] in self.support_file:
@@ -165,11 +162,25 @@ class GUI(DataProcessing, TkinterDnD.Tk):
         self.text_button = tk.Button(
             self, button_style, text="文本轉換", command=lambda: self.display_data(True)
         )
-        self.json_button = tk.Button(self, button_style, text="JSON轉換", command=self.select_json)
-        self.document_button = tk.Button(
-            self, button_style, text="單獨轉換", command=self.select_document
+
+        self.json_button = tk.Button(
+            self,
+            button_style,
+            text="JSON轉換",
+            command=lambda: self.select_document(self.json_button, "選擇 JSON 檔案", "*.json"),
         )
+
+        self.document_button = tk.Button(
+            self,
+            button_style,
+            text="單獨轉換",
+            command=lambda: self.select_document(
+                self.document_button, "選擇單獨檔案", self.support_str
+            ),
+        )
+
         self.file_button = tk.Button(self, button_style, text="批量轉換", command=self.select_file)
+
         self.input_clear_box = [  # 用於清除元素
             self.text_button,
             self.json_button,
@@ -192,6 +203,7 @@ class GUI(DataProcessing, TkinterDnD.Tk):
 
     # 運行創建
     def __call__(self):
+        self.json_process = False  # 重置 JSON 標記
         self.text_button.place(x=27, y=15)  # 文本選擇
         self.json_button.place(x=27, y=85)  # JSON選擇
         self.document_button.place(x=27, y=155)  # 單獨選擇
@@ -229,7 +241,7 @@ class GUI(DataProcessing, TkinterDnD.Tk):
             for dirpath, dirnames, filenames in os.walk(data):
                 analyze[dirpath] = filenames
 
-            self.data_analysis(analyze, self.file_button)
+            self.data_analysis(self.file_button, analyze)
 
         except FileNotFoundError:
             self.file_button.config(fg=self.buttontext, bg=self.buttonbackground)
@@ -238,43 +250,29 @@ class GUI(DataProcessing, TkinterDnD.Tk):
             print(f"Exception: {e}")
 
     # 開啟檔案
-    def select_document(self):
+    def select_document(self, button: tk.Button, title: str, support: str):
         try:
-            self.document_button.config(fg=self.buttontrigger, bg=self.buttonbackground)
-            data = filedialog.askopenfilename(
-                title="選擇單獨檔案",
-                filetypes=[
-                    (
-                        "支援格式",
-                        (
-                            self.json_process["support_str"]
-                            if self.json_process["enable"]
-                            else self.support_str
-                        ),
-                    )
-                ],
-            )
+            button.config(fg=self.buttontrigger, bg=self.buttonbackground)
+            data = filedialog.askopenfilename(title=title, filetypes=[("支援格式", support)])
 
             if not data:
                 raise FileNotFoundError
 
+            if support == "*.json":
+                self.json_process = True
+
             analyze = {}
             analyze[os.path.dirname(data)] = os.path.basename(data)
-            self.data_analysis(analyze, self.document_button)
+            self.data_analysis(button, analyze)
 
         except FileNotFoundError:
-            self.document_button.config(fg=self.buttontext, bg=self.buttonbackground)
+            button.config(fg=self.buttontext, bg=self.buttonbackground)
             pass
         except Exception as e:
             print(f"Exception: {e}")
 
-    # 選用 JSON
-    def select_json(self):
-        self.json_process["enable"] = True
-        self.select_document()
-
     # 數據解析
-    def data_analysis(self, data, button):
+    def data_analysis(self, button, data):
         button.config(fg=self.buttontext, bg=self.buttonbackground)
 
         # 導入工作並分類
@@ -400,7 +398,7 @@ class GUI(DataProcessing, TkinterDnD.Tk):
             self.output_rename = os.path.join(directory, self.text_conversion(fileName))
 
         try:
-            if self.json_process["enable"]:
+            if self.json_process:
                 with open(work, "r", encoding="utf-8") as file:
                     data = json.load(file)
                 with open(self.output_name, "w", encoding="utf-8") as output:
