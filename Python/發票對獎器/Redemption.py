@@ -1,10 +1,12 @@
 import os
 import json
+
 # import time
 import msvcrt
+
 # import threading
 
-from lxml import etree
+from lxml import html
 from curl_cffi import requests
 
 from rich.table import Table
@@ -44,61 +46,54 @@ class WinningInstructions:
 
 class DataProcessing:
     def __init__(self) -> None:
-        self.Redemption_Data = None
-        self.Headers = {
-            "Cache-Control": "no-cache",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
-        }
+        self.redemption_data = None
+        self.headers = {"Cache-Control": "no-cache"}
+        self.session = requests.Session(
+            impersonate="chrome120", raise_for_status=True, headers=self.headers
+        )
 
-    def __Get_Data(self, Uri) -> etree.Element:
+    def __get_data(self, uri) -> html:
         try:
-            with requests.Session(impersonate="chrome120") as session:
-                session.headers.update(self.Headers)
-                data = session.get(Uri)
-
-                if data.status_code == 200:
-                    return etree.HTML(data.text)
-                else:
-                    raise Exception()
+            data = self.session.get(uri)
+            return html.fromstring(data.text)
         except Exception as e:
             os.system("cls")
-            print("網站連接失敗, 檢查網路或伺服器\n")
+            print("數據請求失敗\n")
             print(e, style="bold red")
-            os._exit(0)
+            os._exit(1)
 
-    def __Get_Number(self, tree) -> list:
-        number = tree.xpath("//table[@class='etw-table-bgbox etw-tbig']/tbody[1]")[0].xpath(
-            ".//span/text()"
-        )
-        return number[0:2] + [f"{number[i]}{number[i + 1]}" for i in range(2, len(number), 2)]
+    def __get_number(self, element) -> list:
+        numbers = element.cssselect(".etw-tbig tbody p.etw-tbiggest")[:5]
+        return [el.text_content().strip() for el in numbers]
 
-    def Data_Analysis(self, Uri) -> None:
+    def data_analysis(self, uri) -> None:
         link_Data = {}
-        Url = Uri.rsplit("/", 1)[0]
-        tree = self.__Get_Data(Uri)
+        Url = uri.rsplit("/", 1)[0]
+        element = self.__get_data(uri)
 
-        for tr in tree.xpath("//ul[@class='etw-submenu etw-submenu01']/li"):
-            title = tr.xpath("./a")[0]
-            href = title.get("href")
+        for a in element.cssselect(".etw-submenu.etw-submenu01 li a[href$='.html']"):
+            title = a.get("title")
+            href = a.get("href")
 
             if href == "index.html":  # 最近期
-                link_Data[1] = {"month": title.get("title"), "number": self.__Get_Number(tree)}
+                link_Data[1] = {"month": title, "number": self.__get_number(element)}
 
             elif href == "lastNumber.html":  # 上一期
                 link_Data[2] = {
-                    "month": title.get("title"),
-                    "number": self.__Get_Number(self.__Get_Data(f"{Url}/{title.get('href')}")),
+                    "month": title,
+                    "number": self.__get_number(self.__get_data(f"{Url}/{href}")),
                 }
 
-        self.Redemption_Data = link_Data
+        self.session.close()
+        self.redemption_data = link_Data
 
 
 class Comparison(DataProcessing, WinningInstructions):
-    def __init__(self, Uri) -> None:
+    def __init__(self, uri) -> None:
         DataProcessing.__init__(self)
         WinningInstructions.__init__(self)
 
-        self.Uri = Uri
+        self.uri = uri
         self.input = ""
         self.winning = {}
 
@@ -160,12 +155,12 @@ class Comparison(DataProcessing, WinningInstructions):
 
     def __Select_Date(self) -> None:
         """(原生進度條實現)
-        threading.Thread(target=self.Data_Analysis, args=(self.Uri,)).start()
-        while self.Redemption_Data is None:
+        threading.Thread(target=self.data_analysis, args=(self.uri,)).start()
+        while self.redemption_data is None:
             print(self.wait, end="")
 
             for bar in self.bar:
-                if self.Redemption_Data is not None: break
+                if self.redemption_data is not None: break
                 print(bar, end="", flush=True)
                 time.sleep(0.1)
 
@@ -176,7 +171,7 @@ class Comparison(DataProcessing, WinningInstructions):
             SpinnerColumn(), TextColumn("[progress.description]{task.description}")
         ) as progress:
             task = progress.add_task("取得數據中...", start=False)
-            self.Data_Analysis(self.Uri)
+            self.data_analysis(self.uri)
             progress.stop_task(task)
 
         os.system("cls")
@@ -185,7 +180,7 @@ class Comparison(DataProcessing, WinningInstructions):
         select_table.add_column("代號", justify="center", style="bold bright_red")
         select_table.add_column("日期", justify="center", style="bold bright_yellow")
 
-        for index, data in self.Redemption_Data.items():
+        for index, data in self.redemption_data.items():
             select_table.add_row(str(index), data["month"])
         print(select_table)
 
@@ -193,7 +188,7 @@ class Comparison(DataProcessing, WinningInstructions):
         while True:
             try:
                 print("\n輸入[代號]選擇日期: ", end="", style="bold green")
-                select = self.Redemption_Data.get(  # 取得對應 Key 值
+                select = self.redemption_data.get(  # 取得對應 Key 值
                     int(msvcrt.getch().decode())  # 讀取數字輸入
                 )
 
