@@ -61,17 +61,14 @@ class Fetch:
         # 但如果 cookies 需要帶入，可以在這裡設定
         self.curl_session = curl.Session(impersonate="chrome120")
 
-    def __merge_headers(self, headers: dict = None, use_default: bool = True) -> dict:
+    def __merge_headers(self, headers: dict = None) -> dict:
         """
-        合併 headers：基礎 headers + 請求時傳入的 headers
-        * use_default: 是否使用初始化時的 headers（curl_cffi 建議設 False）
+        合併 headers：基礎 headers + 請求時傳入的 headers）
         """
-        if use_default:
-            merged = self.headers.copy()
-            if headers:
-                merged.update(headers)
-            return merged
-        return headers or {}
+        merged = self.headers.copy()
+        if headers:
+            merged.update(headers)
+        return merged if merged else None
 
     def __merge_cookies(self, cookies: dict = None) -> dict:
         """
