@@ -128,8 +128,8 @@ class DataRequest:
     def get(self, link, result="tree") -> object:
         return self.Request.http2_get(link, result)
 
-    def async_http_get(self, link) -> object:
-        return self.Request.async_http_get(link)
+    def async_http2_get(self, link) -> object:
+        return self.Request.async_http2_get(link)
 
 
 # Todo [ 下載連結驗證 分類 ]
@@ -343,7 +343,7 @@ class NHentaidownloader(Validation):
                 for page in range(2, self.Pages + 1):
                     work.append(
                         asyncio.create_task(
-                            self.async_http_get(f"{url.split('?page=')[0]}?page={page}")
+                            self.async_http2_get(f"{url.split('?page=')[0]}?page={page}")
                         )
                     )
                     count += 1
