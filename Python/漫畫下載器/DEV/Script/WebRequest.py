@@ -79,21 +79,23 @@ class Fetch:
             merged.update(cookies)
         return merged if merged else None
 
-    def __get_text(self, respon):
+    def __get_text(self, respon: Any) -> str:
         if isinstance(respon, str):
             return respon
         if isinstance(respon, bytes):
             return respon.decode("utf-8", errors="ignore")
         return getattr(respon, "text", "")
 
-    def __get_content(self, respon):
+    def __get_content(self, respon: Any) -> bytes:
         if isinstance(respon, bytes):
             return respon
         if isinstance(respon, str):
             return respon.encode("utf-8")
         return getattr(respon, "content", b"")
 
-    def __get_status(self, respon):
+    def __get_status(self, respon: Any) -> int:
+        if isinstance(respon, int):
+            return respon
         return getattr(respon, "status_code", 0)
 
     def __parse(self, respon: Any, type: str) -> Any:
@@ -136,7 +138,7 @@ class Fetch:
 
     # ================= 同步請求 =================
 
-    def head(self, url: str, headers: dict = None, cookies: dict = None) -> Any:
+    def head(self, url: str, headers: dict = None, cookies: dict = None) -> int:
         """
         HEAD 請求，回傳狀態碼
         """
@@ -151,9 +153,10 @@ class Fetch:
                 "status",
             )
         except requests.exceptions.Timeout:
-            return SimpleNamespace(text="Request Timeout", status_code=408)
+            return 408
         except Exception as e:
-            return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
+            # print(f"Request Error: {e}")
+            return -1
 
     def get(
         self,
@@ -183,7 +186,7 @@ class Fetch:
         except Exception as e:
             return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
 
-    def http2_head(self, url: str, headers: dict = None, cookies: dict = None) -> Any:
+    def http2_head(self, url: str, headers: dict = None, cookies: dict = None) -> int:
         """
         HTTP/2 HEAD 請求，回傳狀態碼
         """
@@ -198,9 +201,10 @@ class Fetch:
                 "status",
             )
         except httpx.TimeoutException:
-            return SimpleNamespace(text="Request Timeout", status_code=408)
+            return 408
         except Exception as e:
-            return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
+            # print(f"Request Error: {e}")
+            return -1
 
     def http2_get(
         self,
@@ -227,7 +231,7 @@ class Fetch:
         except Exception as e:
             return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
 
-    def http3_head(self, url: str, headers: dict = None, cookies: dict = None) -> Any:
+    def http3_head(self, url: str, headers: dict = None, cookies: dict = None) -> int:
         """
         HTTP/3 HEAD 請求，回傳狀態碼
         """
@@ -242,9 +246,10 @@ class Fetch:
                 "status",
             )
         except exceptions.Timeout:
-            return SimpleNamespace(text="Request Timeout", status_code=408)
+            return 408
         except Exception as e:
-            return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
+            # print(f"Request Error: {e}")
+            return -1
 
     def http3_get(
         self,
