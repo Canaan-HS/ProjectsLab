@@ -68,6 +68,7 @@ $Package = @(
     "requests" # 同步 HTTP 客戶端的標準庫，支援 Cookie、表單、代理等基本功能
     "requests_toolbelt" # requests 增強工具集，提供多部分表單、流式上傳、自訂驗證等
     "httpx[http2]" # 現代化 HTTP 客戶端，支援 HTTP/2、異步請求、連接池優化
+    "curl_cffi" # 支援 http 3 的請求庫
     #! "urllib3" # 低階 HTTP 庫，提供連接池管理、SSL/TLS 驗證、重試策略
 
     <# Web 爬蟲與解析 - 網頁數據提取與處理框架 #>
@@ -97,7 +98,7 @@ $Package = @(
     "cloudscraper" # 專門繞過 Cloudflare 防護的工具，處理 JavaScript 挑戰
     "fake-useragent" # 隨機產生真實的 User-Agent 標頭
     "undetected_chromedriver" # 防檢測 Chrome 驅動，修改 WebDriver 特徵
-    "fingerprint-randomizer" # 瀏覽器指紋隨機化工具，修改 Canvas、WebGL 等特徵
+    "browserforge[all]" # 瀏覽器指紋隨機化工具，修改 Canvas、WebGL 等特徵
 
     <# 驗證碼處理 - 自動化驗證突破 #>
     "twocaptcha-python" # 整合 2Captcha 驗證碼服務的 API
@@ -223,17 +224,6 @@ $Package = @(
     #>
 )
 
-function Print {
-    param (
-        [string]$text,
-        [string]$foreColor = 'White',
-        [string]$backColor = 'Black'
-    )
-
-    # 打印粗體
-    Write-Host "[1m$text" -ForegroundColor $foreColor -BackgroundColor $backColor
-}
-
 $hasUv = Get-Command uv -ErrorAction SilentlyContinue
 if ($hasUv) {
     $cmd = @{
@@ -256,6 +246,17 @@ else {
     }
 }
 
+function Print {
+    param (
+        [string]$text,
+        [string]$foreColor = 'White',
+        [string]$backColor = 'Black'
+    )
+
+    # 打印粗體
+    Write-Host "[1m$text" -ForegroundColor $foreColor -BackgroundColor $backColor
+}
+
 <#
 掃描所有安裝包並建立 requirements.txt
 pip freeze > requirements.txt
@@ -263,6 +264,7 @@ pip freeze > requirements.txt
 直接在 powershell 中使用 freeze 掃描後 使用 uv 更新
 pip freeze | ForEach-Object { uv pip install --upgrade $_ }
 #>
+# ! 僅安裝|更新, 腳本的 $Package
 function Install {
     Print "===================="
     Print "UV|PIP Update =>" Yellow
@@ -276,12 +278,38 @@ function Install {
     Print "Install Package" Yellow
     Print "====================`n"
 
+    # 為了穩定性採用迴圈安裝
     foreach ($package in $Package) {
         & $cmd.exe @($cmd.install + @("--upgrade", $package))
     }
 
     Print "`n===================="
     Print "Install Is Complete" Yellow
+    Print "====================`n"
+    Read-Host "輸入任意按鍵退出..."
+    Exit
+}
+
+# ! 更新全域所有安裝包
+function Upgrade {
+    Print "===================="
+    Print "UV|PIP Update =>" Yellow
+    Print "====================`n"
+
+    & $cmd.exe @($cmd.updatepip)
+    & $cmd.exe @($cmd.updatepkg + "wheel")
+    & $cmd.exe @($cmd.updatepkg + "setuptools")
+
+    Print "`n===================="
+    Print "Upgrade Package" Yellow
+    Print "====================`n"
+
+    & $cmd.exe @($cmd.freeze) | ForEach-Object {
+        & $cmd.exe @($cmd.install + @("--upgrade", $_))
+    }
+
+    Print "`n===================="
+    Print "Upgrade Is Complete" Yellow
     Print "====================`n"
     Read-Host "輸入任意按鍵退出..."
     Exit
@@ -313,14 +341,19 @@ function Uninstall {
 }
 
 while ($true) {
-    $Choice = Read-Host "[1] Install`n[2] Uninstall`nChoice"
-    switch ($Choice) {
+    $choice = Read-Host "[1] Install`n[2] Upgrade`n[3] Uninstall`nChoice"
+    switch ($choice) {
         1 {
             Clear-Host
             Install
             break
         }
         2 {
+            Clear-Host
+            Upgrade
+            break
+        }
+        3 {
             Clear-Host
             Uninstall
             break
