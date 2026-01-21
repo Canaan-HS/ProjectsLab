@@ -1,14 +1,12 @@
 import os
 import json
-
 # import time
 import msvcrt
-
 # import threading
 
-import httpx
-
 from lxml import etree
+from curl_cffi import requests
+
 from rich.table import Table
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -23,8 +21,8 @@ def print(*args, **kwargs):
 
 class WinningInstructions:
     def __init__(self) -> None:
-        self.Reward_level = ["特別獎", "特獎", "頭獎", "二獎", "三獎", "四獎", "五獎", "六獎"]
-        self.Reward_conditions = [
+        self.reward_level = ["特別獎", "特獎", "頭獎", "二獎", "三獎", "四獎", "五獎", "六獎"]
+        self.reward_conditions = [
             "8 碼相同獲得 1000 萬",
             "8 碼相同獲得 200 萬",
             "8 碼相同獲得 20 萬",
@@ -34,7 +32,7 @@ class WinningInstructions:
             "頭獎末 4 碼相同 1 千",
             "頭獎末 3 碼相同 200 元",
         ]
-        self.Prize_claim_period = {
+        self.prize_claim_period = {
             "1-2": "1-2 月份領獎期限為 4/6 ~ 7/5",
             "3-4": "3-4 月份領獎期限為 6/6 ~ 9/5",
             "5-6": "5-6 月份領獎期限為 8/6 ~ 11/5",
@@ -47,19 +45,21 @@ class WinningInstructions:
 class DataProcessing:
     def __init__(self) -> None:
         self.Redemption_Data = None
-        self.client = httpx.Client(http2=True, verify=False)
         self.Headers = {
             "Cache-Control": "no-cache",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
         }
 
     def __Get_Data(self, Uri) -> etree.Element:
         try:
-            data = self.client.get(Uri, headers=self.Headers)
-            if data.status_code == 200:
-                return etree.HTML(data.text)
-            else:
-                raise Exception()
+            with requests.Session(impersonate="chrome120") as session:
+                session.headers.update(self.Headers)
+                data = session.get(Uri)
+
+                if data.status_code == 200:
+                    return etree.HTML(data.text)
+                else:
+                    raise Exception()
         except Exception as e:
             os.system("cls")
             print("網站連接失敗, 檢查網路或伺服器\n")
@@ -209,12 +209,12 @@ class Comparison(DataProcessing, WinningInstructions):
                     # 將數據列表解析為字典 (測試以下寫法 比列導式快一些, 雖然列導式更簡潔) [Key 值為末三碼]
                     for index, number in enumerate(data[:2]):  # 這個為, 特別獎, 特獎
                         self.winning[number[-3:]] = {
-                            "level": self.Reward_level[index],
+                            "level": self.reward_level[index],
                             "number": number,
                         }
                     for number in data[2:]:  # 這個都是 頭獎
                         self.winning[number[-3:]] = {
-                            "level": self.Reward_level[2],
+                            "level": self.reward_level[2],
                             "number": number,
                         }
 
@@ -224,7 +224,7 @@ class Comparison(DataProcessing, WinningInstructions):
                 print("\n代號為數字, 請重新選擇", style="bold red")
 
         for i in range(0, 8):  # 顯示 獎勵等級, 獎勵條件
-            display_table.add_row(self.Reward_level[i], self.Reward_conditions[i])
+            display_table.add_row(self.reward_level[i], self.reward_conditions[i])
         print(display_table)
 
         self.__Comparison_Date()
