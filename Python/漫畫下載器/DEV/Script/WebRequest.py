@@ -1,5 +1,7 @@
 import time
+import asyncio
 
+from typing import Any
 from types import SimpleNamespace
 
 import httpx
@@ -7,175 +9,402 @@ import requests
 
 from lxml import html, etree
 from bs4 import BeautifulSoup
+from curl_cffi import requests as curl
+from curl_cffi.requests import exceptions, AsyncSession as CurlAsyncSession
 
 """
-Todo    適用於 Python 3.10+
-
-?   只寫個人常用的幾種 API 調用
+適用於 Python 3.10+
 """
 
-
-class Headers:
-    # 使用 navigator.userAgent 直接獲取
-    browser_head = {
-        "Google": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
-        },
-        "Edge": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0"
-        },
-    }
+BROWSER_HEAD = {
+    "Google": {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+    },
+    "Edge": {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0"
+    },
+}
 
 
-class Fetch(Headers):
-    def __init__(self, headers: dict | str = "Google", cookies: dict = None):
+class Fetch:
+    def __init__(self, headers: dict | str = "Google", cookies: dict = {}):
         """
-        * headers: 自定字典或是, "Google" or "Edge"
+        * headers: 自定字典或是 "Google" / "Edge"
         * cookies: 傳入字典 cookie
         """
-        self.client = httpx.Client(http2=True, timeout=5)
-        self.session = requests.Session()
-        self.headers = (
-            self.browser_head[headers.capitalize()]
-            if isinstance(headers, str)
-            else headers if isinstance(headers, dict) else None
-        )
+
+        # 處理 Headers
+        if isinstance(headers, str):
+            key = headers.capitalize()
+            self.headers = BROWSER_HEAD.get(key, BROWSER_HEAD["Google"])
+        elif isinstance(headers, dict):
+            self.headers = headers
+        else:
+            self.headers = BROWSER_HEAD["Google"]
+
         self.cookies = cookies
 
-    # 解析要回傳的類型
-    def __parse(self, respon, type):
-        parse = {
+        # Requests Session
+        self.req_session = requests.Session()
+
+        # HTTPX Client (HTTP/2)
+        self.client = httpx.Client(http2=True)
+
+        # Curl Session (HTTP/3)
+        # impersonate 會自動設定 UA，為了避免指紋衝突，這裡不建議手動 update headers 中的 UA
+        # 但如果 cookies 需要帶入，可以在這裡設定
+        self.curl_session = curl.Session(
+            impersonate="chrome120",
+            verify=False,
+        )
+
+    def __merge_headers(self, headers: dict = None, use_default: bool = True) -> dict:
+        """
+        合併 headers：基礎 headers + 請求時傳入的 headers
+        * use_default: 是否使用初始化時的 headers（curl_cffi 建議設 False）
+        """
+        if use_default:
+            merged = self.headers.copy()
+            if headers:
+                merged.update(headers)
+            return merged
+        return headers or {}
+
+    def __merge_cookies(self, cookies: dict = None) -> dict:
+        """
+        合併 cookies：基礎 cookies + 請求時傳入的 cookies
+        """
+        merged = self.cookies.copy()
+        if cookies:
+            merged.update(cookies)
+        return merged if merged else None
+
+    def __get_text(self, respon):
+        if isinstance(respon, str):
+            return respon
+        if isinstance(respon, bytes):
+            return respon.decode("utf-8", errors="ignore")
+        return getattr(respon, "text", "")
+
+    def __get_content(self, respon):
+        if isinstance(respon, bytes):
+            return respon
+        if isinstance(respon, str):
+            return respon.encode("utf-8")
+        return getattr(respon, "content", b"")
+
+    def __get_status(self, respon):
+        return getattr(respon, "status_code", 0)
+
+    def __parse(self, respon: Any, type: str) -> Any:
+        """
+        統一解析回傳類型
+        """
+
+        # 映射表
+        parse_map = {
             "none": lambda: respon,
-            "text": lambda: respon.text,
-            "content": lambda: respon.content,
-            "status": lambda: respon.status_code,
-            "tree": lambda: etree.HTML(respon.text),
-            "html": lambda: html.fromstring(respon.text),
-            "bf": lambda: BeautifulSoup(respon.text, "html.parser"),
+            "text": lambda: self.__get_text(respon),
+            "content": lambda: self.__get_content(respon),
+            "status": lambda: self.__get_status(respon),
+            "tree": lambda: etree.HTML(self.__get_text(respon)),  # 適用 XPath
+            "html": lambda: html.fromstring(self.__get_text(respon)),  # 適用 CSSSelect
+            "bf": lambda: BeautifulSoup(self.__get_text(respon), "html.parser"),
         }
 
         try:
-            return parse.get(type)()
-        except:
-            return parse.get("none")()
+            return parse_map.get(type, parse_map["none"])()
+        except Exception as e:
+            print(f"[Parse Error] {e}")
+            return respon
 
+    @staticmethod
     def Elapsed_Time(func):
         """
-        加上裝飾器 @Elapsed_Time 測試請求運行耗時
+        裝飾器: 測試請求運行耗時
         """
 
-        def wrapper(self, url):
+        def wrapper(self, *args, **kwargs):
             start_time = time.time()
-            result = func(self, url)
+            result = func(self, *args, **kwargs)
             end_time = time.time()
-            print(f"調用: {func.__name__}, 耗時: {end_time - start_time} 秒")
+            url = args[0] if args else kwargs.get("url", "Unknown URL")
+            print(f"[{func.__name__}] 耗時: {end_time - start_time:.4f} 秒 | URL: {url}")
             return result
 
         return wrapper
 
-    def head(self, url: str) -> int:
+    # ================= 同步請求 =================
+
+    def head(self, url: str, headers: dict = None, cookies: dict = None) -> Any:
+        """
+        HEAD 請求，回傳狀態碼
+        """
         try:
             return self.__parse(
-                self.session.head(url, headers=self.headers, cookies=self.cookies, timeout=3),
+                self.req_session.head(
+                    url,
+                    headers=self.__merge_headers(headers),
+                    cookies=self.__merge_cookies(cookies),
+                    timeout=3,
+                ),
                 "status",
             )
         except requests.exceptions.Timeout:
             return SimpleNamespace(text="Request Timeout", status_code=408)
+        except Exception as e:
+            return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
 
-    def get(self, url: str, type: str = "text") -> any:
+    def get(
+        self,
+        url: str,
+        headers: dict = None,
+        cookies: dict = None,
+        data: dict = None,
+        type: str = "text",
+    ) -> Any:
         """
-        *   基本 Get 請求
-        >>> [ url ]
-        要請求的連結
-
-        >>> [ type ]
-        要獲取的結果類型
-        ("none" | "text" | "content" | "status" | "tree" | "html" | "bf")
-
-        "none" => 無處理
-        "tree" => lxml 進行解析, 適用 xml 使用 xpath
-        "html" => lxml 進行解析, 適用 html 使用 cssselect
-        "bf" => bs4 進行解析
+        >>> type: "none" | "text" | "content" | "status" | "tree" | "html" | "bf"
         """
         try:
             return self.__parse(
-                self.session.get(
-                    url, headers=self.headers, cookies=self.cookies, stream=True, timeout=5
+                self.req_session.get(
+                    url,
+                    headers=self.__merge_headers(headers),
+                    cookies=self.__merge_cookies(cookies),
+                    data=data,
+                    stream=True,
+                    timeout=5,
                 ),
                 type,
             )
         except requests.exceptions.Timeout:
             return SimpleNamespace(text="Request Timeout", status_code=408)
+        except Exception as e:
+            return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
 
-    def http2_head(self, url: str) -> int:
-        try:
-            return self.__parse(
-                self.client.head(url, headers=self.headers, cookies=self.cookies), "status"
-            )
-        except httpx.ConnectTimeout:
-            return SimpleNamespace(text="Request Timeout", status_code=408)
-
-    def http2_get(self, url: str, type: str = "text") -> any:
+    def http2_head(self, url: str, headers: dict = None, cookies: dict = None) -> Any:
         """
-        *   支援 http2 的 Get 請求
-        >>> [ url ]
-        要請求的連結
-
-        >>> [ type ]
-        要獲取的結果類型
-        ("none" | "text" | "content" | "status" | "tree" | "html" | "bf")
-
-        "none" => 無處理
-        "tree" => lxml 進行解析, 適用 xml 使用 xpath
-        "html" => lxml 進行解析, 適用 html 使用 cssselect
-        "bf" => bs4 進行解析
+        HTTP/2 HEAD 請求，回傳狀態碼
         """
         try:
             return self.__parse(
-                self.client.get(url, headers=self.headers, cookies=self.cookies), type
+                self.client.head(
+                    url,
+                    headers=self.__merge_headers(headers),
+                    cookies=self.__merge_cookies(cookies),
+                    timeout=3,
+                ),
+                "status",
             )
-        except httpx.ConnectTimeout:
+        except httpx.TimeoutException:
             return SimpleNamespace(text="Request Timeout", status_code=408)
+        except Exception as e:
+            return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
 
-    async def async_http_get(self, url: str, type: str = "text") -> object:
+    def http2_get(
+        self,
+        url: str,
+        headers: dict = None,
+        cookies: dict = None,
+        type: str = "text",
+    ) -> Any:
         """
-        *   異步 Get 請求
-
-        >>> [ url ]
-        要請求的連結
-
-        >>> [ 使用方式 ]
-        import asyncio
-        async def main():
-            work = [async_http_get(url) for url in date]
-            results = await asyncio.gather(*work)
-        asyncio.run(main())
+        >>> type: "none" | "text" | "content" | "status" | "tree" | "html" | "bf"
         """
-        async with httpx.AsyncClient(http2=True) as client:
-            response = await client.get(url, headers=self.headers, cookies=self.cookies)
-            return self.__parse(response.text, type)
+        try:
+            return self.__parse(
+                self.client.get(
+                    url,
+                    headers=self.__merge_headers(headers),
+                    cookies=self.__merge_cookies(cookies),
+                    timeout=5,
+                ),
+                type,
+            )
+        except httpx.TimeoutException:
+            return SimpleNamespace(text="Request Timeout", status_code=408)
+        except Exception as e:
+            return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
 
-    async def async_get(self, url: str, session, type: str = "text") -> object:
+    def http3_head(self, url: str, headers: dict = None, cookies: dict = None) -> Any:
         """
-        *   異步 Get 請求
+        HTTP/3 HEAD 請求，回傳狀態碼
+        """
+        try:
+            return self.__parse(
+                self.curl_session.head(
+                    url,
+                    headers=self.__merge_headers(headers),
+                    cookies=self.__merge_cookies(cookies),
+                    timeout=3,
+                ),
+                "status",
+            )
+        except exceptions.Timeout:
+            return SimpleNamespace(text="Request Timeout", status_code=408)
+        except Exception as e:
+            return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
 
-        >>> [ url ]
-        要請求的連結
+    def http3_get(
+        self,
+        url: str,
+        headers: dict = None,
+        cookies: dict = None,
+        data: dict = None,
+        type: str = "text",
+    ) -> Any:
+        """
+        >>> type: "none" | "text" | "content" | "status" | "tree" | "html" | "bf"
+        """
+        try:
+            return self.__parse(
+                self.curl_session.get(
+                    url,
+                    headers=self.__merge_headers(headers),
+                    cookies=self.__merge_cookies(cookies),
+                    data=data,
+                    timeout=5,
+                ),
+                type,
+            )
+        except exceptions.Timeout:
+            return SimpleNamespace(text="Request Timeout", status_code=408)
+        except Exception as e:
+            return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
 
-        >>> [ session ]
-        請求的 session 值
+    # ================= 異步請求區域 =================
 
-        >>> [ 使用方式 ]
+    async def async_get(
+        self,
+        url: str,
+        session,
+        headers: dict = None,
+        cookies: dict = None,
+        data: dict = None,
+        type: str = "text",
+    ) -> Any:
+        """
+        >>> type: "none" | "text" | "content" | "status" | "tree" | "html" | "bf"
+
+        >>> Example:
         import aiohttp
         async def main():
             async with aiohttp.ClientSession() as session:
-                work = [async_get(url, session) for url in date]
-                results = await asyncio.gather(*work)
-        asyncio.run(main())
+                task = fetch.async_get("https://example.com", session, type="text")
+                result = await task
         """
-        async with session.get(url, headers=self.headers, cookies=self.cookies) as response:
-            content = await response.text()
-            return self.__parse(content, type)
+        try:
+            async with session.get(
+                url,
+                headers=self.__merge_headers(headers),
+                cookies=self.__merge_cookies(cookies),
+                data=data,
+                timeout=5,
+            ) as response:
+                if type in ["content", "text", "tree", "html", "bf"]:
+                    if type == "content":
+                        content = await response.read()
+                    else:
+                        content = await response.text()
+                    return self.__parse(content, type)
+                else:
+                    return self.__parse(response, type)
+        except asyncio.TimeoutError:
+            return SimpleNamespace(text="Async Timeout", status_code=408)
+        except Exception as e:
+            return SimpleNamespace(text=f"Async Error: {e}", status_code=-1)
+
+    async def async_http2_get(
+        self,
+        url: str,
+        client: httpx.AsyncClient = None,
+        headers: dict = None,
+        cookies: dict = None,
+        data: dict = None,
+        type: str = "text",
+    ) -> Any:
+        """
+        >>> type: "none" | "text" | "content" | "status" | "tree" | "html" | "bf"
+
+        >>> Example:
+        import httpx
+        async def main():
+            async with httpx.AsyncClient(http2=True) as client:
+                task = fetch.async_http2_get("https://example.com", client=client)
+                result = await task
+        """
+
+        async def _do_request(ac):
+            resp = await ac.get(
+                url,
+                headers=self.__merge_headers(headers),
+                cookies=self.__merge_cookies(cookies),
+                data=data,
+                timeout=5,
+            )
+            return self.__parse(resp, type)
+
+        try:
+            if client:
+                return await _do_request(client)
+            else:
+                # 沒傳 client 會導致無法複用連接，大量請求時速度會慢
+                async with httpx.AsyncClient(http2=True) as ac:
+                    return await _do_request(ac)
+        except httpx.TimeoutException:
+            return SimpleNamespace(text="Async H2 Timeout", status_code=408)
+        except Exception as e:
+            return SimpleNamespace(text=f"Async H2 Error: {e}", status_code=-1)
+
+    async def async_http3_get(
+        self,
+        url: str,
+        session: CurlAsyncSession = None,
+        headers: dict = None,
+        cookies: dict = None,
+        data: dict = None,
+        type: str = "text",
+    ) -> Any:
+        """
+        >>> type: "none" | "text" | "content" | "status" | "tree" | "html" | "bf"
+
+        >>> Example:
+        from curl_cffi.requests import AsyncSession
+        async def main():
+            async with AsyncSession(impersonate="chrome120") as session:
+                task = fetch.async_http3_get("https://example.com", session=session)
+                result = await task
+        """
+
+        async def _do_request(s):
+            response = await s.get(
+                url,
+                headers=self.__merge_headers(headers),
+                cookies=self.__merge_cookies(cookies),
+                data=data,
+                timeout=5,
+            )
+            return self.__parse(response, type)
+
+        try:
+            if session:
+                return await _do_request(session)
+            else:
+                # 如果沒傳 session，就臨時開一個，使用 async with 自動管理生命週期
+                async with CurlAsyncSession(
+                    impersonate="chrome120",
+                    verify=False,
+                ) as s:
+                    return await _do_request(s)
+        except exceptions.Timeout:
+            return SimpleNamespace(text="Async H3 Timeout", status_code=408)
+        except Exception as e:
+            return SimpleNamespace(text=f"Async H3 Error: {e}", status_code=-1)
 
 
 fetch = Fetch()
+
+if __name__ == "__main__":
+    response = fetch.http3_get("https://example.com")
+    print(response)
