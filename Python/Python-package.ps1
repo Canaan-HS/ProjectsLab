@@ -68,7 +68,8 @@ $Package = @(
     "requests" # 同步 HTTP 客戶端的標準庫，支援 Cookie、表單、代理等基本功能
     "requests_toolbelt" # requests 增強工具集，提供多部分表單、流式上傳、自訂驗證等
     "httpx[http2]" # 現代化 HTTP 客戶端，支援 HTTP/2、異步請求、連接池優化
-    "curl_cffi" # 支援 http 3 的請求庫
+    "curl_cffi" # 支援 http 3 的請求庫，底層為 libcurl
+    "niquests" # 支援 http 3 的請求庫，python 生態實現，requests 的新替代
     #! "urllib3" # 低階 HTTP 庫，提供連接池管理、SSL/TLS 驗證、重試策略
 
     <# Web 爬蟲與解析 - 網頁數據提取與處理框架 #>
