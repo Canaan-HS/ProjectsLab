@@ -8,7 +8,7 @@ def open_href(url: str):
         return
 
     url = url.replace("redirect", "twjn")
-    element = fetch.http3_get(
+    element = fetch.curl_get(
         url,
         cookies={
             "cf_clearance": ""
