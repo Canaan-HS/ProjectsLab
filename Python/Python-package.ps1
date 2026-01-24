@@ -249,7 +249,7 @@ function Print {
 pip freeze > requirements.txt
 
 直接在 powershell 中使用 freeze 掃描後 使用 uv 更新
-pip freeze | ForEach-Object { uv pip install --upgrade $_ }
+pip freeze | ForEach-Object { uv pip install --upgrade $_ --index-url https://mirrors.aliyun.com/pypi/simple/ }
 #>
 # ! 僅安裝|更新, 腳本的 $Package
 function Install {
