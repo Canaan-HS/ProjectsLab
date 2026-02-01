@@ -434,9 +434,7 @@ class Main {
                 Print ""
                 Print "  更新資訊:"
                 Print ""
-                Print "   1. IDM 授權功能變更 (實驗性)"
-                Print ""
-                Print "   2. DNS 優化功能改進"
+                Print "   1. 增加瀏覽器優化，配置快取大小"
                 Print "----------------------------------"
                 $this.WaitBack()
             }
@@ -869,7 +867,7 @@ class Main {
                 # https://admx.help/?Category=Chrome&Language=zh-tw
                 $this.RegistItem(@(
                         # 緩存大小
-                        @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DiskCacheSize", "String", "2000000000"),
+                        @("HKLM:\SOFTWARE\Policies\Google\Chrome", "DiskCacheSize", "String", "6442450944"),
 
                         # 安全瀏覽功能防護等級 0 關閉 1 預設 2強化防護
                         @("HKLM:\SOFTWARE\Policies\Google\Chrome", "SafeBrowsingProtectionLevel", "DWORD", 2),
@@ -984,7 +982,7 @@ class Main {
                 # https://learn.microsoft.com/zh-tw/DeployEdge/microsoft-edge-policies
                 $this.RegistItem(@(
                         # 設置快取大小
-                        @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "DiskCacheSize", "String", "2000000000"),
+                        @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "DiskCacheSize", "String", "6442450944"),
                         # 可讓螢幕助讀程式使用者取得網頁上未標記影像的描述
                         @("HKLM:\SOFTWARE\Policies\Microsoft\Edge", "AccessibilityImageLabelsEnabled", "DWORD", 1),
                         # 搜尋不到時 , 提供類似頁面
