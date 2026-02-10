@@ -104,16 +104,16 @@ class Main {
     <# 獲取遠端授權代碼
 
         1. 只有一個主程式
-            傳入 Name = 要保存文件的名子 (要有副檔名)
+            傳入 Name = 要保存文件的名子 (.cmd|.ps1)
             傳入 URL = 要請求的網址
 
-        2. 一個主程式但他是壓縮文件
-            傳入 Name = 要保存文件的名子 (要有副檔名)
+        2. 一個主程式 但他是壓縮文件
+            傳入 Name = 要保存文件的名子 (.zip|.rar)
             傳入 URL = 要請求的網址
             傳入 Depend = 解壓該文件後, 要執行的主文件路徑 (解壓後資料夾\主程式.cmd)
 
         3. 一個主程式 但有多個附加檔案
-            傳入 Name = 要保存文件的名子 (要有副檔名)
+            傳入 Name = 要保存文件的名子 (.cmd|.ps1)
             傳入 URL = 要請求的網址
             傳入 Depend = @(@(附加 1 路徑\名稱, 附加1網址), @(附加 2 路徑\名稱, 附加2網址) ...)
     #>
@@ -1196,20 +1196,13 @@ class Main {
                     "https://raw.githubusercontent.com/zinzied/IDM-Freezer-Activation-Tool/refs/heads/main/zied.cmd", $null
                 )
 
+                # https://bitbucket.org/coporton/idm-activation-script/downloads/
+                # $this.Authorize(
+                    # "coporton-idm-activation-script-ee0fb338e245.zip",
+                    # "https://bitbucket.org/coporton/idm-activation-script/get/ee0fb338e245.zip",
+                    # "coporton-idm-activation-script-ee0fb338e245/IASL.cmd"
+                # )
                 $this.WaitBack()
-                <#
-                $this.Authorize(
-                    "$($this.MD5("IASL")).cmd",
-                    "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/IASL.cmd",
-                    @(
-                        @("src\banner_art.txt", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/banner_art.txt"),
-                        @("src\data.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/data.bin"),
-                        @("src\dataHlp.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/dataHlp.bin"),
-                        @("src\extensions.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/extensions.bin"),
-                        @("src\registry.bin", "https://raw.githubusercontent.com/Coporton/IDM-Activation-Script/refs/heads/main/src/registry.bin")
-                    )
-                )
-                #>
             }
             (index) {
                 # Windows/Office 啟用授權
