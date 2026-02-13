@@ -8,4 +8,4 @@ Invoke-ps2exe `
     -Description "GithubUpdate" `
     -Copyright "Copyright (C) 2026 Canaan HS" `
     -InputFile "$currentRoot/UpdateCore.ps1" `
-    -OutputFile "$currentRoot/gu.exe"
+    -OutputFile "$currentRoot/gau.exe"
