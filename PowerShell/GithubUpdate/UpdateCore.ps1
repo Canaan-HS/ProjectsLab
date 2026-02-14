@@ -29,11 +29,11 @@ function SetVersion {
 
     if ($existing) {
         Rename-Item -Path $existing.FullName -NewName $newName -Force
-        Write-Host "版本紀錄更新 -> $version"
+        Write-Host "版本紀錄修改: $version"
     }
     else {
         New-Item -ItemType File -Path (Join-Path $callPath $newName) | Out-Null
-        Write-Host "創建版本紀錄 -> $version"
+        Write-Host "創建版本紀錄: $version"
     }
 }
 
@@ -96,16 +96,16 @@ function SendRequest {
 
     if (-not $response -or -not ($response.name -and $response.assets)) {
         Write-Host "無法獲取最新版本資訊，請檢查倉庫名稱和網絡連接。" -ForegroundColor Red
-        exit 1
+        return
     }
 
     $oldVersion = ParseVersion (GetVersion)
     $newVersion = ParseVersion $response.name
 
     if (-not $oldVersion) {
+        Write-Host "未找到之前的版本。"
         SetVersion $response.name
-        Write-Host "未找到之前的版本。`n已記錄版本: $($response.name)"
-        exit 0
+        return
     }
 
     if ($oldVersion -eq $newVersion) {
@@ -116,20 +116,19 @@ function SendRequest {
         $downloadInfo = GetDownloadInfo -assets $response.assets
 
         if ($downloadInfo) {
+            Write-Host "版本更新為 $($response.name)"
             foreach ($asset in $downloadInfo) { DownloadAsset -asset $asset }
             SetVersion $response.name
-            Write-Host "版本更新為 $($response.name)"
         }
         else {
             Write-Host "未找到適合下載的資產。請檢查倉庫的發布頁面以確保有適合 Windows 的資產，或使用 -asset_name 參數指定資產名稱。" -ForegroundColor Yellow
         }
     }
     else {
+        Write-Host "本機版本 ($oldVersion) 比最新發布版本 ($newVersion) 更新。 版本記錄已重置。" -ForegroundColor Yellow
         SetVersion $response.name
-        Write-Host "本機版本 ($oldVersion) 比最新發布版本 ($newVersion) 更新。版本記錄已重置為 $($response.name)" -ForegroundColor Yellow
     }
-
-    Read-Host "`n按任意鍵退出..."
 }
 
 SendRequest
+Read-Host "`n按任意鍵退出"
