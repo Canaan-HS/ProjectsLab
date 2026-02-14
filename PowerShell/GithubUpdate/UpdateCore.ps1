@@ -12,23 +12,27 @@ if (-not $owner -or -not $repo) {
 }
 
 $callPath = (Get-Location).Path
-$versionRecordTemplate = "! Current Version - {0}"
+
+$versionRecordTemplate = "! Version - $repo - {0}"
 $prefix = $versionRecordTemplate -replace '\{0\}', ''
 
+# 取得版本文件
+$versionFile = Get-ChildItem -Path $callPath -File -Filter "$prefix*" |
+Sort-Object Name -Descending |
+Select-Object -First 1
+
 function GetVersion {
-    $file = Get-ChildItem -Path $callPath -File -Filter "$prefix*" | Select-Object -First 1
-    if (-not $file) { return "" }
-    return $file.Name.Substring($prefix.Length)
+    if (-not $versionFile) { return "" }
+    return $versionFile.Name.Substring($prefix.Length)
 }
 
 function SetVersion {
     param([string]$version)
 
     $newName = $versionRecordTemplate -f $version
-    $existing = Get-ChildItem -Path $callPath -File -Filter "$prefix*" | Select-Object -First 1
 
-    if ($existing) {
-        Rename-Item -Path $existing.FullName -NewName $newName -Force
+    if ($versionFile) {
+        Rename-Item -Path $versionFile.FullName -NewName $newName -Force
         Write-Host "版本紀錄修改: $version"
     }
     else {
@@ -42,8 +46,15 @@ function ParseVersion {
 
     if ([string]::IsNullOrWhiteSpace($version)) { return $null }
 
+    # 抽取數字版本
+    if ($version -match '\d+(\.\d+){1,3}') {
+        $version = $matches[0]
+    }
+
     $parsed = $null
-    if ([version]::TryParse($version, [ref]$parsed)) { return $parsed }
+    if ([version]::TryParse($version, [ref]$parsed)) {
+        return $parsed
+    }
 
     return $null
 }
@@ -53,22 +64,22 @@ function GetDownloadInfo {
 
     # 如果有指定下載特定檔案名稱，用包含匹配（忽略大小寫）
     if ($asset_name) {
-        $matched = $assets | Where-Object { $_.name -match [regex]::Escape($asset_name) }
-        if ($matched -and $matched.Count -gt 0) { return $matched }
+        $matched = $assets | Where-Object { $_.name.Contains($asset_name) }
+        if ($matched -and $matched.name) { return $matched }
         Write-Host "未找到包含 '$asset_name' 的資產，使用自動檢測。" -ForegroundColor Yellow
     }
 
     # 1. windows + 排除 sha256/checksum/hash
     $windowsCandidates = $assets | Where-Object {
         $name = $_.name.ToLowerInvariant()
-        ($name -like "*windows*") -and
+        ($name -like "*win*" -or $name -like "*windows*") -and
         ($name -notlike "*sha256*") -and
         ($name -notlike "*checksum*") -and
         ($name -notlike "*hash*")
     }
 
     # x64 常見標示
-    $x64Patterns = @("x64", "x86_64", "x86-64", "win64")
+    $x64Patterns = @("x64", "x86_64", "x86-64", "win64", "win-x64")
 
     # 保留含 x64Patterns 的名稱 (避免 ps2exe 打包後篩選結果差異, 主動退出)
     $x64Candidates = @()
@@ -106,31 +117,31 @@ function SendRequest {
         "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
     }
 
-    if (-not $response -or -not ($response.name -and $response.assets)) {
+    if (-not $response -or -not ($response.tag_name -and $response.assets)) {
         Write-Host "無法獲取最新版本資訊，請檢查倉庫名稱和網絡連接。" -ForegroundColor Red
         return
     }
 
     $oldVersion = ParseVersion (GetVersion)
-    $newVersion = ParseVersion $response.name
+    $newVersion = ParseVersion $response.tag_name
 
     if (-not $oldVersion) {
         Write-Host "未找到之前的版本。"
-        SetVersion $response.name
+        SetVersion $response.tag_name
         return
     }
 
     if ($oldVersion -eq $newVersion) {
-        Write-Host "已是最新版本。`n當前版本: $($response.name)"
+        Write-Host "已是最新版本。`n當前版本: $($response.tag_name)"
     }
     elseif ($oldVersion -lt $newVersion) {
-        Write-Host "有可用更新: $($response.name) (目前版本: $oldVersion)"
+        Write-Host "有可用更新: $($response.tag_name) (目前版本: $oldVersion)"
         $downloadInfo = GetDownloadInfo -assets $response.assets
 
         if ($downloadInfo) {
-            Write-Host "版本更新為 $($response.name)"
+            Write-Host "版本更新為 $($response.tag_name)"
             foreach ($asset in $downloadInfo) { DownloadAsset -asset $asset }
-            SetVersion $response.name
+            SetVersion $response.tag_name
         }
         else {
             Write-Host "未找到適合下載的資產。請檢查倉庫的發布頁面以確保有適合 Windows 的資產，或使用 -asset_name 參數指定資產名稱。" -ForegroundColor Yellow
@@ -138,7 +149,7 @@ function SendRequest {
     }
     else {
         Write-Host "本機版本 ($oldVersion) 比最新發布版本 ($newVersion) 更新。 版本記錄已重置。" -ForegroundColor Yellow
-        SetVersion $response.name
+        SetVersion $response.tag_name
     }
 }
 
