@@ -40,7 +40,6 @@ class TemplateGeneration(DataImport):
             <html>
                 <head>
                     <title>{{ title }}</title>
-                    <script>{{ script }}</script>
                     <style>{{ style }}</style>
                 </head>
                 <body>
@@ -50,6 +49,7 @@ class TemplateGeneration(DataImport):
                         <img id="img-{{ loop.index0 }}" data-index="{{ loop.index0 }}" data-src="{{ src|safe }}">
                         {% endfor %}
                     </div>
+                    <script>{{ script }}</script>
                 </body>
             </html>
         """
