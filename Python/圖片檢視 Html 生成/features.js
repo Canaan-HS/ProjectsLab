@@ -123,21 +123,17 @@ class Features {
         const targetImage = this.images[index];
         if (!targetImage) return;
 
-        // 1. [可選但推薦] 依然先斷開觀察者，作為雙重保險。
         if (this.imageObserver) {
             this.imageObserver.disconnect();
         }
 
-        // 2. [關鍵] 以 "跳轉模式" 呼叫更新函式，只加載不卸載。
         this._updateVisibleImages(index, true);
 
-        // 3. 執行滾動。因為沒有圖片被卸載，佈局是穩定的，滾動不會出錯。
         targetImage.scrollIntoView({
             block: "start",
             behavior: behavior
         });
 
-        // 4. 等待滾動動畫結束後，重新連接觀察者，恢復正常偵測。
         setTimeout(() => {
             this._reconnectObserver();
 
@@ -172,8 +168,8 @@ class Features {
         })
     };
 
-    initOnerror() {
-        this.container.addEventListener("error", (e) => {
+    initOnError() {
+        this.container.addEventListener("error", e => {
             const brokenImg = e.target;
             if (brokenImg.tagName !== "IMG" || !brokenImg.src) return;
 
@@ -207,7 +203,6 @@ class Features {
             } catch (e) { console.error("解析 localStorage 紀錄失敗:", e); }
         }
 
-        // 呼叫我們全新的、穩定的跳轉函式來進行初始化
         this._scrollToIndex(startIndex, 'auto');
         this._setupObserver();
 
@@ -227,8 +222,6 @@ class Features {
     }
 }
 
-window.addEventListener("load", () => {
-    const features = new Features();
-    features.initOnerror();
-    features.initView();
-});
+const features = new Features();
+features.initOnError();
+features.initView();
