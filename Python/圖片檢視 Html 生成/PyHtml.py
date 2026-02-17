@@ -9,22 +9,25 @@ from jinja2 import Template
 class DataImport:
     def __init__(self):
         os.chdir(Path(__file__).parent.resolve())
+        self.support_image = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}
 
-    def read_folder(self):
-        folder_path = filedialog.askdirectory(title="選取文件夾")
+    def read_folder(self, path=None):
+        folder_path = filedialog.askdirectory(title="選取文件夾") if path is None else path
 
-        if folder_path:
-            data_box = []
-            folder = Path(folder_path)
+        if not folder_path:
+            return None
 
-            create_name = folder.name
-            create_path = folder.parent
+        data_box = []
+        folder = Path(folder_path)
 
-            for file in folder.iterdir():
-                # ! 無特別判斷是否是圖片
+        create_name = folder.name
+        create_path = folder.parent
+
+        for file in folder.iterdir():
+            if file.is_file() and file.suffix.lower() in self.support_image:
                 data_box.append(file.relative_to(create_path).as_posix())
 
-            return create_path, create_name, data_box
+        return create_path, create_name, data_box
 
 
 class TemplateGeneration(DataImport):
