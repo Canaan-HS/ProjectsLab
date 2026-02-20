@@ -434,7 +434,7 @@ class Main {
                 Print ""
                 Print "  更新資訊:"
                 Print ""
-                Print "   1. 增加瀏覽器優化，配置快取大小"
+                Print "   1. .NET 版本更新"
                 Print "----------------------------------"
                 $this.WaitBack()
             }
@@ -655,15 +655,13 @@ class Main {
                 # winget search Microsoft.DotNet.SDK
                 $this.NetworkState()
                 if (IsAdmin) {
-                    $this.CMD("winget install Microsoft.DotNet.SDK.7", $false)
                     $this.CMD("winget install Microsoft.DotNet.SDK.8", $false)
-                    $this.CMD("winget install Microsoft.DotNet.SDK.9", $true)
+                    $this.CMD("winget install Microsoft.DotNet.SDK.10", $true)
                 }
                 else {
                     $this.CMD($this.Composite(@(
-                                "winget install Microsoft.DotNet.SDK.7"
                                 "winget install Microsoft.DotNet.SDK.8"
-                                "winget install Microsoft.DotNet.SDK.9"
+                                "winget install Microsoft.DotNet.SDK.10"
                             )), $true)
                 }
             }
