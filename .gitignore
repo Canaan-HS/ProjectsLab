@@ -20,4 +20,3 @@ test
 pnpm-lock.yaml
 
 !DB.json
-!chromedriver.exe
