@@ -228,9 +228,6 @@ foreach ($find in $findFolders) {
     if ($found) { Delete $found }
 }
 
-# ===== 調用系統清理 並檢查錯誤 =====
-Start-Process cleanmgr.exe -ArgumentList "/sagerun:99"
-
 # ===== NPM 清理 =====
 if (Test-CommandExists 'npm') {
     if (Test-CommandExists 'pnpm') { pnpm store prune }
@@ -240,10 +237,10 @@ if (Test-CommandExists 'npm') {
 Clear-Host
 Print "`n安全移除系統內隱藏檔案(這需要花一段時間)`n" 'Yellow'
 
-# 清理不再需要的系統組件和臨時文件
-& Dism.exe /online /Cleanup-Image /StartComponentCleanup
+# ===== 調用系統清理 並檢查錯誤 =====
+Start-Process cleanmgr.exe -ArgumentList "/sagerun:99"
 
-# 在組件清理的基礎上進行的擴展操作
+# 清理不再需要的系統組件和臨時文件
 & Dism.exe /online /Cleanup-Image /StartComponentCleanup /ResetBase
 
 Print "`n檢查系統有無損壞(這需要花一段時間)`n" 'Green'
