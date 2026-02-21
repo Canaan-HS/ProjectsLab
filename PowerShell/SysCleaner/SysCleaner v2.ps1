@@ -203,11 +203,12 @@ $cacheFolders = [System.Collections.Generic.HashSet[string]]::new(
     [string[]]@(
         'Temp', 'Log', 'Logs', 'Crashpad', 'History', 'INetHistory', 'CrashDumps',
         'Cache', 'Cache2', '.cache', 'Caches', 'GLCache', 'DXCache', 'lru-cache',
-        '.tiny_cache', 'librarycache', 'GPUCache', 'Code Cache', 'AppCache', 'AssetCache',
+        '.tiny_cache', 'librarycache', 'lazy-cache', 'GPUCache', 'DawnWebGPUCache', 'DawnGraphiteCache',
+        'Code Cache', 'AppCache', 'AssetCache', 'DawnWebGPUCache', 'GraphiteDawnCache',
         'BrowserCache', 'ImageCache', 'CachedData', 'CachedExtensions', 'OfflineCache',
         'media_cache', 'MediaCache', 'DawnCache', 'INetCache', 'ShaderCache', 'GrShaderCache',
         'ScriptCache', 'CacheStorage', 'webcache', 'extensions_crx_cache', '__pycache__', 'Telemetry',
-        'Temporary Internet Files'
+        'Temporary Internet Files', 'AutofillAiModelCache', 'component_crx_cache'
     ),
     [System.StringComparer]::OrdinalIgnoreCase
 )
