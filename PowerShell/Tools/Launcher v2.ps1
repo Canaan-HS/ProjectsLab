@@ -179,7 +179,7 @@ try {
     # 資訊哈希值, 合併成 保存目錄路徑
     $localFile = "$env:Temp\$infoHash"
     $fileExists = Test-Path $localFile
-    $updateURL = "https://raw.githubusercontent.com/Canaan-HS/ProjectsLab/refs/heads/main/PowerShell/Tools/Tools%20v2.ps1"
+    $updateURL = "https://gitlab.com/Canaan-HS/projectslab/-/raw/main/PowerShell/Tools/Tools%20v2.ps1"
 
     # 處理核心 實例化 (生成加密用 key, iv)
     $core = [ProcessingCore]::new(
