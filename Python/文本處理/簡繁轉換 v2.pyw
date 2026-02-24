@@ -437,14 +437,14 @@ class GUI(DataProcessing, TkinterDnD.Tk):
                         )
 
             self.insert_text(
-                f"({index}) {os.path.basename(work)} => [轉換完成: {self.ET(Start)} 秒]", "Success"
+                f"({index}) {fileName} => [轉換完成: {self.ET(Start)} 秒]", "Success"
             )
             # 檔名轉換
             os.rename(self.output_name, self.output_rename)
 
         except UnicodeDecodeError as e:
             self.insert_text(
-                f"({index}) {os.path.basename(work)} => [{str(e).split("@")[1]}]", "Failure"
+                f"({index}) {fileName} => [{str(e).split('@')[1]}]", "Failure"
             )
         except Exception as e:
             self.insert_text(f"(Exception) => {e}", "Failure")
