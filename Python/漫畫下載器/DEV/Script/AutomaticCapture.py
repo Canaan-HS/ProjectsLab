@@ -1,10 +1,11 @@
-import pyperclip
-import threading
-import keyboard
-import queue
-import time
 import os
 import re
+import time
+import queue
+import threading
+
+import keyboard
+import pyperclip
 
 
 class AutomaticCapture:
