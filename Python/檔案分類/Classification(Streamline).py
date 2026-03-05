@@ -11,15 +11,15 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 from rich.console import Console
 
-from utils import restore_RPG, MAX_WORKERS, VALID_EXTENSIONS
+from utils import restore_suffix, restore_rpg, MAX_WORKERS, VALID_RPG_SUFFIXS
 
 """ Versions 1.0.5 - V2
 
     Todo - 精簡版檔案類型分類
 
         ? (開發/運行環境):
-        * Windows 11 24H2
-        * Python 3.13.5 64-bit
+        * Windows 11 25H2
+        * Python 3.14.6 64-bit
 
         * 第三方庫:
         * tqdm
@@ -199,29 +199,23 @@ class TypeSelection(ReadFolder, OutputFile):
                     selected = self.type_quantity[select_code - 1][0]  # 根據索引取出類型字串
                     print(f"你選擇了 : {selected}\n", style="bold green")
 
-                    lower_selected = selected.lower()
+                    lower_selected = f".{selected.lower()}"
 
-                    # 檢查是否為 RPG Maker 加密圖片類型
-                    if f".{lower_selected}" in VALID_EXTENSIONS:
+                    # 檢查是否為 RPG Maker 加密類型
+                    if lower_selected in VALID_RPG_SUFFIXS:
 
                         def rpg_restore_task(source_path, output_path):
-                            # 將輸出的副檔名強制變更為 .png
-                            base_output_path, _ = os.path.splitext(output_path)
-                            png_output_path = base_output_path + ".png"
-
-                            # 執行還原任務
-                            restore_RPG(
+                            restore_rpg(
                                 input_path=source_path,
-                                output_path=png_output_path,
+                                output_path=restore_suffix(output_path, lower_selected),
                                 delete_original=not self.use_copy,  # 如果不是複製模式，就刪除原始檔案
                             )
 
                         # 將任務切換為 RPG 圖片還原
                         self.task_work = rpg_restore_task
 
-                    elif lower_selected == "nlch":
-                        # 針對特定遊戲的臨時任務 (未來可能會移除)
-
+                    # ! 針對特定遊戲的臨時任務 (未來會移除)
+                    elif lower_selected == ".nlch":
                         def nlch_to_webm(source_path, output_path):
                             base_output_path, _ = os.path.splitext(output_path)
                             webm_output_path = base_output_path + ".webm"
