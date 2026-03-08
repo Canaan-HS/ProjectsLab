@@ -11,7 +11,14 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 from rich.console import Console
 
-from utils import restore_suffix, restore_rpg, MAX_WORKERS, VALID_RPG_SUFFIXS
+from utils import (
+    restore_suffix,
+    restore_rpg,
+    get_encryption_key,
+    MAX_WORKERS,
+    ENCRYPTED_AUDIO,
+    VALID_RPG_SUFFIXS,
+)
 
 """ Versions 1.0.5 - V2
 
@@ -182,6 +189,8 @@ class TypeSelection(ReadFolder, OutputFile):
         ReadFolder.__init__(self)
         OutputFile.__init__(self)
 
+        self.rpg_key_cache = {}
+
     # 選擇輸出類型
     def __choose(self, select: None):
 
@@ -203,11 +212,34 @@ class TypeSelection(ReadFolder, OutputFile):
 
                     # 檢查是否為 RPG Maker 加密類型
                     if lower_selected in VALID_RPG_SUFFIXS:
+                        key = None
+
+                        if lower_selected in ENCRYPTED_AUDIO:
+                            error_skip = False
+                            cache_key = self.rpg_key_cache.get(self.folder_path)
+
+                            if cache_key is None:
+                                key = get_encryption_key(self.folder_path)
+
+                                if key is None:
+                                    error_skip = True
+                                    self.rpg_key_cache[self.folder_path] = ""
+                                else:
+                                    self.rpg_key_cache[self.folder_path] = key
+                            elif cache_key == "":
+                                error_skip = True
+                            else:
+                                key = cache_key
+
+                            if error_skip:
+                                print("無法獲得加密金鑰, 重新選擇路徑", style="bold red")
+                                break
 
                         def rpg_restore_task(source_path, output_path):
                             restore_rpg(
                                 input_path=source_path,
                                 output_path=restore_suffix(output_path, lower_selected),
+                                decrypt_key=key,
                                 delete_original=not self.use_copy,  # 如果不是複製模式，就刪除原始檔案
                             )
 
@@ -216,6 +248,7 @@ class TypeSelection(ReadFolder, OutputFile):
 
                     # ! 針對特定遊戲的臨時任務 (未來會移除)
                     elif lower_selected == ".nlch":
+
                         def nlch_to_webm(source_path, output_path):
                             base_output_path, _ = os.path.splitext(output_path)
                             webm_output_path = base_output_path + ".webm"
