@@ -70,10 +70,15 @@ function GetDownloadInfo {
     # x64 常見標示
     $x64Patterns = @("x64", "x86_64", "x86-64", "win64")
 
-    # 保留含 x64Patterns 的名稱
-    $x64Candidates = $windowsCandidates | Where-Object {
-        $name = $_.name.ToLowerInvariant()
-        $x64Patterns | ForEach-Object { if ($name -like "*$_*") { return $true } } 
+    # 保留含 x64Patterns 的名稱 (避免 ps2exe 打包後篩選結果差異, 主動退出)
+    $x64Candidates = @()
+    foreach ($asset in $windowsCandidates) {
+        foreach ($pat in $x64Patterns) {
+            if ($asset.name.ToLowerInvariant() -like "*$pat*") {
+                $x64Candidates += $asset
+                break
+            }
+        }
     }
 
     # 3. 有 x64Candidates -> 用它 | 沒有 -> 回退 windowsCandidates
