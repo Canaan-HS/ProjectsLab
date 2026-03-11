@@ -4,8 +4,10 @@ param (
     [string]$asset_name = $null
 )
 
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 if (-not $owner -or -not $repo) {
-    Write-Error "Parameters 'owner' and 'repo' are required."
+    Write-Host "參數 -owner 和 -repo 是必需的。" -ForegroundColor Red
     exit 1
 }
 
@@ -27,11 +29,11 @@ function SetVersion {
 
     if ($existing) {
         Rename-Item -Path $existing.FullName -NewName $newName -Force
-        Write-Host "Updated version record to $version"
+        Write-Host "版本紀錄更新 -> $version"
     }
     else {
         New-Item -ItemType File -Path (Join-Path $callPath $newName) | Out-Null
-        Write-Host "Created version record: $version"
+        Write-Host "創建版本紀錄 -> $version"
     }
 }
 
@@ -52,7 +54,7 @@ function GetDownloadInfo {
     if ($asset_name) {
         $matched = $assets | Where-Object { $_.name -eq $asset_name }
         if ($matched) { return $matched }
-        Write-Warning "Asset '$asset_name' not found. Using automatic detection."
+        Write-Host "未找到名為 '$asset_name' 的資產，使用自動檢測。" -ForegroundColor Yellow
     }
 
     $windowsCandidates = $assets | Where-Object {
@@ -79,12 +81,12 @@ function DownloadAsset {
     $url = $asset.browser_download_url
     $filePath = Join-Path $callPath $asset.name
 
-    Write-Host "Downloading asset: $($asset.name)"
-    Write-Host "Destination: $filePath"
-    Write-Host "URL: $url"
+    Write-Host "下載資產: $($asset.name)"
+    Write-Host "目標位置: $filePath"
+    Write-Host "下載網址: $url"
 
     Invoke-WebRequest -Uri $url -OutFile $filePath
-    Write-Host "Download complete: $($asset.name)"
+    Write-Host "下載完成: $($asset.name)"
 }
 
 function SendRequest {
@@ -93,7 +95,7 @@ function SendRequest {
     }
 
     if (-not $response -or -not ($response.name -and $response.assets)) {
-        Write-Error "Failed to fetch release info from GitHub."
+        Write-Host "無法獲取最新版本資訊，請檢查倉庫名稱和網絡連接。" -ForegroundColor Red
         exit 1
     }
 
@@ -102,30 +104,32 @@ function SendRequest {
 
     if (-not $oldVersion) {
         SetVersion $response.name
-        Write-Host "No previous version found. Recorded version: $($response.name)"
+        Write-Host "未找到之前的版本。`n已記錄版本: $($response.name)"
         exit 0
     }
 
     if ($oldVersion -eq $newVersion) {
-        Write-Host "Up to date. Current version: $($response.name)"
+        Write-Host "已是最新版本。`n當前版本: $($response.name)"
     }
     elseif ($oldVersion -lt $newVersion) {
-        Write-Host "Update available: $($response.name) (current: $oldVersion)"
+        Write-Host "有可用更新: $($response.name) (目前版本: $oldVersion)"
         $downloadInfo = GetDownloadInfo -assets $response.assets
 
         if ($downloadInfo) {
             foreach ($asset in $downloadInfo) { DownloadAsset -asset $asset }
             SetVersion $response.name
-            Write-Host "Version updated to $($response.name)"
+            Write-Host "版本更新為 $($response.name)"
         }
         else {
-            Write-Warning "No suitable asset found for download."
+            Write-Host "未找到適合下載的資產。請檢查倉庫的發布頁面以確保有適合 Windows 的資產，或使用 -asset_name 參數指定資產名稱。" -ForegroundColor Yellow
         }
     }
     else {
         SetVersion $response.name
-        Write-Warning "Local version ($oldVersion) is newer than latest release ($newVersion). Version record reset to $($response.name)"
+        Write-Host "本機版本 ($oldVersion) 比最新發布版本 ($newVersion) 更新。版本記錄已重置為 $($response.name)" -ForegroundColor Yellow
     }
+
+    Read-Host "`n按任意鍵退出..."
 }
 
 SendRequest
