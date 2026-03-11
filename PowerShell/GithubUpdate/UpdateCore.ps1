@@ -51,12 +51,14 @@ function ParseVersion {
 function GetDownloadInfo {
     param($assets)
 
+    # 如果有指定下載特定檔案名稱，用包含匹配（忽略大小寫）
     if ($asset_name) {
-        $matched = $assets | Where-Object { $_.name -eq $asset_name }
-        if ($matched) { return $matched }
-        Write-Host "未找到名為 '$asset_name' 的資產，使用自動檢測。" -ForegroundColor Yellow
+        $matched = $assets | Where-Object { $_.name -match [regex]::Escape($asset_name) }
+        if ($matched -and $matched.Count -gt 0) { return $matched }
+        Write-Host "未找到包含 '$asset_name' 的資產，使用自動檢測。" -ForegroundColor Yellow
     }
 
+    # 1. windows + 排除 sha256/checksum/hash
     $windowsCandidates = $assets | Where-Object {
         $name = $_.name.ToLowerInvariant()
         ($name -like "*windows*") -and
@@ -65,14 +67,19 @@ function GetDownloadInfo {
         ($name -notlike "*hash*")
     }
 
-    $x64Patterns = @("x86_64", "x86-64", "x64", "amd64", "win64", "64bit", "64-bit", "x86-64")
+    # x64 常見標示
+    $x64Patterns = @("x64", "x86_64", "x86-64", "win64")
 
+    # 保留含 x64Patterns 的名稱
     $x64Candidates = $windowsCandidates | Where-Object {
         $name = $_.name.ToLowerInvariant()
-        $x64Patterns | Where-Object { $name -like "*$_*" } | Select-Object -First 1
+        $x64Patterns | ForEach-Object { if ($name -like "*$_*") { return $true } } 
     }
 
-    return if ($x64Candidates -and $x64Candidates.Count -gt 0) { $x64Candidates } else { $windowsCandidates }
+    # 3. 有 x64Candidates -> 用它 | 沒有 -> 回退 windowsCandidates
+    $final = if ($x64Candidates -and $x64Candidates.Count -gt 0) { $x64Candidates } else { $windowsCandidates }
+
+    return $final
 }
 
 function DownloadAsset {
@@ -91,7 +98,7 @@ function DownloadAsset {
 
 function SendRequest {
     $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$owner/$repo/releases/latest" -Headers @{
-        "User-Agent" = "PowerShell"
+        "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
     }
 
     if (-not $response -or -not ($response.name -and $response.assets)) {
