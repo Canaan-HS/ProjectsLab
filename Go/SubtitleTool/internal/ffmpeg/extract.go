@@ -14,11 +14,8 @@ func ExtractSubtitle(
 	track types.SubtitleTrack,
 	lang string,
 ) error {
-
 	dir := filepath.Dir(video)
-
 	base := filepath.Base(video)
-
 	name := base[:len(base)-len(filepath.Ext(base))]
 
 	output := filepath.Join(
@@ -26,27 +23,14 @@ func ExtractSubtitle(
 		name+"."+lang+"."+track.Extension(),
 	)
 
-	cmd := exec.Command(
-		"ffmpeg",
-
-		"-hide_banner",
-
-		"-loglevel",
-		"warning",
-
-		"-i",
-		video,
-
-		"-map",
-		fmt.Sprintf("0:%d", track.Index),
-
+	args := commonArgs(video)
+	args = append(args,
+		"-map", fmt.Sprintf("0:%d", track.Index),
 		output,
-
-		"-y",
 	)
 
+	cmd := exec.Command("ffmpeg", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
 	return cmd.Run()
 }
