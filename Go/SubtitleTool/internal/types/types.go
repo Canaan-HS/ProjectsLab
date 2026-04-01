@@ -17,24 +17,32 @@ type Options struct {
 	Yes       bool
 }
 
+type MediaInfo struct {
+	Path      string
+	Subtitles []SubtitleTrack
+}
+
+type SubtitleTrack struct {
+	Index    int
+	Language string
+	Title    string
+	Codec    string
+	Default  bool
+	Forced   bool
+}
+
 func (s SubtitleTrack) Extension() string {
-
 	switch s.Codec {
-
-	case "ass":
+	case "ass", "ssa":
 		return "ass"
-
-	case "ssa":
-		return "ass"
-
-	case "subrip":
-		return "srt"
-
-	case "srt":
-		return "srt"
-
 	default:
 		return "srt"
 	}
+}
 
+type ExternalSubtitle struct {
+	Path     string
+	Language string
+	Title    string
+	Default  bool
 }
