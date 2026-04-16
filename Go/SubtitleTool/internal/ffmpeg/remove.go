@@ -2,8 +2,6 @@ package ffmpeg
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 
 	"SubtitleTool/internal/types"
 )
@@ -41,7 +39,5 @@ func RemoveSubtitle(
 
 	args = append(args, suffixArgs(output)...)
 
-	cmd := exec.Command("ffmpeg", args...)
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return runFFmpeg(args)
 }
