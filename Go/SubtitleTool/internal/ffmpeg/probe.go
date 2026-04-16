@@ -2,6 +2,7 @@ package ffmpeg
 
 import (
 	"encoding/json"
+	"os"
 	"os/exec"
 
 	"SubtitleTool/internal/types"
@@ -53,6 +54,8 @@ func Probe(video string) (*types.MediaInfo, error) {
 
 		video,
 	)
+
+	cmd.Stderr = os.Stderr
 
 	output, err := cmd.Output()
 
