@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 
 	"SubtitleTool/internal/cli"
 	"SubtitleTool/internal/operation"
@@ -19,6 +21,30 @@ func main() {
 		}
 		fmt.Println(err)
 		return
+	}
+
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		fmt.Println(" ✗ ffmpeg not found. Please install ffmpeg and ensure it's in your PATH.")
+		return
+	}
+
+	if _, err := exec.LookPath("ffprobe"); err != nil {
+		fmt.Println(" ✗ ffprobe not found. Please install ffmpeg and ensure it's in your PATH.")
+		return
+	}
+
+	if opt.SubtitlePath != "" {
+		info, err := os.Stat(opt.Path)
+
+		if err != nil {
+			fmt.Printf(" ✗ Error: %v\n", err)
+			return
+		}
+
+		if info.IsDir() {
+			fmt.Println(" ✗ Error: -path must be a file (not a directory) when -sub is specified")
+			return
+		}
 	}
 
 	videos, err := scan.FindVideos(opt.Path, opt.Recursive)
