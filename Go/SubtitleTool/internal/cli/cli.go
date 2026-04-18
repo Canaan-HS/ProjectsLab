@@ -16,7 +16,7 @@ func Parse() (types.Options, error) {
 	fs := flag.NewFlagSet("SubtitleTool", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
-	var mode, path, lang string
+	var mode, path, lang, sub string
 	var recursive, dry, yes, showHelp bool
 
 	fs.StringVar(&mode, "mode", "", "")
@@ -25,6 +25,8 @@ func Parse() (types.Options, error) {
 	fs.StringVar(&path, "p", "", "")
 	fs.StringVar(&lang, "lang", "", "")
 	fs.StringVar(&lang, "l", "", "")
+	fs.StringVar(&sub, "sub", "", "")
+	fs.StringVar(&sub, "s", "", "")
 	fs.BoolVar(&recursive, "recursive", true, "")
 	fs.BoolVar(&recursive, "r", true, "")
 	fs.BoolVar(&dry, "dry-run", false, "")
@@ -76,6 +78,13 @@ func Parse() (types.Options, error) {
 		return types.Options{}, ErrHelp
 	}
 
+	if sub != "" && m != types.Embed {
+		fmt.Fprintln(os.Stderr, "Error: -sub can only be used with -mode embed")
+		fmt.Fprintln(os.Stderr)
+		fs.Usage()
+		return types.Options{}, ErrHelp
+	}
+
 	var langs []string
 
 	if lang != "" {
@@ -83,12 +92,13 @@ func Parse() (types.Options, error) {
 	}
 
 	return types.Options{
-		Mode:      m,
-		Path:      path,
-		Languages: langs,
-		Recursive: recursive,
-		DryRun:    dry,
-		Yes:       yes,
+		Mode:         m,
+		Path:         path,
+		Languages:    langs,
+		SubtitlePath: sub,
+		Recursive:    recursive,
+		DryRun:       dry,
+		Yes:          yes,
 	}, nil
 }
 
@@ -106,6 +116,7 @@ Options:
   -m, -mode <mode>       Operation mode (required)
   -p, -path <path>       Video file or directory (required)
   -l, -lang <list>       Language filter: tc,sc,en,jp,kr (comma-separated)
+  -s, -sub <file>        Subtitle file to embed (embed mode only, implies -path is a single file)
   -r, -recursive         Scan directories recursively (default: true)
   -y, -yes               Skip confirmation prompts
       -dry-run           Preview changes without applying
@@ -116,4 +127,5 @@ Examples:
   SubtitleTool -m extract -p ./videos -l en,jp
   SubtitleTool -m remove -p video.mkv -l jp
   SubtitleTool -m embed -p video.mkv
+  SubtitleTool -m embed -p video.mkv -s subtitle.tc.srt
 `
