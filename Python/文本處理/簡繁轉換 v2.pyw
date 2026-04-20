@@ -69,6 +69,7 @@ class DataProcessing:
             "po",
             "py",
             "js",
+            "ts",
             "txt",
             "srt",
             "ass",
