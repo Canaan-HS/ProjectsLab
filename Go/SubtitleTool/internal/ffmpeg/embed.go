@@ -25,6 +25,10 @@ func EmbedSubtitle(
 		"-map", "0:s?",
 	)
 
+	for i := 0; i < existingSubtitleCount; i++ {
+		args = append(args, "-disposition:s:"+strconv.Itoa(i), "0")
+	}
+
 	subtitleOffset := existingSubtitleCount
 
 	for i, sub := range subtitles {
