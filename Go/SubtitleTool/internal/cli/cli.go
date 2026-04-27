@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"SubtitleTool/internal/types"
@@ -36,7 +37,7 @@ func Parse() (types.Options, error) {
 	fs.BoolVar(&showHelp, "h", false, "")
 
 	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, usageText)
+		fmt.Fprint(os.Stderr, UsageText(filepath.Base(os.Args[0])))
 	}
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
@@ -102,10 +103,11 @@ func Parse() (types.Options, error) {
 	}, nil
 }
 
-var usageText = `SubtitleTool - MKV Subtitle Manager
+func UsageText(exe string) string {
+	return exe + ` - MKV Subtitle Manager
 
 Usage:
-  SubtitleTool -mode <mode> -path <path> [options]
+  ` + exe + ` -mode <mode> -path <path> [options]
 
 Modes:
   extract    Extract subtitle tracks from MKV files
@@ -123,9 +125,10 @@ Options:
   -h, -help              Show this help message
 
 Examples:
-  SubtitleTool -m extract -p video.mkv
-  SubtitleTool -m extract -p ./videos -l en,jp
-  SubtitleTool -m remove -p video.mkv -l jp
-  SubtitleTool -m embed -p video.mkv
-  SubtitleTool -m embed -p video.mkv -s subtitle.tc.srt
+  ` + exe + ` -m extract -p video.mkv
+  ` + exe + ` -m extract -p ./videos -l en,jp
+  ` + exe + ` -m remove -p video.mkv -l jp
+  ` + exe + ` -m embed -p video.mkv
+  ` + exe + ` -m embed -p video.mkv -s subtitle.tc.srt
 `
+}
