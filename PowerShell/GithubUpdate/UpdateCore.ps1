@@ -100,8 +100,9 @@ function ParseVersion {
 function GetDownloadInfo {
     param($assets)
 
+    $notWindowsExecutable = "(?i)linux|dos|macos|mac"
     $notExecutable = "(?i)sha256|checksum|checksums|hash|source|src|debug|symbols|pdb|test|tests"
-    $notX64Architecture = "(?i)arm|arm64|aarch64|x86|32[-_ ]?bit"
+    $notX64Architecture = "(?i)win32|wow32|arm(?:64)?|aarch64|i[3-6]86|x86|32[-_ ]?bit|mips(?:64)?|ppc(?:64)?|powerpc|sparc|riscv(?:64)?|s390x?"
 
     # 如果有指定排除檔案名特徵
     if ($exclude_patterns) {
@@ -116,6 +117,7 @@ function GetDownloadInfo {
             $_.name.Contains($asset_name) -and
             -not ($excludeRegex -and $_.name -match $excludeRegex) -and
             $_.name -notmatch $notExecutable -and
+            $_.name -notmatch $notWindowsExecutable -and
             $_.name -notmatch $notX64Architecture
         }
         if ($matched -and $matched.name) { return $matched }
@@ -132,6 +134,8 @@ function GetDownloadInfo {
         if ($excludeRegex -and $name -match $excludeRegex) { return }
         # 排除非目標
         if ($name -match $notExecutable) { return }
+        # 排除非 windows 資產
+        if ($name -match $notWindowsExecutable) { return }
         # 排除非 x64 架構
         if ($name -match $notX64Architecture) { return }
 
@@ -140,7 +144,7 @@ function GetDownloadInfo {
         # 平台
         if ($name -match '(?i)win|windows') { $score += 100 }
         # 架構
-        if ($name -match '(?i)x64|x86_64|x86-64|win64|win-x64|64[-_ ]?bit') { $score += 60 }
+        if ($name -match '(?i)x86[-_]?64|x64|win[-_]?x?64|64[-_ ]?bit') { $score += 60 }
         # 安裝類型
         if ($name -match '(?i)portable|standalone|noinstall') { $score += 40 }
         # 格式
