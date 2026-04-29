@@ -100,9 +100,9 @@ function ParseVersion {
 function GetDownloadInfo {
     param($assets)
 
-    $notWindowsExecutable = "(?i)linux|dos|macos|mac"
-    $notExecutable = "(?i)sha256|checksum|checksums|hash|source|src|debug|symbols|pdb|test|tests"
-    $notX64Architecture = "(?i)win32|wow32|arm(?:64)?|aarch64|i[3-6]86|x86|32[-_ ]?bit|mips(?:64)?|ppc(?:64)?|powerpc|sparc|riscv(?:64)?|s390x?"
+    $notWindowsExecutable = "(?i)linux|dos|macos|mac|apple"
+    $notExecutable = "(?i)sha256|checksum|checksums|hash|source|src|debug|symbols|pdb|test|tests|sh|json"
+    $notX64Architecture = "(?i)win32|wow32|arm(?:64)?|aarch64|i[3-6]86|x86(?![-_]?64)|32[-_ ]?bit|mips(?:64)?|ppc(?:64)?|powerpc|sparc|riscv(?:64)?|s390x?"
 
     # 如果有指定排除檔案名特徵
     if ($exclude_patterns) {
@@ -179,6 +179,10 @@ function SendRequest {
     $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$owner/$repo/releases/latest" -Headers @{
         "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
     }
+
+    # ? 測試用
+    # GetDownloadInfo -assets $response.assets | ForEach-Object { write-host $_.name }
+    # return
 
     if (-not $response -or -not ($response.tag_name -and $response.assets)) {
         Write-Host "無法獲取最新版本資訊，請檢查倉庫名稱和網絡連接。" -ForegroundColor Red
