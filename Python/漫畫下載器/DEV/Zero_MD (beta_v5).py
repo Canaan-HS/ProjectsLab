@@ -29,7 +29,7 @@ from Script import capture, fetch
 CONFIG = SimpleNamespace(
     **{
         "DownloadPath": "R:/",  # 路徑結尾必須為斜線
-        "RequestDomain": "https://www.zerobywb.com/",  # 域名修正: https://zerobyw.github.io/
+        "RequestDomain": "https://www.zerobywai.com/",  # 域名修正: https://zerobyw.github.io/
     }
 )
 
@@ -41,8 +41,10 @@ print = lambda *args, **kwargs: console.print(*args, **kwargs)
 class SupportVerify:
     def __init__(self):
         self.twp = None
+
+        escaped_domain = CONFIG.RequestDomain.replace(".", r"\.")
         self.verify_rules = re.compile(
-            rf"{CONFIG.RequestDomain.replace('.', r'\.')}(pc/manga_pc\.php\?kuid=|plugin\.php\?id=)(.*)"
+            rf"{escaped_domain}(pc/manga_pc\.php\?kuid=|plugin\.php\?id=)(.*)"
         )
 
     def verify(self, url: str) -> bool:
