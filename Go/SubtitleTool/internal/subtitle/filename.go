@@ -12,10 +12,8 @@ func GetFilenameLanguage(filename string) string {
 		return ""
 	}
 	code := strings.ToLower(parts[len(parts)-1])
-	for _, d := range langDefs {
-		if d.ShortCode == code {
-			return code
-		}
+	if _, ok := aliasMap[code]; ok {
+		return code
 	}
 	return ""
 }
