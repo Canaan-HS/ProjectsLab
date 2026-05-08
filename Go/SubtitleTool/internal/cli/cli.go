@@ -17,13 +17,15 @@ func Parse() (types.Options, error) {
 	fs := flag.NewFlagSet("SubtitleTool", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
-	var mode, path, lang, sub string
+	var mode, path, lang, sub, output string
 	var recursive, dry, yes, showHelp bool
 
 	fs.StringVar(&mode, "mode", "", "")
 	fs.StringVar(&mode, "m", "", "")
-	fs.StringVar(&path, "path", "", "")
-	fs.StringVar(&path, "p", "", "")
+	fs.StringVar(&path, "input", "", "")
+	fs.StringVar(&path, "i", "", "")
+	fs.StringVar(&output, "output", "", "")
+	fs.StringVar(&output, "o", "", "")
 	fs.StringVar(&lang, "lang", "", "")
 	fs.StringVar(&lang, "l", "", "")
 	fs.StringVar(&sub, "sub", "", "")
@@ -57,7 +59,7 @@ func Parse() (types.Options, error) {
 	}
 
 	if path == "" {
-		fmt.Fprintln(os.Stderr, "Error: -path is required")
+		fmt.Fprintln(os.Stderr, "Error: -input is required")
 		fmt.Fprintln(os.Stderr)
 		fs.Usage()
 		return types.Options{}, ErrHelp
@@ -95,6 +97,7 @@ func Parse() (types.Options, error) {
 	return types.Options{
 		Mode:         m,
 		Path:         path,
+		OutputPath:   output,
 		Languages:    langs,
 		SubtitlePath: sub,
 		Recursive:    recursive,
@@ -107,7 +110,7 @@ func UsageText(exe string) string {
 	return exe + ` - MKV Subtitle Manager
 
 Usage:
-  ` + exe + ` -mode <mode> -path <path> [options]
+  ` + exe + ` -mode <mode> -input <path> [options]
 
 Modes:
   extract    Extract subtitle tracks from MKV files
@@ -115,20 +118,21 @@ Modes:
   embed      Embed external subtitles into MKV files
 
 Options:
-  -m, -mode <mode>       Operation mode (required)
-  -p, -path <path>       Video file or directory (required)
-  -l, -lang <list>       Language filter: tc,sc,en,jp,kr (comma-separated)
-  -s, -sub <file>        Subtitle file to embed (embed mode only, implies -path is a single file)
-  -r, -recursive         Scan directories recursively (default: true)
-  -y, -yes               Skip confirmation prompts
-      -dry-run           Preview changes without applying
-  -h, -help              Show this help message
+  -m, -mode <mode>        Operation mode (required)
+  -i, -input <path>       Video file or directory (required)
+  -o, -output <path>      Output directory (default: same as input)
+  -l, -lang <list>        Language filter: tc,sc,en,jp,kr (comma-separated)
+  -s, -sub <file>         Subtitle file to embed (embed mode only, implies -input is a single file)
+  -r, -recursive          Scan directories recursively (default: true)
+  -y, -yes                Skip confirmation prompts
+      -dry-run            Preview changes without applying
+  -h, -help               Show this help message
 
 Examples:
-  ` + exe + ` -m extract -p video.mkv
-  ` + exe + ` -m extract -p ./videos -l en,jp
-  ` + exe + ` -m remove -p video.mkv -l jp
-  ` + exe + ` -m embed -p video.mkv
-  ` + exe + ` -m embed -p video.mkv -s subtitle.tc.srt
+  ` + exe + ` -m extract -i video.mkv
+  ` + exe + ` -m extract -i ./videos -l en,jp
+  ` + exe + ` -m remove -i video.mkv -l jp
+  ` + exe + ` -m embed -i video.mkv
+  ` + exe + ` -m embed -i video.mkv -s subtitle.tc.srt
 `
 }
