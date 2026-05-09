@@ -87,6 +87,14 @@ func GetFfprobe(code string) string {
 	return ""
 }
 
+func ResolveSubtitleLanguage(path string) (ffprobeLang, displayName string) {
+	detected := GetFilenameLanguage(path)
+	if detected == "" {
+		return "", "Undetermined"
+	}
+	return GetFfprobe(detected), GetDisplayName(detected)
+}
+
 func MatchLanguage(track types.SubtitleTrack, target string) bool {
 	target = strings.ToLower(target)
 	lang := strings.ToLower(track.Language)
