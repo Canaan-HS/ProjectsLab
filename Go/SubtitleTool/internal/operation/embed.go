@@ -24,13 +24,9 @@ func Embed(
 	var subs []types.ExternalSubtitle
 
 	if opt.SubtitlePath != "" {
-		detected := subtitle.GetFilenameLanguage(opt.SubtitlePath)
-		displayName := "Undetermined"
-		ffprobeLang := ""
-		if detected != "" {
-			displayName = subtitle.GetDisplayName(detected)
-			ffprobeLang = subtitle.GetFfprobe(detected)
-		}
+		ffprobeLang, displayName := subtitle.ResolveSubtitleLanguage(
+			opt.SubtitlePath,
+		)
 
 		subs = []types.ExternalSubtitle{
 			{
