@@ -64,18 +64,18 @@ function GetDownloadInfo {
 
     # 如果有指定下載特定檔案名稱，用包含匹配（忽略大小寫）
     if ($asset_name) {
-        $matched = $assets | Where-Object { $_.name.Contains($asset_name) }
+        $matched = $assets | Where-Object {
+            $_.name.Contains($asset_name) -and
+            $_.name -notmatch "(?i)sha256|checksum|hash"
+        }
         if ($matched -and $matched.name) { return $matched }
         Write-Host "未找到包含 '$asset_name' 的資產，使用自動檢測。" -ForegroundColor Yellow
     }
 
-    # 1. windows + 排除 sha256/checksum/hash
+    # 查找常見 windows 資產 + 排除 sha256/checksum/hash
     $windowsCandidates = $assets | Where-Object {
-        $name = $_.name.ToLowerInvariant()
-        ($name -like "*win*" -or $name -like "*windows*") -and
-        ($name -notlike "*sha256*") -and
-        ($name -notlike "*checksum*") -and
-        ($name -notlike "*hash*")
+        $_.name -match '(?i)win|windows' -and
+        $_.name -notmatch '(?i)sha256|checksum|hash'
     }
 
     # x64 常見標示
@@ -92,7 +92,7 @@ function GetDownloadInfo {
         }
     }
 
-    # 3. 有 x64Candidates -> 用它 | 沒有 -> 回退 windowsCandidates
+    # 有 x64Candidates -> 用它 | 沒有 -> 回退 windowsCandidates
     $final = if ($x64Candidates -and $x64Candidates.Count -gt 0) { $x64Candidates } else { $windowsCandidates }
 
     return $final
