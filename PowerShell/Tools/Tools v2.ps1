@@ -672,7 +672,7 @@ class Main {
                 $this.NetworkState()
 
                 $DownloadPath = "$([Main]::Temp)\Visual.tar"
-                $DownloadURL = "https://raw.githubusercontent.com/Canaan-HS/Script-DataBase/refs/heads/main/Visual%20C%2B%2B/Visual.tar"
+                $DownloadURL = "https://gitlab.com/Canaan-HS/database/-/raw/main/Visual%20C%2B%2B/Visual.tar"
 
                 $InstallPackage = @( # 安裝包 與 安裝指令
                     @{ package = "vcredist2005_x64.exe"; order = "/q" }
@@ -1167,7 +1167,7 @@ class Main {
                 $RegistPath = "C:\Program Files\WinRAR\Rarreg.key"
 
                 if (-not (Test-Path $RegistPath)) {
-                    $DownloadURL = "https://raw.githubusercontent.com/Canaan-HS/Script-DataBase/refs/heads/main/Rar/Rarreg.key"
+                    $DownloadURL = "https://gitlab.com/Canaan-HS/database/-/raw/main/Rar/Rarreg.key"
                     Invoke-WebRequest -Uri $DownloadURL -OutFile $RegistPath
 
                     if (Test-Path $RegistPath) {
