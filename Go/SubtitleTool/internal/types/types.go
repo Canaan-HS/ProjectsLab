@@ -17,6 +17,7 @@ type Options struct {
 	Recursive    bool
 	DryRun       bool
 	Yes          bool
+	Overwrite    bool
 }
 
 type MediaInfo struct {
