@@ -54,7 +54,7 @@ func EmbedSubtitle(
 			"language="+sub.Language,
 		)
 
-		if i == 0 || sub.Default {
+		if i == 0 {
 			args = append(args,
 				"-disposition:s:"+strconv.Itoa(outputSubtitleIndex),
 				"default",
