@@ -10,27 +10,12 @@ import (
 
 type probeResult struct {
 	Streams []stream `json:"streams"`
-
-	Format format `json:"format"`
-}
-
-type format struct {
-	Filename string `json:"filename"`
-
-	FormatName string `json:"format_name"`
-
-	Duration string `json:"duration"`
 }
 
 type stream struct {
 	Index     int    `json:"index"`
 	CodecType string `json:"codec_type"`
 	CodecName string `json:"codec_name"`
-
-	Disposition struct {
-		Default int `json:"default"`
-		Forced  int `json:"forced"`
-	} `json:"disposition"`
 
 	Tags struct {
 		Language string `json:"language"`
@@ -71,10 +56,7 @@ func Probe(video string) (*types.MediaInfo, error) {
 		return nil, err
 	}
 
-	info := &types.MediaInfo{
-
-		Path: video,
-	}
+	info := &types.MediaInfo{}
 
 	for _, s := range probe.Streams {
 
@@ -95,10 +77,6 @@ func Probe(video string) (*types.MediaInfo, error) {
 				Codec: s.CodecName,
 
 				Title: s.Tags.Title,
-
-				Default: s.Disposition.Default == 1,
-
-				Forced: s.Disposition.Forced == 1,
 			},
 		)
 
