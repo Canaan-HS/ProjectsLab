@@ -60,12 +60,7 @@ func Remove(
 		return
 	}
 
-	var outPath string
-	if opt.Overwrite {
-		outPath = output.OverwritePath(video, opt.OutputPath)
-	} else {
-		outPath = output.NewPath(video, "remove", opt.OutputPath)
-	}
+	outPath := output.ResolvePath(video, "remove", opt.OutputPath, opt.Overwrite)
 
 	fmt.Printf(" → Removing %d subtitle track(s) from: %s\n", len(removeTracks), filepath.Base(video))
 
