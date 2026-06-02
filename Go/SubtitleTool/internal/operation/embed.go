@@ -6,6 +6,7 @@ import (
 
 	"SubtitleTool/internal/ffmpeg"
 	"SubtitleTool/internal/output"
+	"SubtitleTool/internal/progress"
 	"SubtitleTool/internal/subtitle"
 	"SubtitleTool/internal/types"
 )
@@ -13,12 +14,12 @@ import (
 func Embed(
 	video string,
 	opt types.Options,
-) {
+	r progress.Reporter,
+) error {
 	info, err := ffmpeg.Probe(video)
 
 	if err != nil {
-		fmt.Printf(" ✗ Error: probe failed: %v\n", err)
-		return
+		return fmt.Errorf("probe failed: %w", err)
 	}
 
 	var subs []types.ExternalSubtitle
@@ -36,15 +37,14 @@ func Embed(
 			},
 		}
 
-		fmt.Printf(" → Using subtitle: %s (%s)\n", filepath.Base(opt.SubtitlePath), displayName)
+		r.Log("Using subtitle: %s (%s)", filepath.Base(opt.SubtitlePath), displayName)
 	} else {
 		subs = subtitle.FindExternalSubtitles(video)
 	}
 
 	if len(subs) == 0 {
-		fmt.Printf("   No external subtitle files found\n")
-		fmt.Println()
-		return
+		r.Log("No external subtitle files found")
+		return nil
 	}
 
 	var keepTracks []types.SubtitleTrack
@@ -66,7 +66,7 @@ func Embed(
 
 	outPath := output.ResolvePath(video, "embed", opt.OutputPath, opt.Overwrite)
 
-	fmt.Printf(" → Embedding %d subtitle(s) into: %s\n", len(subs), filepath.Base(video))
+	r.Log("Embedding %d subtitle(s)", len(subs))
 
 	err = ffmpeg.EmbedSubtitle(
 		video,
@@ -76,11 +76,10 @@ func Embed(
 	)
 
 	if err != nil {
-		fmt.Printf(" ✗ Error: embed failed: %v\n", err)
-		return
+		return fmt.Errorf("embed failed: %w", err)
 	}
 
-	fmt.Printf(" ✓ Done → %s\n", filepath.Base(outPath))
+	r.Log("✓ Done → %s", filepath.Base(outPath))
 
 	if opt.Overwrite {
 		extra := make([]string, len(subs))
@@ -90,5 +89,5 @@ func Embed(
 		output.FinalizeOverwrite(video, outPath, extra...)
 	}
 
-	fmt.Println()
+	return nil
 }
