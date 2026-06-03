@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"SubtitleTool/internal/ffmpeg"
+	"SubtitleTool/internal/progress"
 	"SubtitleTool/internal/subtitle"
 	"SubtitleTool/internal/types"
 )
@@ -12,16 +13,15 @@ import (
 func Extract(
 	video string,
 	opt types.Options,
-) {
+	r progress.Reporter,
+) error {
 	info, err := ffmpeg.Probe(video)
 
 	if err != nil {
-		fmt.Printf(" ✗ Error: probe failed: %v\n", err)
-		return
+		return fmt.Errorf("probe failed: %w", err)
 	}
 
-	fmt.Printf(" → Probing: %s\n", filepath.Base(video))
-	fmt.Printf(" → Found %d subtitle track(s)\n", len(info.Subtitles))
+	r.Log("Found %d subtitle track(s) in %s", len(info.Subtitles), filepath.Base(video))
 
 	count := 0
 
@@ -43,8 +43,6 @@ func Extract(
 			continue
 		}
 
-		fmt.Printf(" → Extracting: %s\n", lang)
-
 		err = ffmpeg.ExtractSubtitle(
 			video,
 			sub,
@@ -53,17 +51,17 @@ func Extract(
 		)
 
 		if err != nil {
-			fmt.Printf("   ✗ Error: %v\n", err)
+			r.Log("  ✗ failed to extract %s: %v", lang, err)
 			continue
 		}
 
-		fmt.Printf("   ✓ Done\n")
 		count++
 	}
 
 	if count == 0 {
-		fmt.Printf("   No matching subtitle tracks found\n")
+		r.Log("No matching subtitle tracks found")
+		return nil
 	}
 
-	fmt.Println()
+	return nil
 }
