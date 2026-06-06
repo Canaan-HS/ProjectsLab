@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"SubtitleTool/internal/cli"
 	"SubtitleTool/internal/operation"
+	"SubtitleTool/internal/progress"
 	"SubtitleTool/internal/scan"
 	"SubtitleTool/internal/types"
 )
@@ -61,14 +63,45 @@ func main() {
 		return
 	}
 
-	for _, video := range videos {
+	r := progress.NewSequential()
+	r.Start(len(videos), modeName(opt.Mode), opt.OutputPath)
+
+	succeeded, failed := 0, 0
+
+	for i, video := range videos {
+		r.Step(i+1, len(videos), filepath.Base(video))
+
+		var opErr error
+
 		switch opt.Mode {
 		case types.Extract:
-			operation.Extract(video, opt)
+			opErr = operation.Extract(video, opt, r)
 		case types.Remove:
-			operation.Remove(video, opt)
+			opErr = operation.Remove(video, opt, r)
 		case types.Embed:
-			operation.Embed(video, opt)
+			opErr = operation.Embed(video, opt, r)
 		}
+
+		if opErr != nil {
+			r.Fail(filepath.Base(video), opErr)
+			failed++
+		} else {
+			succeeded++
+		}
+	}
+
+	r.Done(succeeded, failed)
+}
+
+func modeName(m types.Mode) string {
+	switch m {
+	case types.Extract:
+		return "Extracting"
+	case types.Remove:
+		return "Removing"
+	case types.Embed:
+		return "Embedding"
+	default:
+		return "Processing"
 	}
 }
