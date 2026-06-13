@@ -15,15 +15,15 @@ func Remove(
 	video string,
 	opt types.Options,
 	r progress.Reporter,
-) error {
+) (bool, error) {
 	info, err := ffmpeg.Probe(video)
 
 	if err != nil {
-		return fmt.Errorf("probe failed: %w", err)
+		return false, fmt.Errorf("probe failed: %w", err)
 	}
 
 	if opt.Overwrite && len(opt.Languages) == 0 && len(info.Subtitles) > 1 {
-		return fmt.Errorf("multiple subtitle tracks found (%d). Use -l to specify which to keep", len(info.Subtitles))
+		return false, fmt.Errorf("multiple subtitle tracks found (%d). Use -l to specify which to keep", len(info.Subtitles))
 	}
 
 	var removeTracks []types.SubtitleTrack
@@ -56,7 +56,7 @@ func Remove(
 
 	if len(removeTracks) == 0 {
 		r.Log("No subtitle tracks to remove")
-		return nil
+		return false, nil
 	}
 
 	outPath := output.ResolvePath(video, "remove", opt.OutputPath, opt.Overwrite)
@@ -71,7 +71,7 @@ func Remove(
 	)
 
 	if err != nil {
-		return fmt.Errorf("remove failed: %w", err)
+		return false, fmt.Errorf("remove failed: %w", err)
 	}
 
 	r.Log("✓ Done → %s", filepath.Base(outPath))
@@ -80,5 +80,5 @@ func Remove(
 		output.FinalizeOverwrite(video, outPath)
 	}
 
-	return nil
+	return true, nil
 }
