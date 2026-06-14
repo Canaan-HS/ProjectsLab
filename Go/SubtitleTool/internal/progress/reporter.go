@@ -29,19 +29,23 @@ func (r *reporter) Success(filename string) {
 	fmt.Printf("✓ %s\n", filename)
 }
 
+func (r *reporter) Skipped(filename string) {
+	fmt.Printf("- %s\n", filename)
+}
+
 func (r *reporter) Fail(filename string, err error) {
 	fmt.Fprintf(os.Stderr, "✗ %s | %v\n", filename, err)
 }
 
-func (r *reporter) Done(succeeded, failed int) {
+func (r *reporter) Done(succeeded, skipped, failed int) {
 	elapsed := time.Since(r.startTime)
-	if succeeded+failed > 0 {
+	if succeeded+skipped+failed > 0 {
 		fmt.Print("\n")
 	}
 	if r.outputPath != "" {
 		fmt.Printf("Output: %s\n", r.outputPath)
 	}
-	fmt.Printf("\n── Done: %d succeeded, %d failed (%s) ──\n", succeeded, failed, formatDuration(elapsed))
+	fmt.Printf("\n── Done: %d succeeded, %d skipped, %d failed (%s) ──\n", succeeded, skipped, failed, formatDuration(elapsed))
 }
 
 func formatDuration(d time.Duration) string {
