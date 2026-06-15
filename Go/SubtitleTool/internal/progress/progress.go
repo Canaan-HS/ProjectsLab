@@ -5,6 +5,7 @@ type Reporter interface {
 	Step(index, total int, filename string)
 	Log(format string, args ...any)
 	Success(filename string)
+	Skipped(filename string)
 	Fail(filename string, err error)
-	Done(succeeded, failed int)
+	Done(succeeded, skipped, failed int)
 }
