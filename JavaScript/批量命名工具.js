@@ -62,8 +62,8 @@ async function readMeta(metaCallBack) {
  * @param {String|RegExp} replaceStr2 - 替換的字串
  */
 function rename(clearStr = "", replaceStr1 = "", replaceStr2 = "") {
-    // const standardize = (str) => str.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&").replace(/\s+/g, "\\s+");
-    const regular = (str) => str ? new RegExp(str, "gi") : null;
+    const standardize = (str) => str.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&").replace(/\s+/g, "\\s+");
+    const regular = (str) => str ? new RegExp(standardize(str), "gi") : null;
 
     // 創建正則表達式
     const clearRegex = clearStr instanceof RegExp ? clearStr : regular(clearStr);
