@@ -210,36 +210,35 @@ class TypeSelection(ReadFolder, OutputFile):
 
                     lower_selected = f".{selected.lower()}"
 
-                    # 檢查是否為 RPG Maker 加密類型
+                    # 檢查是否為 RPG Maker 類型
                     if lower_selected in VALID_RPG_SUFFIXS:
-                        key = None
 
-                        if lower_selected in ENCRYPTED_AUDIO:
-                            error_skip = False
-                            cache_key = self.rpg_key_cache.get(self.folder_path)
+                        error_skip = False
+                        cache_key = self.rpg_key_cache.get(self.folder_path)
 
-                            if cache_key is None:
-                                key = get_encryption_key(self.folder_path)
+                        if cache_key is None:
+                            # 預設都嘗試取得 加密金鑰
+                            key = get_encryption_key(self.folder_path)
 
-                                if key is None:
-                                    error_skip = True
-                                    self.rpg_key_cache[self.folder_path] = ""
-                                else:
-                                    self.rpg_key_cache[self.folder_path] = key
-                            elif cache_key == "":
+                            if key is None:
                                 error_skip = True
+                                self.rpg_key_cache[self.folder_path] = ""
                             else:
-                                key = cache_key
+                                cache_key = key
+                                self.rpg_key_cache[self.folder_path] = key
+                        elif cache_key == "":
+                            error_skip = True
 
-                            if error_skip:
-                                print("無法獲得加密金鑰, 重新選擇路徑", style="bold red")
-                                break
+                        # 如果是一定要密鑰的類型, 但是無法獲得金鑰, 就跳過
+                        if lower_selected in ENCRYPTED_AUDIO and error_skip:
+                            print("無法獲得加密金鑰, 重新選擇路徑", style="bold red")
+                            break
 
                         def rpg_restore_task(source_path, output_path):
                             restore_rpg(
                                 input_path=source_path,
                                 output_path=restore_suffix(output_path, lower_selected),
-                                decrypt_key=key,
+                                decrypt_key=cache_key,
                                 delete_original=not self.use_copy,  # 如果不是複製模式，就刪除原始檔案
                             )
 
