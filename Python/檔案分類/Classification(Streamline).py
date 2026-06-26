@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 from rich.console import Console
 
-from utils import Restore_RPG, MAX_WORKERS, VALID_EXTENSIONS
+from utils import restore_RPG, MAX_WORKERS, VALID_EXTENSIONS
 
 """ Versions 1.0.5 - V2
 
@@ -210,7 +210,7 @@ class TypeSelection(ReadFolder, OutputFile):
                             png_output_path = base_output_path + ".png"
 
                             # 執行還原任務
-                            Restore_RPG(
+                            restore_RPG(
                                 input_path=source_path,
                                 output_path=png_output_path,
                                 delete_original=not self.use_copy,  # 如果不是複製模式，就刪除原始檔案
