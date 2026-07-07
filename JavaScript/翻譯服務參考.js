@@ -1,4 +1,5 @@
 // 來源: https://github.com/Vendicated/Vencord/blob/main/src/plugins/translate/utils.ts
+// 語言支援: https://docs.cloud.google.com/translate/docs/languages
 
 function googleTranslate(text, sourceLang = "auto", targetLang = "zh-TW") {
     const url = "https://translate-pa.googleapis.com/v1/translate?" + new URLSearchParams({
