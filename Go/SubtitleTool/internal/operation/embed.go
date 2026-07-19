@@ -42,16 +42,40 @@ func Embed(
 	}
 
 	if len(subs) == 0 {
+		fmt.Printf("   No external subtitle files found\n")
+		fmt.Println()
 		return
 	}
 
-	outPath := output.NewPath(video, "embed", opt.OutputPath)
+	var keepTracks []types.SubtitleTrack
+
+	if opt.Overwrite {
+		if len(opt.Languages) > 0 {
+			for _, sub := range info.Subtitles {
+				for _, lang := range opt.Languages {
+					if subtitle.MatchLanguage(sub, lang) {
+						keepTracks = append(keepTracks, sub)
+						break
+					}
+				}
+			}
+		} else {
+			keepTracks = []types.SubtitleTrack{}
+		}
+	}
+
+	var outPath string
+	if opt.Overwrite {
+		outPath = output.OverwritePath(video, opt.OutputPath)
+	} else {
+		outPath = output.NewPath(video, "embed", opt.OutputPath)
+	}
 
 	fmt.Printf(" → Embedding %d subtitle(s) into: %s\n", len(subs), filepath.Base(video))
 
 	err = ffmpeg.EmbedSubtitle(
 		video,
-		len(info.Subtitles),
+		keepTracks,
 		subs,
 		outPath,
 	)
@@ -62,5 +86,14 @@ func Embed(
 	}
 
 	fmt.Printf(" ✓ Done → %s\n", filepath.Base(outPath))
+
+	if opt.Overwrite {
+		extra := make([]string, len(subs))
+		for i, s := range subs {
+			extra[i] = s.Path
+		}
+		output.FinalizeOverwrite(video, outPath, extra...)
+	}
+
 	fmt.Println()
 }
