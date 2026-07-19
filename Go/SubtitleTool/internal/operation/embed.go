@@ -64,12 +64,7 @@ func Embed(
 		}
 	}
 
-	var outPath string
-	if opt.Overwrite {
-		outPath = output.OverwritePath(video, opt.OutputPath)
-	} else {
-		outPath = output.NewPath(video, "embed", opt.OutputPath)
-	}
+	outPath := output.ResolvePath(video, "embed", opt.OutputPath, opt.Overwrite)
 
 	fmt.Printf(" → Embedding %d subtitle(s) into: %s\n", len(subs), filepath.Base(video))
 
