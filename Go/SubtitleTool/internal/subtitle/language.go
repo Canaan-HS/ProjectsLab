@@ -63,14 +63,6 @@ func init() {
 	}
 }
 
-func Normalize(code string) string {
-	code = strings.ToLower(code)
-	if d, ok := aliasMap[code]; ok {
-		return d.ShortCode
-	}
-	return ""
-}
-
 func GetDisplayName(code string) string {
 	code = strings.ToLower(code)
 	if d, ok := aliasMap[code]; ok {
