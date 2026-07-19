@@ -40,7 +40,7 @@ func Remove(
 		return
 	}
 
-	outPath := output.NewPath(video, "remove")
+	outPath := output.NewPath(video, "remove", opt.OutputPath)
 
 	fmt.Printf(" → Removing %d subtitle track(s) from: %s\n", len(removeTracks), filepath.Base(video))
 
