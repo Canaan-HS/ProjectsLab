@@ -64,16 +64,23 @@ func FindExternalSubtitles(
 			file.Name(),
 		)
 
-		lang := GetFilenameLanguage(
+		detected := GetFilenameLanguage(
 			file.Name(),
 		)
+
+		displayName := "Undetermined"
+		ffprobeLang := ""
+		if detected != "" {
+			displayName = GetDisplayName(detected)
+			ffprobeLang = GetFfprobe(detected)
+		}
 
 		result = append(
 			result,
 			types.ExternalSubtitle{
 				Path:     path,
-				Language: lang,
-				Title:    lang,
+				Language: ffprobeLang,
+				Title:    displayName,
 			},
 		)
 
