@@ -9,7 +9,7 @@ import (
 
 func EmbedSubtitle(
 	video string,
-	existingSubtitleCount int,
+	keepTracks []types.SubtitleTrack,
 	subtitles []types.ExternalSubtitle,
 	output string,
 ) error {
@@ -22,14 +22,26 @@ func EmbedSubtitle(
 	args = append(args,
 		"-map", "0:v?",
 		"-map", "0:a?",
-		"-map", "0:s?",
 	)
 
-	for i := 0; i < existingSubtitleCount; i++ {
-		args = append(args, "-disposition:s:"+strconv.Itoa(i), "0")
+	if keepTracks == nil {
+		args = append(args, "-map", "0:s?")
+	} else {
+		for _, t := range keepTracks {
+			args = append(args, "-map", fmt.Sprintf("0:%d", t.Index))
+		}
 	}
 
-	subtitleOffset := existingSubtitleCount
+	if keepTracks != nil {
+		for i := 0; i < len(keepTracks); i++ {
+			args = append(args, "-disposition:s:"+strconv.Itoa(i), "0")
+		}
+	}
+
+	subtitleOffset := 0
+	if keepTracks != nil {
+		subtitleOffset = len(keepTracks)
+	}
 
 	for i, sub := range subtitles {
 		outputSubtitleIndex := subtitleOffset + i
