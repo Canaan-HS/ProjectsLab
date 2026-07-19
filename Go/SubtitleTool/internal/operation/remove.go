@@ -21,9 +21,27 @@ func Remove(
 		return
 	}
 
+	if opt.Overwrite && len(opt.Languages) == 0 && len(info.Subtitles) > 1 {
+		fmt.Printf(" ✗ Error: multiple subtitle tracks found (%d). Use -l to specify which to keep.\n", len(info.Subtitles))
+		return
+	}
+
 	var removeTracks []types.SubtitleTrack
 
-	if len(opt.Languages) == 0 {
+	if opt.Overwrite {
+		for _, sub := range info.Subtitles {
+			keep := false
+			for _, lang := range opt.Languages {
+				if subtitle.MatchLanguage(sub, lang) {
+					keep = true
+					break
+				}
+			}
+			if !keep {
+				removeTracks = append(removeTracks, sub)
+			}
+		}
+	} else if len(opt.Languages) == 0 {
 		removeTracks = info.Subtitles
 	} else {
 		for _, sub := range info.Subtitles {
@@ -37,10 +55,17 @@ func Remove(
 	}
 
 	if len(removeTracks) == 0 {
+		fmt.Printf("   No subtitle tracks to remove\n")
+		fmt.Println()
 		return
 	}
 
-	outPath := output.NewPath(video, "remove", opt.OutputPath)
+	var outPath string
+	if opt.Overwrite {
+		outPath = output.OverwritePath(video, opt.OutputPath)
+	} else {
+		outPath = output.NewPath(video, "remove", opt.OutputPath)
+	}
 
 	fmt.Printf(" → Removing %d subtitle track(s) from: %s\n", len(removeTracks), filepath.Base(video))
 
@@ -57,5 +82,10 @@ func Remove(
 	}
 
 	fmt.Printf(" ✓ Done → %s\n", filepath.Base(outPath))
+
+	if opt.Overwrite {
+		output.FinalizeOverwrite(video, outPath)
+	}
+
 	fmt.Println()
 }
