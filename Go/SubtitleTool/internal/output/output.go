@@ -5,9 +5,13 @@ import (
 	"time"
 )
 
-func NewPath(input, op string) string {
+func NewPath(input, op, outputDir string) string {
 	ext := filepath.Ext(input)
-	base := input[:len(input)-len(ext)]
+	base := filepath.Base(input[:len(input)-len(ext)])
 	ts := time.Now().Format("20060102_150405")
-	return base + "_" + op + "_" + ts + ext
+	filename := base + "_" + op + "_" + ts + ext
+	if outputDir == "" {
+		return filepath.Join(filepath.Dir(input), filename)
+	}
+	return filepath.Join(outputDir, filename)
 }
