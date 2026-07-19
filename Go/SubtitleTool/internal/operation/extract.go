@@ -49,6 +49,7 @@ func Extract(
 			video,
 			sub,
 			lang,
+			opt.OutputPath,
 		)
 
 		if err != nil {
