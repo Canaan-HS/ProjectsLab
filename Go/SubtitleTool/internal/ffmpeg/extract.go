@@ -11,15 +11,18 @@ func ExtractSubtitle(
 	video string,
 	track types.SubtitleTrack,
 	lang string,
+	outputDir string,
 ) error {
-	dir := filepath.Dir(video)
 	base := filepath.Base(video)
 	name := base[:len(base)-len(filepath.Ext(base))]
+	filename := name + "." + lang + "." + track.Extension()
 
-	output := filepath.Join(
-		dir,
-		name+"."+lang+"."+track.Extension(),
-	)
+	output := ""
+	if outputDir == "" {
+		output = filepath.Join(filepath.Dir(video), filename)
+	} else {
+		output = filepath.Join(outputDir, filename)
+	}
 
 	args := commonArgs(video)
 	args = append(args,
