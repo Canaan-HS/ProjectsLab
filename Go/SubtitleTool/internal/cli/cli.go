@@ -18,7 +18,7 @@ func Parse() (types.Options, error) {
 	fs.SetOutput(os.Stderr)
 
 	var mode, path, lang, sub, output string
-	var recursive, dry, yes, showHelp bool
+	var recursive, dry, yes, showHelp, overwrite bool
 
 	fs.StringVar(&mode, "mode", "", "")
 	fs.StringVar(&mode, "m", "", "")
@@ -35,6 +35,8 @@ func Parse() (types.Options, error) {
 	fs.BoolVar(&dry, "dry-run", false, "")
 	fs.BoolVar(&yes, "yes", false, "")
 	fs.BoolVar(&yes, "y", false, "")
+	fs.BoolVar(&overwrite, "overwrite", false, "")
+	fs.BoolVar(&overwrite, "ow", false, "")
 	fs.BoolVar(&showHelp, "help", false, "")
 	fs.BoolVar(&showHelp, "h", false, "")
 
@@ -88,6 +90,12 @@ func Parse() (types.Options, error) {
 		return types.Options{}, ErrHelp
 	}
 
+	if overwrite && m == types.Extract {
+		fmt.Fprintln(os.Stderr, "Warning: -overwrite is not supported for extract mode")
+		fmt.Fprintln(os.Stderr)
+		overwrite = false
+	}
+
 	var langs []string
 
 	if lang != "" {
@@ -103,6 +111,7 @@ func Parse() (types.Options, error) {
 		Recursive:    recursive,
 		DryRun:       dry,
 		Yes:          yes,
+		Overwrite:    overwrite,
 	}, nil
 }
 
@@ -126,13 +135,16 @@ Options:
   -r, -recursive          Scan directories recursively (default: true)
   -y, -yes                Skip confirmation prompts
       -dry-run            Preview changes without applying
+  -ow, -overwrite         Overwrite original file (remove/embed only)
   -h, -help               Show this help message
 
 Examples:
   ` + exe + ` -m extract -i video.mkv
   ` + exe + ` -m extract -i ./videos -l en,jp
   ` + exe + ` -m remove -i video.mkv -l jp
+  ` + exe + ` -m remove -i video.mkv -l jp -ow
   ` + exe + ` -m embed -i video.mkv
   ` + exe + ` -m embed -i video.mkv -s subtitle.tc.srt
+  ` + exe + ` -m embed -i video.mkv -s sub.cht.ass -ow
 `
 }
