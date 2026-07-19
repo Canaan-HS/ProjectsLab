@@ -11,6 +11,7 @@ const (
 type Options struct {
 	Mode         Mode
 	Path         string
+	OutputPath   string
 	Languages    []string
 	SubtitlePath string
 	Recursive    bool
