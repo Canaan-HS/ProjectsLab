@@ -42,7 +42,14 @@ func main() {
 		}
 
 		if info.IsDir() {
-			fmt.Println(" ✗ Error: -path must be a file (not a directory) when -sub is specified")
+			fmt.Println(" ✗ Error: -input must be a file (not a directory) when -sub is specified")
+			return
+		}
+	}
+
+	if opt.OutputPath != "" {
+		if err := os.MkdirAll(opt.OutputPath, 0755); err != nil {
+			fmt.Printf(" ✗ Error: failed to create output directory: %v\n", err)
 			return
 		}
 	}
