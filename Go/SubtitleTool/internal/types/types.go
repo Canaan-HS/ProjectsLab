@@ -15,13 +15,10 @@ type Options struct {
 	Languages    []string
 	SubtitlePath string
 	Recursive    bool
-	DryRun       bool
-	Yes          bool
 	Overwrite    bool
 }
 
 type MediaInfo struct {
-	Path      string
 	Subtitles []SubtitleTrack
 }
 
@@ -30,8 +27,6 @@ type SubtitleTrack struct {
 	Language string
 	Title    string
 	Codec    string
-	Default  bool
-	Forced   bool
 }
 
 func (s SubtitleTrack) Extension() string {
@@ -47,5 +42,4 @@ type ExternalSubtitle struct {
 	Path     string
 	Language string
 	Title    string
-	Default  bool
 }
