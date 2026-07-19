@@ -54,7 +54,7 @@ class Compression:
         )
 
         # 以下為壓縮相關參數
-        self.UpxCC = "upx -9 --best --ultra-brute --force"
+        self.UpxCC = "upx --ultra-brute --force"
         self.UpxRC = "upx -d --force"
 
         self.RarCC = f"rar a -ri15:0.00001 -m5 -mt{cpu_count() - 1} -md1g"
