@@ -2,8 +2,6 @@ package ffmpeg
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 	"strconv"
 
 	"SubtitleTool/internal/types"
@@ -50,7 +48,5 @@ func EmbedSubtitle(
 
 	args = append(args, suffixArgs(output)...)
 
-	cmd := exec.Command("ffmpeg", args...)
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return runFFmpeg(args)
 }
