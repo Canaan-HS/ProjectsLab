@@ -3,50 +3,77 @@ package cli
 import (
 	"errors"
 	"flag"
+	"fmt"
+	"os"
 	"strings"
 
 	"SubtitleTool/internal/types"
 )
 
+var ErrHelp = errors.New("help requested")
+
 func Parse() (types.Options, error) {
+	fs := flag.NewFlagSet("SubtitleTool", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
 
-	var mode string
-	var path string
-	var lang string
+	var mode, path, lang string
+	var recursive, dry, yes, showHelp bool
 
-	var recursive bool
-	var dry bool
-	var yes bool
+	fs.StringVar(&mode, "mode", "", "")
+	fs.StringVar(&mode, "m", "", "")
+	fs.StringVar(&path, "path", "", "")
+	fs.StringVar(&path, "p", "", "")
+	fs.StringVar(&lang, "lang", "", "")
+	fs.StringVar(&lang, "l", "", "")
+	fs.BoolVar(&recursive, "recursive", true, "")
+	fs.BoolVar(&recursive, "r", true, "")
+	fs.BoolVar(&dry, "dry-run", false, "")
+	fs.BoolVar(&yes, "yes", false, "")
+	fs.BoolVar(&yes, "y", false, "")
+	fs.BoolVar(&showHelp, "help", false, "")
+	fs.BoolVar(&showHelp, "h", false, "")
 
-	flag.StringVar(&mode, "mode", "", "extract/remove/embed")
-	flag.StringVar(&path, "path", "", "video or folder")
-	flag.StringVar(&lang, "lang", "", "tc,sc,en,jp,kr")
+	fs.Usage = func() {
+		fmt.Fprint(os.Stderr, usageText)
+	}
 
-	flag.BoolVar(&recursive, "recursive", true, "")
-	flag.BoolVar(&dry, "dry-run", false, "")
-	flag.BoolVar(&yes, "yes", false, "")
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		return types.Options{}, ErrHelp
+	}
 
-	flag.Parse()
+	if showHelp {
+		fs.Usage()
+		return types.Options{}, ErrHelp
+	}
+
+	if mode == "" {
+		fmt.Fprintln(os.Stderr, "Error: -mode is required")
+		fmt.Fprintln(os.Stderr)
+		fs.Usage()
+		return types.Options{}, ErrHelp
+	}
 
 	if path == "" {
-		return types.Options{}, errors.New("path required")
+		fmt.Fprintln(os.Stderr, "Error: -path is required")
+		fmt.Fprintln(os.Stderr)
+		fs.Usage()
+		return types.Options{}, ErrHelp
 	}
 
 	var m types.Mode
 
 	switch mode {
-
 	case "extract":
 		m = types.Extract
-
 	case "remove":
 		m = types.Remove
-
 	case "embed":
 		m = types.Embed
-
 	default:
-		return types.Options{}, errors.New("invalid mode")
+		fmt.Fprintf(os.Stderr, "Error: invalid mode %q (must be extract, remove, or embed)\n", mode)
+		fmt.Fprintln(os.Stderr)
+		fs.Usage()
+		return types.Options{}, ErrHelp
 	}
 
 	var langs []string
@@ -56,7 +83,6 @@ func Parse() (types.Options, error) {
 	}
 
 	return types.Options{
-
 		Mode:      m,
 		Path:      path,
 		Languages: langs,
@@ -64,5 +90,30 @@ func Parse() (types.Options, error) {
 		DryRun:    dry,
 		Yes:       yes,
 	}, nil
-
 }
+
+var usageText = `SubtitleTool - MKV Subtitle Manager
+
+Usage:
+  SubtitleTool -mode <mode> -path <path> [options]
+
+Modes:
+  extract    Extract subtitle tracks from MKV files
+  remove     Remove subtitle tracks from MKV files
+  embed      Embed external subtitles into MKV files
+
+Options:
+  -m, -mode <mode>       Operation mode (required)
+  -p, -path <path>       Video file or directory (required)
+  -l, -lang <list>       Language filter: tc,sc,en,jp,kr (comma-separated)
+  -r, -recursive         Scan directories recursively (default: true)
+  -y, -yes               Skip confirmation prompts
+      -dry-run           Preview changes without applying
+  -h, -help              Show this help message
+
+Examples:
+  SubtitleTool -m extract -p video.mkv
+  SubtitleTool -m extract -p ./videos -l en,jp
+  SubtitleTool -m remove -p video.mkv -l jp
+  SubtitleTool -m embed -p video.mkv
+`
