@@ -1,5 +1,10 @@
 package ffmpeg
 
+import (
+	"os"
+	"os/exec"
+)
+
 func commonArgs(input string) []string {
 	return []string{
 		"-hide_banner",
@@ -16,4 +21,10 @@ func suffixArgs(output string) []string {
 		"-c", "copy",
 		output,
 	}
+}
+
+func runFFmpeg(args []string) error {
+	cmd := exec.Command("ffmpeg", args...)
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
