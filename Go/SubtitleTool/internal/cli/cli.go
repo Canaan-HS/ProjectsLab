@@ -18,7 +18,7 @@ func Parse() (types.Options, error) {
 	fs.SetOutput(os.Stderr)
 
 	var mode, path, lang, sub, output string
-	var recursive, dry, yes, showHelp, overwrite bool
+	var recursive, showHelp, overwrite bool
 
 	fs.StringVar(&mode, "mode", "", "")
 	fs.StringVar(&mode, "m", "", "")
@@ -32,9 +32,6 @@ func Parse() (types.Options, error) {
 	fs.StringVar(&sub, "s", "", "")
 	fs.BoolVar(&recursive, "recursive", true, "")
 	fs.BoolVar(&recursive, "r", true, "")
-	fs.BoolVar(&dry, "dry-run", false, "")
-	fs.BoolVar(&yes, "yes", false, "")
-	fs.BoolVar(&yes, "y", false, "")
 	fs.BoolVar(&overwrite, "overwrite", false, "")
 	fs.BoolVar(&overwrite, "ow", false, "")
 	fs.BoolVar(&showHelp, "help", false, "")
@@ -109,8 +106,6 @@ func Parse() (types.Options, error) {
 		Languages:    langs,
 		SubtitlePath: sub,
 		Recursive:    recursive,
-		DryRun:       dry,
-		Yes:          yes,
 		Overwrite:    overwrite,
 	}, nil
 }
@@ -133,8 +128,6 @@ Options:
   -l, -lang <list>        Language filter: tc,sc,en,jp,kr (comma-separated)
   -s, -sub <file>         Subtitle file to embed (embed mode only, implies -input is a single file)
   -r, -recursive          Scan directories recursively (default: true)
-  -y, -yes                Skip confirmation prompts
-      -dry-run            Preview changes without applying
   -ow, -overwrite         Overwrite original file (remove/embed only)
   -h, -help               Show this help message
 
