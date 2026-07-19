@@ -9,12 +9,13 @@ const (
 )
 
 type Options struct {
-	Mode      Mode
-	Path      string
-	Languages []string
-	Recursive bool
-	DryRun    bool
-	Yes       bool
+	Mode         Mode
+	Path         string
+	Languages    []string
+	SubtitlePath string
+	Recursive    bool
+	DryRun       bool
+	Yes          bool
 }
 
 type MediaInfo struct {
