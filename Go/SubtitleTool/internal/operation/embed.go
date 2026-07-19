@@ -24,21 +24,23 @@ func Embed(
 	var subs []types.ExternalSubtitle
 
 	if opt.SubtitlePath != "" {
-		lang := subtitle.GetFilenameLanguage(opt.SubtitlePath)
-
-		if lang == "" {
-			lang = "und"
+		detected := subtitle.GetFilenameLanguage(opt.SubtitlePath)
+		displayName := "Undetermined"
+		ffprobeLang := ""
+		if detected != "" {
+			displayName = subtitle.GetDisplayName(detected)
+			ffprobeLang = subtitle.GetFfprobe(detected)
 		}
 
 		subs = []types.ExternalSubtitle{
 			{
 				Path:     opt.SubtitlePath,
-				Language: lang,
-				Title:    lang,
+				Language: ffprobeLang,
+				Title:    displayName,
 			},
 		}
 
-		fmt.Printf(" → Using subtitle: %s (%s)\n", filepath.Base(opt.SubtitlePath), lang)
+		fmt.Printf(" → Using subtitle: %s (%s)\n", filepath.Base(opt.SubtitlePath), displayName)
 	} else {
 		subs = subtitle.FindExternalSubtitles(video)
 	}
@@ -47,7 +49,7 @@ func Embed(
 		return
 	}
 
-	outPath := output.NewPath(video, "embed")
+	outPath := output.NewPath(video, "embed", opt.OutputPath)
 
 	fmt.Printf(" → Embedding %d subtitle(s) into: %s\n", len(subs), filepath.Base(video))
 
