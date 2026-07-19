@@ -2,8 +2,6 @@ package ffmpeg
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 	"path/filepath"
 
 	"SubtitleTool/internal/types"
@@ -29,8 +27,5 @@ func ExtractSubtitle(
 		output,
 	)
 
-	cmd := exec.Command("ffmpeg", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return runFFmpeg(args)
 }
