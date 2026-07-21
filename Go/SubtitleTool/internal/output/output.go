@@ -11,13 +11,28 @@ import (
 func ResolvePath(input, op, outputDir string, overwrite bool) string {
 	ext := filepath.Ext(input)
 	base := filepath.Base(input[:len(input)-len(ext)])
-	var filename string
+
 	if overwrite {
-		filename = base + "_temp" + ext
-	} else {
-		ts := time.Now().Format("20060102_150405")
-		filename = base + "_" + op + "_" + ts + ext
+		filename := base + "_temp" + ext
+		if outputDir == "" {
+			return filepath.Join(filepath.Dir(input), filename)
+		}
+		return filepath.Join(outputDir, filename)
 	}
+
+	if outputDir != "" {
+		absOut, errOut := filepath.Abs(outputDir)
+		absIn, errIn := filepath.Abs(filepath.Dir(input))
+		if errOut == nil && errIn == nil && absOut != absIn {
+			candidate := filepath.Join(outputDir, base+ext)
+			if _, err := os.Stat(candidate); os.IsNotExist(err) {
+				return candidate
+			}
+		}
+	}
+
+	ts := time.Now().Format("20060102_150405")
+	filename := base + "_" + op + "_" + ts + ext
 	if outputDir == "" {
 		return filepath.Join(filepath.Dir(input), filename)
 	}
