@@ -6,6 +6,7 @@ import (
 
 	"SubtitleTool/internal/ffmpeg"
 	"SubtitleTool/internal/output"
+	"SubtitleTool/internal/progress"
 	"SubtitleTool/internal/subtitle"
 	"SubtitleTool/internal/types"
 )
@@ -13,17 +14,16 @@ import (
 func Remove(
 	video string,
 	opt types.Options,
-) {
+	r progress.Reporter,
+) error {
 	info, err := ffmpeg.Probe(video)
 
 	if err != nil {
-		fmt.Printf(" ✗ Error: probe failed: %v\n", err)
-		return
+		return fmt.Errorf("probe failed: %w", err)
 	}
 
 	if opt.Overwrite && len(opt.Languages) == 0 && len(info.Subtitles) > 1 {
-		fmt.Printf(" ✗ Error: multiple subtitle tracks found (%d). Use -l to specify which to keep.\n", len(info.Subtitles))
-		return
+		return fmt.Errorf("multiple subtitle tracks found (%d). Use -l to specify which to keep", len(info.Subtitles))
 	}
 
 	var removeTracks []types.SubtitleTrack
@@ -55,14 +55,13 @@ func Remove(
 	}
 
 	if len(removeTracks) == 0 {
-		fmt.Printf("   No subtitle tracks to remove\n")
-		fmt.Println()
-		return
+		r.Log("No subtitle tracks to remove")
+		return nil
 	}
 
 	outPath := output.ResolvePath(video, "remove", opt.OutputPath, opt.Overwrite)
 
-	fmt.Printf(" → Removing %d subtitle track(s) from: %s\n", len(removeTracks), filepath.Base(video))
+	r.Log("Removing %d subtitle track(s)", len(removeTracks))
 
 	err = ffmpeg.RemoveSubtitle(
 		video,
@@ -72,15 +71,14 @@ func Remove(
 	)
 
 	if err != nil {
-		fmt.Printf(" ✗ Error: remove failed: %v\n", err)
-		return
+		return fmt.Errorf("remove failed: %w", err)
 	}
 
-	fmt.Printf(" ✓ Done → %s\n", filepath.Base(outPath))
+	r.Log("✓ Done → %s", filepath.Base(outPath))
 
 	if opt.Overwrite {
 		output.FinalizeOverwrite(video, outPath)
 	}
 
-	fmt.Println()
+	return nil
 }
