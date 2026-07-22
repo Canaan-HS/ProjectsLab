@@ -6,8 +6,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 
 	"SubtitleTool/internal/cli"
+	"SubtitleTool/internal/concurrency"
 	"SubtitleTool/internal/operation"
 	"SubtitleTool/internal/progress"
 	"SubtitleTool/internal/scan"
@@ -63,34 +65,60 @@ func main() {
 		return
 	}
 
-	r := progress.NewSequential()
+	conc := concurrency.ForMode(opt.Mode, opt.Path, detectOutputPath(opt))
+
+	r := progress.New()
 	r.Start(len(videos), modeName(opt.Mode), opt.OutputPath)
 
-	succeeded, failed := 0, 0
+	var (
+		mu        sync.Mutex
+		succeeded int
+		failed    int
+	)
 
-	for i, video := range videos {
-		r.Step(i+1, len(videos), filepath.Base(video))
+	sem := make(chan struct{}, conc)
+	var wg sync.WaitGroup
 
-		var opErr error
+	for _, video := range videos {
+		sem <- struct{}{}
+		wg.Add(1)
 
-		switch opt.Mode {
-		case types.Extract:
-			opErr = operation.Extract(video, opt, r)
-		case types.Remove:
-			opErr = operation.Remove(video, opt, r)
-		case types.Embed:
-			opErr = operation.Embed(video, opt, r)
-		}
+		go func(v string) {
+			defer func() { <-sem }()
+			defer wg.Done()
 
-		if opErr != nil {
-			r.Fail(filepath.Base(video), opErr)
-			failed++
-		} else {
-			succeeded++
-		}
+			var opErr error
+
+			switch opt.Mode {
+			case types.Extract:
+				opErr = operation.Extract(v, opt, r)
+			case types.Remove:
+				opErr = operation.Remove(v, opt, r)
+			case types.Embed:
+				opErr = operation.Embed(v, opt, r)
+			}
+
+			mu.Lock()
+			if opErr != nil {
+				r.Fail(filepath.Base(v), opErr)
+				failed++
+			} else {
+				r.Success(filepath.Base(v))
+				succeeded++
+			}
+			mu.Unlock()
+		}(video)
 	}
 
+	wg.Wait()
 	r.Done(succeeded, failed)
+}
+
+func detectOutputPath(opt types.Options) string {
+	if opt.OutputPath != "" {
+		return opt.OutputPath
+	}
+	return opt.Path
 }
 
 func modeName(m types.Mode) string {
