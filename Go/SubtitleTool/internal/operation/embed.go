@@ -15,11 +15,11 @@ func Embed(
 	video string,
 	opt types.Options,
 	r progress.Reporter,
-) error {
+) (bool, error) {
 	info, err := ffmpeg.Probe(video)
 
 	if err != nil {
-		return fmt.Errorf("probe failed: %w", err)
+		return false, fmt.Errorf("probe failed: %w", err)
 	}
 
 	var subs []types.ExternalSubtitle
@@ -44,7 +44,7 @@ func Embed(
 
 	if len(subs) == 0 {
 		r.Log("No external subtitle files found")
-		return nil
+		return false, nil
 	}
 
 	var keepTracks []types.SubtitleTrack
@@ -76,7 +76,7 @@ func Embed(
 	)
 
 	if err != nil {
-		return fmt.Errorf("embed failed: %w", err)
+		return false, fmt.Errorf("embed failed: %w", err)
 	}
 
 	r.Log("✓ Done → %s", filepath.Base(outPath))
@@ -89,5 +89,5 @@ func Embed(
 		output.FinalizeOverwrite(video, outPath, extra...)
 	}
 
-	return nil
+	return true, nil
 }
