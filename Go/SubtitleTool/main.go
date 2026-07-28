@@ -73,6 +73,7 @@ func main() {
 	var (
 		mu        sync.Mutex
 		succeeded int
+		skipped   int
 		failed    int
 	)
 
@@ -87,31 +88,38 @@ func main() {
 			defer func() { <-sem }()
 			defer wg.Done()
 
-			var opErr error
+			var (
+				done  bool
+				opErr error
+			)
 
 			switch opt.Mode {
 			case types.Extract:
-				opErr = operation.Extract(v, opt, r)
+				done, opErr = operation.Extract(v, opt, r)
 			case types.Remove:
-				opErr = operation.Remove(v, opt, r)
+				done, opErr = operation.Remove(v, opt, r)
 			case types.Embed:
-				opErr = operation.Embed(v, opt, r)
+				done, opErr = operation.Embed(v, opt, r)
 			}
 
 			mu.Lock()
-			if opErr != nil {
+			switch {
+			case opErr != nil:
 				r.Fail(filepath.Base(v), opErr)
 				failed++
-			} else {
+			case done:
 				r.Success(filepath.Base(v))
 				succeeded++
+			default:
+				r.Skipped(filepath.Base(v))
+				skipped++
 			}
 			mu.Unlock()
 		}(video)
 	}
 
 	wg.Wait()
-	r.Done(succeeded, failed)
+	r.Done(succeeded, skipped, failed)
 }
 
 func detectOutputPath(opt types.Options) string {
