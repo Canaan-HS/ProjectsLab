@@ -14,11 +14,11 @@ func Extract(
 	video string,
 	opt types.Options,
 	r progress.Reporter,
-) error {
+) (bool, error) {
 	info, err := ffmpeg.Probe(video)
 
 	if err != nil {
-		return fmt.Errorf("probe failed: %w", err)
+		return false, fmt.Errorf("probe failed: %w", err)
 	}
 
 	r.Log("Found %d subtitle track(s) in %s", len(info.Subtitles), filepath.Base(video))
@@ -60,8 +60,8 @@ func Extract(
 
 	if count == 0 {
 		r.Log("No matching subtitle tracks found")
-		return nil
+		return false, nil
 	}
 
-	return nil
+	return true, nil
 }
