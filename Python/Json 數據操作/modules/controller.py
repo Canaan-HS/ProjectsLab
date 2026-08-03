@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import asyncio
 import os
+import asyncio
 from typing import Any, Dict, List, Optional
 
 from .json_core import DiffEntry, JsonService, RawJsonPatcher
@@ -19,6 +19,8 @@ class Controller:
         self._obj1: Any = None
         self._obj2: Any = None
         self.entries: List[DiffEntry] = []
+        self._unresolved_count = 0
+        self._chosen_source2_count = 0
 
         # ---- 對外信號 ----
         self.sig_source1_changed = Signal()   # (path: Optional[str])
@@ -63,6 +65,8 @@ class Controller:
     async def _try_compare(self) -> None:
         if self._obj1 is None or self._obj2 is None:
             self.entries = []
+            self._unresolved_count = 0
+            self._chosen_source2_count = 0
             self.sig_diff_ready.emit(None, self.entries)
             return
         self.sig_busy.emit(None, True, "正在比對差異...")
@@ -73,21 +77,46 @@ class Controller:
             self.sig_notify.emit(None, f"比對失敗：{ex}", True)
             return
         self.entries = entries
+        self._recount()
         self.sig_busy.emit(None, False, "")
         self.sig_diff_ready.emit(None, self.entries)
 
+    def _recount(self) -> None:
+        unresolved = 0
+        chosen2 = 0
+        for e in self.entries:
+            if e.choice == 0:
+                unresolved += 1
+            elif e.choice == 2:
+                chosen2 += 1
+        self._unresolved_count = unresolved
+        self._chosen_source2_count = chosen2
+
     def set_choice(self, index: int, choice: int) -> None:
-        if 0 <= index < len(self.entries):
-            self.entries[index].choice = choice
-            self.sig_choice_changed.emit(None, index, choice)
+        if not (0 <= index < len(self.entries)):
+            return
+        entry = self.entries[index]
+        old = entry.choice
+        if old == choice:
+            return  # 選同一邊不做事，避免多餘的訊號 / UI 更新
+        if old == 0:
+            self._unresolved_count -= 1
+        elif old == 2:
+            self._chosen_source2_count -= 1
+        if choice == 0:
+            self._unresolved_count += 1
+        elif choice == 2:
+            self._chosen_source2_count += 1
+        entry.choice = choice
+        self.sig_choice_changed.emit(None, index, choice)
 
     @property
     def unresolved_count(self) -> int:
-        return sum(1 for e in self.entries if e.choice == 0)
+        return self._unresolved_count
 
     @property
     def chosen_source2_count(self) -> int:
-        return sum(1 for e in self.entries if e.choice == 2)
+        return self._chosen_source2_count
 
     async def write_output(self, target_path: str) -> None:
         if self._source1_text is None:
