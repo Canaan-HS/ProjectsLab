@@ -11,8 +11,11 @@ class DiffEntry:
     value1: Any
     value2: Any
     index: int = 0
-    # 0=未選擇, 1=保留來源1, 2=保留來源2
+    # 0=未選擇, 1=保留主要來源, 2=保留比較來源
     choice: int = field(default=0)
+    # 搜尋用：key_path + 兩邊 value 的可搜尋字串（小寫），比對時一次算好，
+    # 之後每次打字搜尋只需要子字串比對，不用重複 json.dumps。
+    search_blob: str = field(default="", repr=False)
 
 
 class JsonService:
@@ -20,7 +23,7 @@ class JsonService:
 
     @staticmethod
     def load_file(path: str) -> Tuple[str, str, bool]:
-        """回傳 (檔案文字內容, 編碼, 是否含 BOM)。"""
+        """回傳 (檔案文字內容, 編碼, 是否含 BOM)"""
         raw = open(path, "rb").read()
         if raw.startswith(b"\xef\xbb\xbf"):
             return raw.decode("utf-8-sig"), "utf-8", True
@@ -39,7 +42,7 @@ class JsonService:
     def flatten(
         obj: Any, prefix: str = "", out: Optional[Dict[str, Tuple[Any, bool]]] = None
     ) -> Dict[str, Tuple[Any, bool]]:
-        """展開巢狀結構為 {key_path: (value, is_leaf)}。"""
+        """展開巢狀結構為 {key_path: (value, is_leaf)}"""
         if out is None:
             out = {}
         if isinstance(obj, dict):
@@ -68,7 +71,7 @@ class JsonService:
 
     @classmethod
     def compare(cls, obj1: Any, obj2: Any) -> List[DiffEntry]:
-        """比對兩個物件，回傳「相同 key 路徑但 value 不同」的條目清單。"""
+        """比對兩個物件，回傳「相同 key 路徑但 value 不同」的條目清單"""
         flat1 = cls.flatten(obj1)
         flat2 = cls.flatten(obj2)
         entries: List[DiffEntry] = []
@@ -85,11 +88,19 @@ class JsonService:
                     entries.append(DiffEntry(p, v1, v2))
         for i, e in enumerate(entries):
             e.index = i
+            e.search_blob = cls._search_blob(e.key_path, e.value1, e.value2)
         return entries
+
+    @classmethod
+    def _search_blob(cls, key_path: str, value1: Any, value2: Any) -> str:
+        def as_text(v: Any) -> str:
+            return v if isinstance(v, str) else cls._serialize(v)
+
+        return f"{key_path}\u241f{as_text(value1)}\u241f{as_text(value2)}".lower()
 
 
 class _PathTrie:
-    """以字元為單位的 trie，判斷某路徑底下是否還有要替換的目標。"""
+    """以字元為單位的 trie，判斷某路徑底下是否還有要替換的目標"""
 
     def __init__(self, paths):
         self.root = {"end": False, "ch": {}}
@@ -123,7 +134,7 @@ class _PathTrie:
 
 
 class RawJsonPatcher:
-    """掃描 JSON 原文，只替換指定 key 路徑的值，保留其餘排版（縮排/換行/順序/註解外其餘字元皆不動）。"""
+    """掃描 JSON 原文，只替換指定 key 路徑的值"""
 
     _WS = " \t\r\n"
 
