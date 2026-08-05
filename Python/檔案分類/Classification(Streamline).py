@@ -1,5 +1,6 @@
 import os
 import shutil
+import hashlib
 import threading
 import tkinter as tk
 
@@ -143,11 +144,12 @@ class OutputFile:
 
         def process_start(copy_path):
             base_name = os.path.basename(copy_path)
-            # 取得上一層資料夾名稱
-            parent_path = os.path.basename(os.path.dirname(copy_path))
+
+            relative_path = os.path.relpath(os.path.dirname(copy_path), self.folder_path)
+            source = relative_path.replace(os.sep, "-")
 
             if self.attach_source:
-                output_path = os.path.join(self.save_path, f"[{parent_path}] {base_name}")
+                output_path = os.path.join(self.save_path, f"[{source}] {base_name}")
             else:
                 output_path = os.path.join(self.save_path, base_name)
 
@@ -155,13 +157,17 @@ class OutputFile:
                 with lock:
                     if output_path in record_output:
                         # 當沒有設置來源時, 進行重複檢查, 重複的自動添加來源
-                        output_path = os.path.join(self.save_path, f"{parent_path}_{base_name}")
+                        source_hash = hashlib.blake2b(
+                            source.encode("utf-8"), digest_size=8
+                        ).hexdigest()
+
+                        output_path = os.path.join(self.save_path, f"{source_hash}-{base_name}")
                     else:
                         # 如果路徑不重複，使用它並記錄下來
                         record_output.add(output_path)
 
-                # 執行實際任務
-                self.task_work(copy_path, output_path)
+            # 執行實際任務
+            self.task_work(copy_path, output_path)
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             list(tqdm(executor.map(process_start, self.output_data), total=task_size))
