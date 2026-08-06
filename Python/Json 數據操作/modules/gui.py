@@ -330,7 +330,7 @@ class View:
             content=ft.Row(
                 [
                     ft.Text(
-                        "提示：未選擇的條目輸出時保留主要檔案原始值；其餘排版不受影響。",
+                        "提示：未選擇的條目輸出時保留主要檔案原始值",
                         size=13,
                         weight=ft.FontWeight.W_500,
                         color=C["text_muted"],
