@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import flet as ft
 
 from .controller import Controller
@@ -43,8 +45,9 @@ DARK_PALETTE = {
 FILTER_LABELS = {
     "all": "全部",
     "unresolved": "未選",
-    "primary": "選主要",
-    "compare": "選比較",
+    "primary": "主要",
+    "compare": "比較",
+    "custom": "自訂",
 }
 
 
@@ -55,8 +58,11 @@ class View:
         self._dark = True
         self._rendered = 0
         self._filter_text = ""
-        self._filter_mode = "all"  # all / unresolved / primary / compare
+        self._filter_mode = "all"  # all / unresolved / primary / compare / custom
         self._visible_entries: list[DiffEntry] = []
+
+        self._scroll_gen = 0
+        self._loading_more = False
 
         self._setup_page()
         self._wire_controller_signals()
@@ -164,7 +170,12 @@ class View:
             content=ft.Column(
                 [
                     ft.Icon(ft.Icons.FIND_IN_PAGE_OUTLINED, size=44, color=C["border"]),
-                    ft.Text("尚無符合條件的差異條目", color=C["text_muted"], size=14, weight=ft.FontWeight.W_500),
+                    ft.Text(
+                        "尚無符合條件的差異條目",
+                        color=C["text_muted"],
+                        size=14,
+                        weight=ft.FontWeight.W_500,
+                    ),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=8,
@@ -185,6 +196,13 @@ class View:
             "另存新檔",
             icon=ft.Icons.SAVE_AS_OUTLINED,
             on_click=self._on_save_as_click,
+            disabled=True,
+            style=ft.ButtonStyle(text_style=ft.TextStyle(size=15, weight=ft.FontWeight.W_600)),
+        )
+        self.btn_save_progress = ft.TextButton(
+            "保存進度",
+            icon=ft.Icons.BOOKMARK_ADD_OUTLINED,
+            on_click=self._on_save_progress_click,
             disabled=True,
             style=ft.ButtonStyle(text_style=ft.TextStyle(size=15, weight=ft.FontWeight.W_600)),
         )
@@ -243,7 +261,12 @@ class View:
                     ft.Row(
                         [
                             ft.Row(
-                                [ft.Icon(icon, size=20, color=C["primary"]), ft.Text(title, weight=ft.FontWeight.W_700, size=16, color=C["text"])],
+                                [
+                                    ft.Icon(icon, size=20, color=C["primary"]),
+                                    ft.Text(
+                                        title, weight=ft.FontWeight.W_700, size=16, color=C["text"]
+                                    ),
+                                ],
                                 spacing=8,
                             ),
                             chip,
@@ -251,7 +274,9 @@ class View:
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
                     name_text,
-                    ft.OutlinedButton("選擇檔案...", icon=ft.Icons.UPLOAD_FILE_OUTLINED, on_click=on_pick),
+                    ft.OutlinedButton(
+                        "選擇檔案...", icon=ft.Icons.UPLOAD_FILE_OUTLINED, on_click=on_pick
+                    ),
                 ],
                 spacing=10,
             ),
@@ -268,7 +293,9 @@ class View:
         header = ft.Container(
             content=ft.Row(
                 [
-                    ft.Text("JSON 差異比對選擇器", size=26, weight=ft.FontWeight.W_800, color=C["text"]),
+                    ft.Text(
+                        "JSON 差異比對選擇器", size=26, weight=ft.FontWeight.W_800, color=C["text"]
+                    ),
                     ft.Row(
                         [
                             ft.Icon(ft.Icons.LIGHT_MODE, size=18, color=C["text_muted"]),
@@ -287,8 +314,20 @@ class View:
 
         sources_row = ft.Row(
             [
-                self._source_card("主要來源", ft.Icons.DESCRIPTION_OUTLINED, self.source1_name, self.source1_chip, self._on_pick_source1),
-                self._source_card("比較來源", ft.Icons.DIFFERENCE_OUTLINED, self.source2_name, self.source2_chip, self._on_pick_source2),
+                self._source_card(
+                    "主要來源",
+                    ft.Icons.DESCRIPTION_OUTLINED,
+                    self.source1_name,
+                    self.source1_chip,
+                    self._on_pick_source1,
+                ),
+                self._source_card(
+                    "比較來源",
+                    ft.Icons.DIFFERENCE_OUTLINED,
+                    self.source2_name,
+                    self.source2_chip,
+                    self._on_pick_source2,
+                ),
             ],
             spacing=16,
         )
@@ -336,6 +375,8 @@ class View:
                         color=C["text_muted"],
                         expand=True,
                     ),
+                    self.btn_save_progress,
+                    ft.Container(width=1, height=28, bgcolor=C["border"]),
                     self.btn_save_as,
                     self.btn_overwrite,
                 ],
@@ -394,15 +435,19 @@ class View:
         has_both = self.controller.source1_path and self.controller.source2_path
         self.btn_overwrite.disabled = not (has_both and entries)
         self.btn_save_as.disabled = not (has_both and entries)
+        self.btn_save_progress.disabled = not (has_both and entries)
         if has_both:
             self.summary_text.value = (
-                f"找到 {len(entries)} 個差異條目" if entries else "兩份文件沒有差異條目（相同 key 且 value 不同）"
+                f"找到 {len(entries)} 個差異條目"
+                if entries
+                else "兩份文件沒有差異條目（相同 key 且 value 不同）"
             )
         else:
             self.summary_text.value = "請先選擇主要與比較檔案"
         self.summary_text.update()
         self.btn_overwrite.update()
         self.btn_save_as.update()
+        self.btn_save_progress.update()
 
     def _on_choice_changed(self, index: int, choice: int) -> None:
         self._update_progress_text()
@@ -468,13 +513,20 @@ class View:
         if path:
             await self._confirm_and_run(path)
 
+    async def _on_save_progress_click(self, e) -> None:
+        # 保存「進度」不是最終輸出，不需要跳未選擇提醒，直接保存即可，
+        # 讓使用者可以隨時中斷、下次再用主要來源繼續比對剩下的差異。
+        await self.controller.save_progress()
+
     async def _confirm_and_run(self, target_path: str) -> None:
         unresolved = self.controller.unresolved_count
         if unresolved > 0:
             dlg = ft.AlertDialog(
                 modal=True,
                 title=ft.Text("未選擇提醒", weight=ft.FontWeight.W_700),
-                content=ft.Text(f"有 {unresolved} 個條目未選擇。未選擇的條目將保留主要檔案的原始值，是否繼續？"),
+                content=ft.Text(
+                    f"有 {unresolved} 個條目未選擇。未選擇的條目將保留主要檔案的原始值，是否繼續？"
+                ),
                 actions=[
                     ft.TextButton("取消", on_click=lambda _: self.page.pop_dialog()),
                     ft.FilledButton(
@@ -515,6 +567,8 @@ class View:
             entries = [e for e in entries if e.choice == 1]
         elif self._filter_mode == "compare":
             entries = [e for e in entries if e.choice == 2]
+        elif self._filter_mode == "custom":
+            entries = [e for e in entries if e.choice == 3]
         return entries
 
     # ------------------------------------------------------------------ #
@@ -545,9 +599,32 @@ class View:
         # 用捲動位置(pixels)接近底部(max_scroll_extent)判斷是否該載入下一批。
         if e.event_type not in (ft.ScrollType.UPDATE, ft.ScrollType.END):
             return
-        if e.max_scroll_extent - e.pixels < 400 and self._rendered < len(self._visible_entries):
+
+        if e.max_scroll_extent - e.pixels >= 400 or self._rendered >= len(self._visible_entries):
+            return
+        """
+            快速滾動時這個 callback 會被密集觸發，如果每次都立刻載入 update，
+            會在瞬間排進一大串 UI 更新，接下來的點擊（切換選定狀態）事件被
+            排在這些更新後面，就會有「卡住一段時間才有反應」的感覺
+
+            這裡改成 debounce 只有捲動停下來一小段時間後，才真的載入下一批，
+            且用世代編號讓期間過期的事件全部作廢，同時用旗標避免重疊執行
+        """
+        self._scroll_gen += 1
+        self.page.run_task(self._debounced_load_more, self._scroll_gen)
+
+    async def _debounced_load_more(self, gen: int) -> None:
+        await asyncio.sleep(0.08)
+        if gen != self._scroll_gen:
+            return  # 捲動還在繼續，這次是過期的請求，交給最新的那次處理
+        if self._loading_more or self._rendered >= len(self._visible_entries):
+            return
+        self._loading_more = True
+        try:
             self._load_more()
             self.list_view.update()
+        finally:
+            self._loading_more = False
 
     @staticmethod
     def _disp(v) -> str:
@@ -557,35 +634,50 @@ class View:
         s = " ".join(s.split())
         return s if len(s) <= 160 else s[:160] + "…"
 
-    def _value_block(self, entry: DiffEntry, side: int, value, on_pick) -> ft.GestureDetector:
+    def _apply_value_block_style(
+        self, container: ft.Container, entry: DiffEntry, side: int, value
+    ) -> None:
+        """就地重繪「主要來源」/「比較來源」區塊的樣式與內容（不重建 GestureDetector）"""
         C = self.C
         selected = entry.choice == side
+        container.content = ft.Column(
+            [
+                ft.Row(
+                    [ft.Icon(ft.Icons.CHECK_CIRCLE, size=16, color=C["primary"], visible=selected)],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                ),
+                ft.Text(
+                    self._disp(value),
+                    selectable=True,
+                    size=15,
+                    weight=ft.FontWeight.W_500,
+                    color=C["text"],
+                    text_align=ft.TextAlign.CENTER,
+                ),
+            ],
+            spacing=4,
+            alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+        container.bgcolor = C["primary_soft"] if selected else C["surface_alt"]
+        container.border = ft.Border.all(
+            2 if selected else 1, C["primary"] if selected else C["border"]
+        )
+
+    # 三個選擇區塊（主要/比較/自訂）共用的固定高度，確保排版一定對稱，
+    # 不依賴 Row 的 STRETCH 對齊（那個在 GestureDetector 底下的相容性不穩定
+    _CHOICE_BLOCK_HEIGHT = 86
+
+    def _value_block(self, entry: DiffEntry, side: int, value, on_pick) -> ft.GestureDetector:
         container = ft.Container(
-            content=ft.Column(
-                [
-                    ft.Row(
-                        [ft.Icon(ft.Icons.CHECK_CIRCLE, size=16, color=C["primary"], visible=selected)],
-                        alignment=ft.MainAxisAlignment.CENTER,
-                    ),
-                    ft.Text(
-                        self._disp(value),
-                        selectable=True,
-                        size=15,
-                        weight=ft.FontWeight.W_500,
-                        color=C["text"],
-                        text_align=ft.TextAlign.CENTER,
-                    ),
-                ],
-                spacing=4,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
-            bgcolor=C["primary_soft"] if selected else C["surface_alt"],
-            border=ft.Border.all(2 if selected else 1, C["primary"] if selected else C["border"]),
             border_radius=14,
             padding=ft.Padding(14, 12, 14, 12),
             expand=True,
+            height=self._CHOICE_BLOCK_HEIGHT,
+            alignment=ft.Alignment.CENTER,
             animate=ft.Animation(150),
         )
+        self._apply_value_block_style(container, entry, side, value)
 
         # Container 本身沒有 mouse_cursor 屬性，用 GestureDetector 包一層來處理
         return ft.GestureDetector(
@@ -595,28 +687,153 @@ class View:
             expand=True,
         )
 
+    def _apply_custom_block_style(self, container: ft.Container, entry: DiffEntry) -> None:
+        """就地重繪「自訂」區塊：尚未設定文字時顯示提示，已設定則顯示內容"""
+
+        C = self.C
+        has_value = bool(entry.custom_value)
+        selected = entry.choice == 3
+        if has_value:
+            container.content = ft.Column(
+                [
+                    ft.Row(
+                        [
+                            ft.Icon(
+                                ft.Icons.CHECK_CIRCLE, size=16, color=C["primary"], visible=selected
+                            ),
+                            ft.Icon(ft.Icons.EDIT_NOTE_OUTLINED, size=16, color=C["text_muted"]),
+                        ],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        spacing=4,
+                    ),
+                    ft.Text(
+                        self._disp(entry.custom_value),
+                        selectable=True,
+                        size=15,
+                        weight=ft.FontWeight.W_500,
+                        color=C["text"],
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                ],
+                spacing=4,
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            )
+            container.bgcolor = C["primary_soft"] if selected else C["surface_alt"]
+            container.border = ft.Border.all(
+                2 if selected else 1, C["primary"] if selected else C["border"]
+            )
+        else:
+            container.content = ft.Column(
+                [
+                    ft.Row(
+                        [ft.Icon(ft.Icons.ADD_CIRCLE_OUTLINE, size=16, color=C["text_muted"])],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                    ),
+                    ft.Text(
+                        "雙擊自訂內容",
+                        size=15,
+                        weight=ft.FontWeight.W_500,
+                        color=C["text_muted"],
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                ],
+                spacing=4,
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            )
+            container.bgcolor = C["surface_alt"]
+            container.border = ft.Border.all(1, C["border"])
+
+    def _build_custom_block(self, entry: DiffEntry, on_pick, on_edit) -> ft.GestureDetector:
+        container = ft.Container(
+            border_radius=14,
+            padding=ft.Padding(14, 12, 14, 12),
+            expand=True,
+            height=self._CHOICE_BLOCK_HEIGHT,
+            alignment=ft.Alignment.CENTER,
+            animate=ft.Animation(150),
+        )
+        self._apply_custom_block_style(container, entry)
+        has_value = bool(entry.custom_value)
+
+        return ft.GestureDetector(
+            content=container,
+            on_tap=on_pick if has_value else None,
+            on_double_tap=on_edit,
+            mouse_cursor=ft.MouseCursor.CLICK,
+            expand=True,
+        )
+
     def _build_card(self, entry: DiffEntry, display_index: int) -> ft.Container:
         C = self.C
+        # 是否正在編輯自訂文字 用小 dict 當可變的閉包狀態容器。
+        edit_state: dict = {"editing": False, "field": None}
 
-        def choose(side: int, _e=None):
-            self.controller.set_choice(entry.index, side)
-            fresh1 = self._value_block(entry, 1, entry.value1, lambda e: choose(1, e))
-            fresh2 = self._value_block(entry, 2, entry.value2, lambda e: choose(2, e))
-            block1.content.bgcolor = fresh1.content.bgcolor
-            block1.content.border = fresh1.content.border
-            block1.content.content = fresh1.content.content
-            block2.content.bgcolor = fresh2.content.bgcolor
-            block2.content.border = fresh2.content.border
-            block2.content.content = fresh2.content.content
-
+        def refresh_blocks() -> None:
+            self._apply_value_block_style(block1.content, entry, 1, entry.value1)
+            self._apply_value_block_style(block2.content, entry, 2, entry.value2)
+            self._apply_custom_block_style(block3.content, entry)
+            block3.on_tap = (lambda e: choose(3, e)) if entry.custom_value else None
             block1.update()
             block2.update()
+            block3.update()
+
+        def choose(side: int, _e=None):
+            if edit_state["editing"]:
+                return  # 編輯自訂文字時，忽略主要/比較/自訂區塊的選取點擊
+            self.controller.set_choice(entry.index, side)
+            refresh_blocks()
+
+        def commit_edit(_e=None):
+            if not edit_state["editing"]:
+                return
+            edit_state["editing"] = False
+            field = edit_state["field"]
+            text = (field.value if field else "") or ""
+            edit_state["field"] = None
+            self.controller.set_custom_value(entry.index, text)
+            refresh_blocks()
+
+        def start_edit(_e=None):
+            if edit_state["editing"]:
+                return
+            edit_state["editing"] = True
+            initial = (
+                entry.custom_value if entry.custom_value is not None else self._disp(entry.value1)
+            )
+            custom_field = ft.TextField(
+                value=initial,
+                autofocus=True,
+                multiline=True,
+                min_lines=2,
+                max_lines=6,
+                dense=True,
+                border_radius=10,
+                filled=True,
+                bgcolor=C["surface"],
+                border_color=C["primary"],
+                color=C["text"],
+                text_align=ft.TextAlign.CENTER,
+                text_style=ft.TextStyle(size=15, weight=ft.FontWeight.W_500, color=C["text"]),
+                content_padding=ft.Padding(10, 8, 10, 8),
+                on_blur=commit_edit,
+                on_submit=commit_edit,
+            )
+            edit_state["field"] = custom_field
+            block3.content.content = custom_field
+            block3.content.bgcolor = C["surface"]
+            block3.content.border = ft.Border.all(2, C["primary"])
+            block3.update()
 
         block1 = self._value_block(entry, 1, entry.value1, lambda e: choose(1, e))
         block2 = self._value_block(entry, 2, entry.value2, lambda e: choose(2, e))
+        block3 = self._build_custom_block(entry, on_pick=lambda e: choose(3, e), on_edit=start_edit)
 
         index_badge = ft.Container(
-            content=ft.Text(f"{display_index}", size=12, weight=ft.FontWeight.W_700, color=C["text_muted"]),
+            content=ft.Text(
+                f"{display_index}", size=12, weight=ft.FontWeight.W_700, color=C["text_muted"]
+            ),
             bgcolor=C["chip_off_bg"],
             border_radius=10,
             padding=ft.Padding(8, 3, 8, 3),
@@ -644,7 +861,7 @@ class View:
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
-                    ft.Row([block1, block2], spacing=12),
+                    ft.Row([block1, block2, block3], spacing=12),
                 ],
                 spacing=12,
             ),
