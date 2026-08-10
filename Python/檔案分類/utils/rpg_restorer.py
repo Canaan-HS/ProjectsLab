@@ -11,7 +11,9 @@ HEADER_OFFSET = 32
 # RPG Maker 常見預設資源開頭 (非 CG 不需要)
 EXCLUDE_HEADER = ("$", "!", "#", "@")
 
+# 通常沒加密的格式
 UNENCRYPTED_IMAGE = {".rpgmvp", ".png_"}
+# 通常加密的格式
 ENCRYPTED_AUDIO = {".rpgmvo", ".ogg_", ".m4a_"}
 
 VALID_RPG_SUFFIXS = UNENCRYPTED_IMAGE | ENCRYPTED_AUDIO
@@ -60,10 +62,6 @@ def restore_rpg(
     if suffix in UNENCRYPTED_IMAGE and path.stem.startswith(EXCLUDE_HEADER):
         return RestoreStatus.FILE_EXCLUDE
 
-    # 檢查需要解密的文件是否有密鑰
-    if suffix in ENCRYPTED_AUDIO and decrypt_key is None:
-        return RestoreStatus.DECRYPT_ERROR
-
     # 檢查輸出路徑
     if output_path is None:
         output_path = restore_suffix(str(path), suffix)
@@ -83,7 +81,10 @@ def restore_rpg(
         return RestoreStatus.FILE_TOO_SMALL
 
     # 進行解密
-    if decrypt_key is not None:
+    if encrypted_data[:5] in (b"RPGMV", b"RPGMZ"):
+        if decrypt_key is None:
+            return RestoreStatus.DECRYPT_ERROR
+
         key_bytes = bytes.fromhex(decrypt_key)
         xor_header = bytes(a ^ b for a, b in zip(encrypted_data[16:32], key_bytes))
         restored_data = xor_header + encrypted_data[32:]
