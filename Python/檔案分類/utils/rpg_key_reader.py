@@ -10,7 +10,7 @@ def get_encryption_key(project_path: str) -> Optional[str]:
         full_path = Path(project_path) / sub_path
         if full_path.is_file():
             try:
-                data = json.loads(full_path.read_text(encoding="utf-8"))
+                data = json.loads(full_path.read_text(encoding="utf-8-sig"))
                 key = data.get("encryptionKey")
                 if key:
                     return key
