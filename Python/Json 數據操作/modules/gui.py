@@ -5,86 +5,169 @@ import flet as ft
 from .controller import Controller
 from .json_core import DiffEntry
 
-PRIMARY = "#4F6BFF"
-BG = "#F4F6FB"
-SURFACE = "#FFFFFF"
-BORDER = "#E4E7F0"
-TEXT_MUTED = "#6B7280"
-SUCCESS = "#22A06B"
-DANGER = "#E5484D"
+# 分批渲染的筆數
+CHUNK = 120
 
-CHUNK = 300
+LIGHT_PALETTE = {
+    "bg": "#F4F6FB",
+    "surface": "#FFFFFF",
+    "surface_alt": "#FAFBFD",
+    "border": "#E4E7F0",
+    "text": "#1A1D29",
+    "text_muted": "#6B7280",
+    "primary": "#4F6BFF",
+    "primary_soft": "#EEF1FF",
+    "success": "#1F9D63",
+    "success_soft": "#E9F9F1",
+    "danger": "#E5484D",
+    "chip_off_bg": "#F1F2F6",
+    "chip_off_text": "#6B7280",
+}
+
+DARK_PALETTE = {
+    "bg": "#14161F",
+    "surface": "#1C1F2B",
+    "surface_alt": "#242737",
+    "border": "#333748",
+    "text": "#F1F2F8",
+    "text_muted": "#9CA3AF",
+    "primary": "#7C90FF",
+    "primary_soft": "#2A2F55",
+    "success": "#34C889",
+    "success_soft": "#1B3A2D",
+    "danger": "#FF6B70",
+    "chip_off_bg": "#2A2D3D",
+    "chip_off_text": "#9CA3AF",
+}
+
+FILTER_LABELS = {
+    "all": "全部",
+    "unresolved": "未選",
+    "primary": "選主要",
+    "compare": "選比較",
+}
 
 
 class View:
     def __init__(self, page: ft.Page):
         self.page = page
         self.controller = Controller()
+        self._dark = True
         self._rendered = 0
         self._filter_text = ""
-        self._entry_cards: dict[int, ft.Control] = {}
+        self._filter_mode = "all"  # all / unresolved / primary / compare
+        self._visible_entries: list[DiffEntry] = []
 
         self._setup_page()
-        self._build_widgets()
         self._wire_controller_signals()
-        self.page.add(self._layout())
+        self._rebuild_ui()
 
+    # ------------------------------------------------------------------ #
+    # Page-level 設定
+    # ------------------------------------------------------------------ #
     def _setup_page(self) -> None:
         page = self.page
         page.title = "JSON 差異比對選擇器"
-        page.theme_mode = ft.ThemeMode.LIGHT
-        page.theme = ft.Theme(color_scheme_seed=PRIMARY, use_material3=True)
-        page.bgcolor = BG
         page.padding = 0
         page.window.width = 1180
-        page.window.height = 840
-        page.window.min_width = 860
-        page.window.min_height = 600
+        page.window.height = 860
+        page.window.min_width = 900
+        page.window.min_height = 620
 
-        # FilePicker 是 Service，必須註冊在 page.services（不是 page.overlay），
-        # 放在 overlay 是 flet 1.x 之後互動失效最常見的原因。
+        # 開啟時視窗預設置中
+        page.run_task(self._center_window)
+
         self.pick1 = ft.FilePicker()
         self.pick2 = ft.FilePicker()
         self.saver = ft.FilePicker()
         page.services.extend([self.pick1, self.pick2, self.saver])
 
+    async def _center_window(self) -> None:
+        await self.page.window.wait_until_ready_to_show()
+        await self.page.window.center()
+
+    @property
+    def C(self) -> dict:
+        return DARK_PALETTE if self._dark else LIGHT_PALETTE
+
+    def _apply_theme_mode(self) -> None:
+        page = self.page
+        page.theme_mode = ft.ThemeMode.DARK if self._dark else ft.ThemeMode.LIGHT
+        seed = self.C["primary"]
+        page.theme = ft.Theme(color_scheme_seed=seed, use_material3=True)
+        page.dark_theme = ft.Theme(color_scheme_seed=seed, use_material3=True)
+        page.bgcolor = self.C["bg"]
+
+    # ------------------------------------------------------------------ #
+    # 整棵畫面樹重建（初始化 / 切換深淺色時使用；狀態一律來自 controller）
+    # ------------------------------------------------------------------ #
+    def _rebuild_ui(self) -> None:
+        self._apply_theme_mode()
+        self._build_widgets()
+        self.page.controls.clear()
+        self.page.add(self._layout())
+
+        # 用目前 controller 的既有狀態把畫面補回去（例如切換深淺色時已載入的檔案）
+        if self.controller.source1_path:
+            self._on_source1_changed(self.controller.source1_path)
+        if self.controller.source2_path:
+            self._on_source2_changed(self.controller.source2_path)
+        self._on_diff_ready(self.controller.entries)
+        self.page.update()
+
+    # ------------------------------------------------------------------ #
+    # Widgets
+    # ------------------------------------------------------------------ #
     def _build_widgets(self) -> None:
-        self.source1_name = ft.Text("尚未選擇檔案", size=13, color=TEXT_MUTED, no_wrap=True)
-        self.source2_name = ft.Text("尚未選擇檔案", size=13, color=TEXT_MUTED, no_wrap=True)
+        C = self.C
+
+        self.theme_switch = ft.Switch(
+            value=self._dark,
+            on_change=self._on_theme_toggle,
+            active_color=C["primary"],
+            scale=0.85,
+        )
+
+        self.source1_name = ft.Text("尚未選擇檔案", size=14, color=C["text_muted"], no_wrap=True)
+        self.source2_name = ft.Text("尚未選擇檔案", size=14, color=C["text_muted"], no_wrap=True)
         self.source1_chip = self._status_chip(False)
         self.source2_chip = self._status_chip(False)
 
-        self.summary_text = ft.Text("請先選擇來源1與來源2", size=14, weight=ft.FontWeight.W_600)
-        self.progress_text = ft.Text("", size=12, color=TEXT_MUTED)
-        self.busy_ring = ft.ProgressRing(width=16, height=16, stroke_width=2, visible=False)
+        self.summary_text = ft.Text(
+            "請先選擇主要與比較檔案", size=16, weight=ft.FontWeight.W_700, color=C["text"]
+        )
+        self.progress_text = ft.Text("", size=13, weight=ft.FontWeight.W_500, color=C["text_muted"])
+        self.busy_ring = ft.ProgressRing(width=18, height=18, stroke_width=2, visible=False)
 
         self.search_box = ft.TextField(
-            hint_text="搜尋 key path...",
+            hint_text="搜尋",
             prefix_icon=ft.Icons.SEARCH,
             dense=True,
-            border_radius=10,
+            border_radius=12,
             filled=True,
-            bgcolor=SURFACE,
-            border_color=BORDER,
-            height=42,
+            bgcolor=C["surface"],
+            border_color=C["border"],
+            color=C["text"],
+            text_size=15,
+            height=46,
             on_change=self._on_search_change,
             expand=True,
         )
-        self.filter_unresolved = ft.Checkbox(
-            label="只顯示未選擇", value=False, on_change=lambda e: self._render_list(reset=True)
-        )
+
+        self.filter_chips_row = ft.Row(spacing=8)
+        self._build_filter_chips()
 
         self.list_view = ft.ListView(
-            expand=True, spacing=10, padding=ft.Padding(4, 4, 12, 4), on_scroll=self._on_scroll
+            expand=True, spacing=12, padding=ft.Padding(4, 4, 12, 4), on_scroll=self._on_scroll
         )
         self.empty_hint = ft.Container(
             content=ft.Column(
                 [
-                    ft.Icon(ft.Icons.FIND_IN_PAGE_OUTLINED, size=40, color=BORDER),
-                    ft.Text("尚無差異條目", color=TEXT_MUTED, size=13),
+                    ft.Icon(ft.Icons.FIND_IN_PAGE_OUTLINED, size=44, color=C["border"]),
+                    ft.Text("尚無符合條件的差異條目", color=C["text_muted"], size=14, weight=ft.FontWeight.W_500),
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=6,
+                spacing=8,
             ),
             alignment=ft.Alignment.CENTER,
             expand=True,
@@ -92,44 +175,77 @@ class View:
         )
 
         self.btn_overwrite = ft.FilledButton(
-            "覆蓋輸出來源1",
+            "覆蓋主要檔案",
             icon=ft.Icons.SAVE_ALT,
             on_click=self._on_overwrite_click,
             disabled=True,
+            style=ft.ButtonStyle(text_style=ft.TextStyle(size=15, weight=ft.FontWeight.W_600)),
         )
         self.btn_save_as = ft.OutlinedButton(
             "另存新檔",
             icon=ft.Icons.SAVE_AS_OUTLINED,
             on_click=self._on_save_as_click,
             disabled=True,
+            style=ft.ButtonStyle(text_style=ft.TextStyle(size=15, weight=ft.FontWeight.W_600)),
         )
 
+    def _build_filter_chips(self) -> None:
+        C = self.C
+        self.filter_chips_row.controls.clear()
+        for mode, label in FILTER_LABELS.items():
+            active = self._filter_mode == mode
+            self.filter_chips_row.controls.append(
+                ft.Container(
+                    content=ft.Text(
+                        label,
+                        size=14,
+                        weight=ft.FontWeight.W_600,
+                        color="#FFFFFF" if active else C["text_muted"],
+                    ),
+                    bgcolor=C["primary"] if active else C["chip_off_bg"],
+                    border_radius=20,
+                    padding=ft.Padding(16, 8, 16, 8),
+                    on_click=lambda e, m=mode: self._on_filter_mode_change(m),
+                    ink=True,
+                )
+            )
+
     def _status_chip(self, ok: bool) -> ft.Container:
+        C = self.C
         return ft.Container(
             content=ft.Row(
                 [
                     ft.Icon(
                         ft.Icons.CHECK_CIRCLE if ok else ft.Icons.RADIO_BUTTON_UNCHECKED,
-                        size=14,
-                        color=SUCCESS if ok else TEXT_MUTED,
+                        size=15,
+                        color=C["success"] if ok else C["text_muted"],
                     ),
-                    ft.Text("已載入" if ok else "未載入", size=12, color=SUCCESS if ok else TEXT_MUTED),
+                    ft.Text(
+                        "已載入" if ok else "未載入",
+                        size=13,
+                        weight=ft.FontWeight.W_600,
+                        color=C["success"] if ok else C["text_muted"],
+                    ),
                 ],
                 spacing=4,
                 tight=True,
             ),
-            bgcolor="#E9F9F1" if ok else "#F1F2F6",
+            bgcolor=C["success_soft"] if ok else C["chip_off_bg"],
             border_radius=20,
-            padding=ft.Padding(10, 4, 10, 4),
+            padding=ft.Padding(12, 5, 12, 5),
         )
 
     def _source_card(self, title: str, icon, name_text, chip, on_pick) -> ft.Container:
+        C = self.C
         return ft.Container(
             content=ft.Column(
                 [
                     ft.Row(
                         [
-                            ft.Row([ft.Icon(icon, size=18, color=PRIMARY), ft.Text(title, weight=ft.FontWeight.W_600, size=14)], spacing=6),
+                            ft.Row(
+                                [ft.Icon(icon, size=20, color=C["primary"]), ft.Text(title, weight=ft.FontWeight.W_700, size=16, color=C["text"])],
+                                spacing=8,
+                            ),
                             chip,
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -139,51 +255,50 @@ class View:
                 ],
                 spacing=10,
             ),
-            bgcolor=SURFACE,
-            border=ft.Border.all(1, BORDER),
-            border_radius=14,
-            padding=16,
+            bgcolor=C["surface"],
+            border=ft.Border.all(1, C["border"]),
+            border_radius=18,
+            padding=18,
             expand=True,
         )
 
     def _layout(self) -> ft.Control:
+        C = self.C
+
         header = ft.Container(
             content=ft.Row(
                 [
-                    ft.Column(
+                    ft.Text("JSON 差異比對選擇器", size=26, weight=ft.FontWeight.W_800, color=C["text"]),
+                    ft.Row(
                         [
-                            ft.Text("JSON 差異比對選擇器", size=20, weight=ft.FontWeight.BOLD),
-                            ft.Text(
-                                "比對兩份 JSON 中 key 相同但 value 不同的條目，逐條選擇要保留哪一方",
-                                size=12,
-                                color=TEXT_MUTED,
-                            ),
+                            ft.Icon(ft.Icons.LIGHT_MODE, size=18, color=C["text_muted"]),
+                            self.theme_switch,
+                            ft.Icon(ft.Icons.DARK_MODE, size=18, color=C["text_muted"]),
                         ],
-                        spacing=2,
+                        spacing=4,
                     ),
                 ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
-            bgcolor=SURFACE,
-            padding=ft.Padding(24, 18, 24, 18),
-            border=ft.Border(bottom=ft.BorderSide(1, BORDER)),
+            bgcolor=C["surface"],
+            padding=ft.Padding(24, 20, 24, 20),
+            border=ft.Border(bottom=ft.BorderSide(1, C["border"])),
         )
 
         sources_row = ft.Row(
             [
-                self._source_card("來源1（主要）", ft.Icons.DESCRIPTION_OUTLINED, self.source1_name, self.source1_chip, self._on_pick_source1),
-                self._source_card("來源2（比較）", ft.Icons.DIFFERENCE_OUTLINED, self.source2_name, self.source2_chip, self._on_pick_source2),
+                self._source_card("主要來源", ft.Icons.DESCRIPTION_OUTLINED, self.source1_name, self.source1_chip, self._on_pick_source1),
+                self._source_card("比較來源", ft.Icons.DIFFERENCE_OUTLINED, self.source2_name, self.source2_chip, self._on_pick_source2),
             ],
             spacing=16,
         )
 
-        toolbar = ft.Row(
+        toolbar = ft.Column(
             [
-                self.search_box,
-                self.filter_unresolved,
-                self.busy_ring,
-                self.progress_text,
+                ft.Row([self.search_box, self.busy_ring, self.progress_text], spacing=14),
+                self.filter_chips_row,
             ],
-            spacing=14,
+            spacing=12,
         )
 
         list_area = ft.Stack([self.list_view, self.empty_hint], expand=True)
@@ -192,15 +307,15 @@ class View:
             content=ft.Column(
                 [
                     sources_row,
-                    ft.Divider(height=1, color=BORDER),
-                    ft.Row([self.summary_text], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Divider(height=1, color=C["border"]),
+                    self.summary_text,
                     toolbar,
                     ft.Container(
                         content=list_area,
-                        bgcolor=SURFACE,
-                        border=ft.Border.all(1, BORDER),
-                        border_radius=14,
-                        padding=12,
+                        bgcolor=C["surface"],
+                        border=ft.Border.all(1, C["border"]),
+                        border_radius=18,
+                        padding=14,
                         expand=True,
                     ),
                 ],
@@ -215,9 +330,10 @@ class View:
             content=ft.Row(
                 [
                     ft.Text(
-                        "提示：未選擇的條目輸出時保留來源1原始值；其餘排版不受影響。",
-                        size=12,
-                        color=TEXT_MUTED,
+                        "提示：未選擇的條目輸出時保留主要檔案原始值；其餘排版不受影響。",
+                        size=13,
+                        weight=ft.FontWeight.W_500,
+                        color=C["text_muted"],
                         expand=True,
                     ),
                     self.btn_save_as,
@@ -226,13 +342,23 @@ class View:
                 alignment=ft.MainAxisAlignment.END,
                 spacing=12,
             ),
-            bgcolor=SURFACE,
-            padding=ft.Padding(24, 14, 24, 14),
-            border=ft.Border(top=ft.BorderSide(1, BORDER)),
+            bgcolor=C["surface"],
+            padding=ft.Padding(24, 16, 24, 16),
+            border=ft.Border(top=ft.BorderSide(1, C["border"])),
         )
 
         return ft.Column([header, content, footer], spacing=0, expand=True)
 
+    # ------------------------------------------------------------------ #
+    # 深淺色切換
+    # ------------------------------------------------------------------ #
+    def _on_theme_toggle(self, e) -> None:
+        self._dark = self.theme_switch.value
+        self._rebuild_ui()
+
+    # ------------------------------------------------------------------ #
+    # Controller signal wiring（只在 __init__ 綁一次，畫面重建不會重複註冊）
+    # ------------------------------------------------------------------ #
     def _wire_controller_signals(self) -> None:
         c = self.controller
         c.sig_source1_changed.connect(self._on_source1_changed)
@@ -244,18 +370,24 @@ class View:
         c.sig_output_done.connect(self._on_output_done)
 
     def _on_source1_changed(self, path: str) -> None:
+        C = self.C
         self.source1_name.value = path
-        self.source1_name.color = None
-        self.source1_chip.content = self._status_chip(True).content
-        self.source1_chip.bgcolor = "#E9F9F1"
-        self.page.update()
+        self.source1_name.color = C["text"]
+        chip = self._status_chip(True)
+        self.source1_chip.content = chip.content
+        self.source1_chip.bgcolor = chip.bgcolor
+        self.source1_name.update()
+        self.source1_chip.update()
 
     def _on_source2_changed(self, path: str) -> None:
+        C = self.C
         self.source2_name.value = path
-        self.source2_name.color = None
-        self.source2_chip.content = self._status_chip(True).content
-        self.source2_chip.bgcolor = "#E9F9F1"
-        self.page.update()
+        self.source2_name.color = C["text"]
+        chip = self._status_chip(True)
+        self.source2_chip.content = chip.content
+        self.source2_chip.bgcolor = chip.bgcolor
+        self.source2_name.update()
+        self.source2_chip.update()
 
     def _on_diff_ready(self, entries) -> None:
         self._render_list(reset=True)
@@ -267,22 +399,26 @@ class View:
                 f"找到 {len(entries)} 個差異條目" if entries else "兩份文件沒有差異條目（相同 key 且 value 不同）"
             )
         else:
-            self.summary_text.value = "請先選擇來源1與來源2"
-        self.page.update()
+            self.summary_text.value = "請先選擇主要與比較檔案"
+        self.summary_text.update()
+        self.btn_overwrite.update()
+        self.btn_save_as.update()
 
     def _on_choice_changed(self, index: int, choice: int) -> None:
         self._update_progress_text()
-        self.page.update()
+        self.progress_text.update()
 
     def _on_busy(self, is_busy: bool, message: str) -> None:
         self.busy_ring.visible = is_busy
         self.progress_text.value = message if is_busy else self._progress_summary()
-        self.page.update()
+        self.busy_ring.update()
+        self.progress_text.update()
 
     def _on_notify(self, message: str, is_error: bool) -> None:
+        C = self.C
         snack = ft.SnackBar(
-            content=ft.Text(message, color="#FFFFFF"),
-            bgcolor=DANGER if is_error else SUCCESS,
+            content=ft.Text(message, color="#FFFFFF", weight=ft.FontWeight.W_600),
+            bgcolor=C["danger"] if is_error else C["success"],
             duration=ft.Duration(seconds=6 if is_error else 3),
         )
         self.page.show_dialog(snack)
@@ -290,9 +426,12 @@ class View:
     def _on_output_done(self, path: str) -> None:
         pass  # 通知已由 sig_notify 處理
 
+    # ------------------------------------------------------------------ #
+    # 檔案選擇事件
+    # ------------------------------------------------------------------ #
     async def _on_pick_source1(self, e) -> None:
         files = await self.pick1.pick_files(
-            dialog_title="選擇來源1 JSON 檔",
+            dialog_title="選擇主要來源 JSON 檔",
             allow_multiple=False,
             file_type=ft.FilePickerFileType.CUSTOM,
             allowed_extensions=["json"],
@@ -303,7 +442,7 @@ class View:
 
     async def _on_pick_source2(self, e) -> None:
         files = await self.pick2.pick_files(
-            dialog_title="選擇來源2 JSON 檔",
+            dialog_title="選擇比較來源 JSON 檔",
             allow_multiple=False,
             file_type=ft.FilePickerFileType.CUSTOM,
             allowed_extensions=["json"],
@@ -334,8 +473,8 @@ class View:
         if unresolved > 0:
             dlg = ft.AlertDialog(
                 modal=True,
-                title=ft.Text("未選擇提醒"),
-                content=ft.Text(f"有 {unresolved} 個條目未選擇。未選擇的條目將保留來源1的原始值，是否繼續？"),
+                title=ft.Text("未選擇提醒", weight=ft.FontWeight.W_700),
+                content=ft.Text(f"有 {unresolved} 個條目未選擇。未選擇的條目將保留主要檔案的原始值，是否繼續？"),
                 actions=[
                     ft.TextButton("取消", on_click=lambda _: self.page.pop_dialog()),
                     ft.FilledButton(
@@ -353,46 +492,62 @@ class View:
         self.page.pop_dialog()
         await self.controller.write_output(target_path)
 
+    # ------------------------------------------------------------------ #
+    # 篩選 / 搜尋
+    # ------------------------------------------------------------------ #
+    def _on_filter_mode_change(self, mode: str) -> None:
+        self._filter_mode = mode
+        self._build_filter_chips()
+        self.filter_chips_row.update()
+        self._render_list(reset=True)
+
     def _on_search_change(self, e) -> None:
         self._filter_text = (self.search_box.value or "").strip().lower()
         self._render_list(reset=True)
 
-    def _filtered_entries(self):
+    def _filtered_entries(self) -> list[DiffEntry]:
         entries = self.controller.entries
         if self._filter_text:
-            entries = [e for e in entries if self._filter_text in e.key_path.lower()]
-        if self.filter_unresolved.value:
+            entries = [e for e in entries if self._filter_text in e.search_blob]
+        if self._filter_mode == "unresolved":
             entries = [e for e in entries if e.choice == 0]
+        elif self._filter_mode == "primary":
+            entries = [e for e in entries if e.choice == 1]
+        elif self._filter_mode == "compare":
+            entries = [e for e in entries if e.choice == 2]
         return entries
 
+    # ------------------------------------------------------------------ #
+    # 差異列表渲染（分批載入 / 選擇狀態保留）
+    # ------------------------------------------------------------------ #
     def _render_list(self, reset: bool = False) -> None:
         if reset:
             self.list_view.controls.clear()
-            self._entry_cards.clear()
             self._rendered = 0
         self._visible_entries = self._filtered_entries()
         self.empty_hint.visible = len(self._visible_entries) == 0
         self._load_more()
         self._update_progress_text()
-        self.page.update()
+
+        self.list_view.update()
+        self.empty_hint.update()
+        self.progress_text.update()
 
     def _load_more(self) -> None:
         end = min(self._rendered + CHUNK, len(self._visible_entries))
         for i in range(self._rendered, end):
             entry = self._visible_entries[i]
-            card = self._build_card(entry)
-            self._entry_cards[entry.index] = card
-            self.list_view.controls.append(card)
+            self.list_view.controls.append(self._build_card(entry, i + 1))
         self._rendered = end
 
     def _on_scroll(self, e: ft.OnScrollEvent) -> None:
-        # event_type 是列舉：START/UPDATE/END/USER/OVERSCROLL，並非布林式的「到底了」。
-        # 用捲動位置(pixels)接近底部(max_scroll_extent)來判斷是否該載入下一批。
+        # event_type 是列舉：START/UPDATE/END/USER/OVERSCROLL，並非「捲到底」的旗標。
+        # 用捲動位置(pixels)接近底部(max_scroll_extent)判斷是否該載入下一批。
         if e.event_type not in (ft.ScrollType.UPDATE, ft.ScrollType.END):
             return
         if e.max_scroll_extent - e.pixels < 400 and self._rendered < len(self._visible_entries):
             self._load_more()
-            self.page.update()
+            self.list_view.update()
 
     @staticmethod
     def _disp(v) -> str:
@@ -400,56 +555,103 @@ class View:
 
         s = v if isinstance(v, str) else _json.dumps(v, ensure_ascii=False)
         s = " ".join(s.split())
-        return s if len(s) <= 150 else s[:150] + "…"
+        return s if len(s) <= 160 else s[:160] + "…"
 
-    def _value_tile(self, entry: DiffEntry, side: int, value) -> ft.Container:
+    def _value_block(self, entry: DiffEntry, side: int, value, on_pick) -> ft.GestureDetector:
+        C = self.C
         selected = entry.choice == side
-        label = "來源1" if side == 1 else "來源2"
-        return ft.Container(
-            content=ft.Row(
+        container = ft.Container(
+            content=ft.Column(
                 [
-                    ft.Radio(value=str(side), label=label),
-                    ft.Text(self._disp(value), expand=True, selectable=True, size=13),
+                    ft.Row(
+                        [ft.Icon(ft.Icons.CHECK_CIRCLE, size=16, color=C["primary"], visible=selected)],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                    ),
+                    ft.Text(
+                        self._disp(value),
+                        selectable=True,
+                        size=15,
+                        weight=ft.FontWeight.W_500,
+                        color=C["text"],
+                        text_align=ft.TextAlign.CENTER,
+                    ),
                 ],
-                spacing=6,
+                spacing=4,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             ),
-            bgcolor="#EEF1FF" if selected else "#FAFBFD",
-            border=ft.Border.all(1, PRIMARY if selected else BORDER),
+            bgcolor=C["primary_soft"] if selected else C["surface_alt"],
+            border=ft.Border.all(2 if selected else 1, C["primary"] if selected else C["border"]),
+            border_radius=14,
+            padding=ft.Padding(14, 12, 14, 12),
+            expand=True,
+            animate=ft.Animation(150),
+        )
+
+        # Container 本身沒有 mouse_cursor 屬性，用 GestureDetector 包一層來處理
+        return ft.GestureDetector(
+            content=container,
+            on_tap=on_pick,
+            mouse_cursor=ft.MouseCursor.CLICK,
+            expand=True,
+        )
+
+    def _build_card(self, entry: DiffEntry, display_index: int) -> ft.Container:
+        C = self.C
+
+        def choose(side: int, _e=None):
+            self.controller.set_choice(entry.index, side)
+            fresh1 = self._value_block(entry, 1, entry.value1, lambda e: choose(1, e))
+            fresh2 = self._value_block(entry, 2, entry.value2, lambda e: choose(2, e))
+            block1.content.bgcolor = fresh1.content.bgcolor
+            block1.content.border = fresh1.content.border
+            block1.content.content = fresh1.content.content
+            block2.content.bgcolor = fresh2.content.bgcolor
+            block2.content.border = fresh2.content.border
+            block2.content.content = fresh2.content.content
+
+            block1.update()
+            block2.update()
+
+        block1 = self._value_block(entry, 1, entry.value1, lambda e: choose(1, e))
+        block2 = self._value_block(entry, 2, entry.value2, lambda e: choose(2, e))
+
+        index_badge = ft.Container(
+            content=ft.Text(f"{display_index}", size=12, weight=ft.FontWeight.W_700, color=C["text_muted"]),
+            bgcolor=C["chip_off_bg"],
             border_radius=10,
-            padding=ft.Padding(10, 8, 10, 8),
+            padding=ft.Padding(8, 3, 8, 3),
+            width=48,
+            alignment=ft.Alignment.CENTER,
         )
-
-    def _build_card(self, entry: DiffEntry) -> ft.Container:
-        v1_tile = self._value_tile(entry, 1, entry.value1)
-        v2_tile = self._value_tile(entry, 2, entry.value2)
-
-        def on_change(e, idx=entry.index, v1=v1_tile, v2=v2_tile):
-            choice = int(e.control.value)
-            self.controller.set_choice(idx, choice)
-            v1.bgcolor = "#EEF1FF" if choice == 1 else "#FAFBFD"
-            v1.border = ft.Border.all(1, PRIMARY if choice == 1 else BORDER)
-            v2.bgcolor = "#EEF1FF" if choice == 2 else "#FAFBFD"
-            v2.border = ft.Border.all(1, PRIMARY if choice == 2 else BORDER)
-            self.page.update()
-
-        group = ft.RadioGroup(
-            value=str(entry.choice) if entry.choice else None,
-            content=ft.Column([v1_tile, v2_tile], spacing=6),
-            on_change=on_change,
-        )
+        spacer = ft.Container(width=48)
 
         return ft.Container(
             content=ft.Column(
                 [
-                    ft.Text(entry.key_path, weight=ft.FontWeight.W_600, selectable=True, size=13, font_family="monospace"),
-                    group,
+                    ft.Row(
+                        [
+                            index_badge,
+                            ft.Text(
+                                entry.key_path,
+                                weight=ft.FontWeight.W_800,
+                                selectable=True,
+                                size=17,
+                                color=C["text"],
+                                text_align=ft.TextAlign.CENTER,
+                                expand=True,
+                            ),
+                            spacer,
+                        ],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    ),
+                    ft.Row([block1, block2], spacing=12),
                 ],
-                spacing=8,
+                spacing=12,
             ),
-            bgcolor=SURFACE,
-            border=ft.Border.all(1, BORDER),
-            border_radius=12,
-            padding=14,
+            bgcolor=C["surface"],
+            border=ft.Border.all(1, C["border"]),
+            border_radius=18,
+            padding=16,
         )
 
     def _progress_summary(self) -> str:
@@ -457,7 +659,7 @@ class View:
         if total == 0:
             return ""
         unresolved = self.controller.unresolved_count
-        return f"已顯示 {self._rendered}/{len(self._visible_entries)} 筆 · 尚有 {unresolved} 筆未選擇"
+        return f"顯示 {len(self._visible_entries)} 筆（共 {total} 筆）· 尚有 {unresolved} 筆未選擇"
 
     def _update_progress_text(self) -> None:
         self.progress_text.value = self._progress_summary()
