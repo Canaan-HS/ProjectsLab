@@ -78,7 +78,7 @@ function rename(clearStr = "", replaceStr1 = "", replaceStr2 = "") {
             if (clearRegex) newName = Name.replace(clearRegex, "").trim();
 
             // 替換字串
-            if (replaceRegex && replaceStr2) newName = newName.replace(replaceRegex, replaceStr2);
+            if (replaceRegex) newName = newName.replace(replaceRegex, replaceStr2);
 
             // 最終判斷名稱變更, 則進行重命名
             if (newName !== Name) renameFile(Path, path.join(Dir, newName));
