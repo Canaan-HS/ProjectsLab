@@ -11,15 +11,26 @@ class DiffEntry:
     value1: Any
     value2: Any
     index: int = 0
-    # 0=未選擇, 1=保留主要來源, 2=保留比較來源
+    # 0=未選擇, 1=保留主要來源, 2=保留比較來源, 3=自訂
     choice: int = field(default=0)
-    # 搜尋用：key_path + 兩邊 value 的可搜尋字串（小寫），比對時一次算好，
-    # 之後每次打字搜尋只需要子字串比對，不用重複 json.dumps。
+    custom_value: Optional[str] = field(default=None)
     search_blob: str = field(default="", repr=False)
 
 
 class JsonService:
-    """讀檔 / 展開 / 比對的純邏輯層。"""
+    """讀檔 / 展開 / 比對的純邏輯層"""
+
+    # 暫存進度檔的標記 key
+    PROGRESS_MARKER_KEY = "__diff_progress__"
+
+    @classmethod
+    def is_progress_snapshot(cls, obj: Any) -> bool:
+        """判斷 obj 是否為「保存進度」功能輸出的暫存檔格式"""
+        return (
+            isinstance(obj, dict)
+            and obj.get(cls.PROGRESS_MARKER_KEY) is True
+            and isinstance(obj.get("entries"), dict)
+        )
 
     @staticmethod
     def load_file(path: str) -> Tuple[str, str, bool]:
@@ -73,7 +84,10 @@ class JsonService:
     def compare(cls, obj1: Any, obj2: Any) -> List[DiffEntry]:
         """比對兩個物件，回傳「相同 key 路徑但 value 不同」的條目清單"""
         flat1 = cls.flatten(obj1)
-        flat2 = cls.flatten(obj2)
+        if cls.is_progress_snapshot(obj2):
+            flat2: Dict[str, Tuple[Any, bool]] = {k: (v, True) for k, v in obj2["entries"].items()}
+        else:
+            flat2 = cls.flatten(obj2)
         entries: List[DiffEntry] = []
         for p in sorted(set(flat1) & set(flat2)):
             v1, leaf1 = flat1[p]
