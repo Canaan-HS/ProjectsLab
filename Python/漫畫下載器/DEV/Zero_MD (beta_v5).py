@@ -7,18 +7,19 @@ from types import SimpleNamespace
 from multiprocessing import cpu_count
 from concurrent.futures import ProcessPoolExecutor
 
-import httpx
 import opencc
 
 from rich.console import Console
+from curl_cffi.requests import AsyncSession as async_curl
+
 from Script import capture, fetch
 
-""" Versions 1.0.0
+""" Versions 1.0.1
 
     & Zero 漫畫下載器
 
         ? (開發/運行環境):
-        * Python 3.12.10 64-bit
+        * Python 3.14.7 64-bit
         * 個人依賴庫 -> Script 資料夾內所有文件 (capture, fetch)
 
         ? 使用說明:
@@ -29,7 +30,7 @@ from Script import capture, fetch
 CONFIG = SimpleNamespace(
     **{
         "DownloadPath": "R:/",  # 路徑結尾必須為斜線
-        "RequestDomain": "https://www.zerobywai.com/",  # 域名修正: https://zerobyw.github.io/
+        "RequestDomain": "https://www.zerobyw33.com/",  # 域名修正: https://zerobyw.github.io/
     }
 )
 
@@ -43,9 +44,7 @@ class SupportVerify:
         self.twp = None
 
         escaped_domain = CONFIG.RequestDomain.replace(".", r"\.")
-        self.verify_rules = re.compile(
-            rf"{escaped_domain}(pc/manga_pc\.php\?kuid=|plugin\.php\?id=)(.*)"
-        )
+        self.verify_rules = re.compile(rf"{escaped_domain}pc/(?:details|pc2details)/\?kuid=(.*)")
 
     def verify(self, url: str) -> bool:
         if re.match(self.verify_rules, url):
@@ -69,20 +68,20 @@ class ProcessingMeta(SupportVerify):
         if self.verify(url):
             try:
                 start_time = time.time()
-                html = fetch.httpx_get(url, type="lex")
+                html = fetch.curl_get(url, type="lex")
 
                 # 取得漫畫名稱
-                name_el = re.match(self.name_rules, html.css_first("h1").text().strip())
+                name_el = re.match(self.name_rules, html.css_first("title").text().strip())
                 manga_name = self.twp.convert(name_el.group(1).strip())
 
                 # 取得漫畫連結 (預覽圖)
-                img_src = html.css_first("img").attributes.get("src")
+                img_src = html.css_first("img[src*='tupa']").attributes.get("src")
 
                 # 取得漫畫章節編號
                 manga_chapter = [
                     link.text().strip()
                     for link in html.css(
-                        """a[href*='manga_read_pc.php'], [onclick="app.showLockTip('login')"]"""
+                        """a[href*='view/index.php'], [onclick="app.showLockTip('login')"]"""
                     )[1:]
                 ]
 
@@ -100,7 +99,7 @@ class ProcessingMeta(SupportVerify):
                     style="bold",
                 )
             except Exception as e:
-                print(f"域名錯誤 , 或是伺服器問題! {e}", style="bold red")
+                print(f"域名錯誤 , 或是伺服器問題: {e}", style="bold red")
 
         return SimpleNamespace(**result)
 
@@ -128,7 +127,7 @@ class DownloadTask:
         length_range = range(1, 6)
         extension = ["jpg", "jpeg", "png", "gif", "webp", "avif"]
 
-        async with httpx.AsyncClient(http2=True, timeout=3) as client:
+        async with async_curl(timeout=3, impersonate="chrome150") as client:
 
             async def check(url, mantissa, ext):
                 try:
@@ -162,7 +161,7 @@ class DownloadTask:
 
     # 下載任務
     def _task_download(self, folder_name: str, save_path: str, url: str) -> int:
-        response = fetch.httpx_get(url, type="none")
+        response = fetch.curl_get(url, type="none")
         status = response.status_code
 
         if status == 200:
@@ -232,7 +231,7 @@ class ZeroDownloader(DownloadTask):
         elif isinstance(chapter, list):
             return chapter
         elif isinstance(chapter, int) or isinstance(chapter, str):
-            return [int(chapter)]  # 是字串的話要轉換
+            return [chapter]
         else:
             return default
 
@@ -296,6 +295,8 @@ class ZeroDownloader(DownloadTask):
 
             with ProcessPoolExecutor(max_workers=self.max_task) as executor:
                 for chapter in self._parse_chapter(config.Chapter, meta.MangaChapters):
+                    chapter = str(chapter)
+
                     folder_name, is_special = (
                         (f"{manga_folder_path}/Special-{chapter.replace('-', '~')}", True)
                         if config.Special or chapter == self.chapter_cache
