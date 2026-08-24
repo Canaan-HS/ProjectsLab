@@ -21,10 +21,10 @@ from curl_cffi.requests import exceptions, AsyncSession as CurlAsyncSession
 
 BROWSER_HEAD = {
     "Google": {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
     },
     "Edge": {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0"
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0"
     },
 }
 
@@ -59,7 +59,7 @@ class Fetch:
         # Curl Session (HTTP/3)
         # impersonate 會自動設定 UA，為了避免指紋衝突，這裡不建議手動 update headers 中的 UA
         # 但如果 cookies 需要帶入，可以在這裡設定
-        self.curl_session = curl.Session(impersonate="chrome120")
+        self.curl_session = curl.Session(impersonate="chrome150")
 
     def __merge_headers(self, headers: dict = None) -> dict:
         """
@@ -111,7 +111,7 @@ class Fetch:
             "status": lambda: self.__get_status(respon),
             "tree": lambda: etree.HTML(self.__get_text(respon)),  # 適用 XPath
             "html": lambda: html.fromstring(self.__get_text(respon)),  # 適用 CSSSelect
-            "lex": lambda: LexborHTMLParser(self.__get_text(respon), True),
+            "lex": lambda: LexborHTMLParser(self.__get_text(respon)),
             "bf": lambda: BeautifulSoup(self.__get_text(respon), "html.parser"),
         }
 
