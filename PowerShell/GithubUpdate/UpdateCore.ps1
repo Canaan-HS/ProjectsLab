@@ -41,6 +41,22 @@ GitHub 發佈快速更新
     exit 0
 }
 
+if ($MyInvocation.MyCommand.CommandType -ne "ExternalScript") {
+    $exePath = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+
+    try {
+        $bytes = [System.IO.File]::ReadAllBytes($exePath)
+        $hash = $sha256.ComputeHash($bytes)
+        $hashString = [System.BitConverter]::ToString($hash).Replace('-', '')
+
+        Write-Host "SHA-256: $hashString`n" -ForegroundColor Cyan
+    }
+    finally {
+        $sha256.Dispose()
+    }
+}
+
 if ($help) { ShowHelp }
 elseif (-not $owner -or -not $repo) {
     Write-Host "參數 -owner 和 -repo 是必需的。" -ForegroundColor Red
