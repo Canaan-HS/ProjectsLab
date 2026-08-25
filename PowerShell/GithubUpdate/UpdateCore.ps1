@@ -100,7 +100,7 @@ function ParseVersion {
 function GetDownloadInfo {
     param($assets)
 
-    $notWindowsExecutable = "(?i)linux|dos|macos|mac|apple"
+    $notWindowsExecutable = "(?i)linux|dos|mac|ios|macos|apple|android|ohos"
     $notExecutable = "(?i)sha256|checksum|checksums|hash|source|src|debug|symbols|pdb|test|tests|sh|json"
     $notX64Architecture = "(?i)win32|wow32|arm(?:64)?|aarch64|i[3-6]86|x86(?![-_]?64)|32[-_ ]?bit|mips(?:64)?|ppc(?:64)?|powerpc|sparc|riscv(?:64)?|s390x?"
 
