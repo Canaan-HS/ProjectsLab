@@ -2,6 +2,27 @@
 // 語言支援: https://docs.cloud.google.com/translate/docs/languages
 
 // 無論是短句還是長句, 翻譯效果都不錯
+
+
+const googleKey = (() => {
+    // 假設有多個 API Key
+    const keyList = [];
+
+    function* indexGenerator(length) {
+        let index = 0;
+        while (true) {
+            yield index;
+            index = (index + 1) % length;
+        }
+    }
+
+    const keyIterator = indexGenerator(keyList.length);
+
+    return {
+        generator: () => keyList[keyIterator.next().value]
+    }
+})();
+
 function googleTranslate(text, sourceLang = "auto", targetLang = "zh-TW") {
     const url = "https://translate-pa.googleapis.com/v1/translate?" + new URLSearchParams({
         "params.client": "gtx",
@@ -60,14 +81,14 @@ function googleTranslateList(textList, sourceLang = "auto", targetLang = "zh-TW"
 }
 
 googleTranslateList([
-  "apple",
-  "banana",
-  "elephant",
-  "microscope",
-  "universe",
-  "algorithm",
-  "horizon",
-  "velocity",
-  "symphony",
-  "catalyst"
+    "apple",
+    "banana",
+    "elephant",
+    "microscope",
+    "universe",
+    "algorithm",
+    "horizon",
+    "velocity",
+    "symphony",
+    "catalyst"
 ]).then(console.log);
