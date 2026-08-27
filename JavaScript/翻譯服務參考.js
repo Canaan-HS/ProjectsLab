@@ -1,9 +1,6 @@
 // 來源: https://github.com/Vendicated/Vencord/blob/main/src/plugins/translate/utils.ts
 // 語言支援: https://docs.cloud.google.com/translate/docs/languages
 
-// 無論是短句還是長句, 翻譯效果都不錯
-
-
 const googleKey = (() => {
     // 假設有多個 API Key
     const keyList = [];
@@ -23,6 +20,7 @@ const googleKey = (() => {
     }
 })();
 
+// 無論是短句還是長句, 翻譯效果都不錯
 function googleTranslate(text, sourceLang = "auto", targetLang = "zh-TW") {
     const url = "https://translate-pa.googleapis.com/v1/translate?" + new URLSearchParams({
         "params.client": "gtx",
