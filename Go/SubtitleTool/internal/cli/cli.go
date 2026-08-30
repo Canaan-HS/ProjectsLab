@@ -67,14 +67,14 @@ func Parse() (types.Options, error) {
 	var m types.Mode
 
 	switch mode {
-	case "extract":
+	case "extract", "ex":
 		m = types.Extract
-	case "remove":
+	case "remove", "re":
 		m = types.Remove
-	case "embed":
+	case "embed", "em":
 		m = types.Embed
 	default:
-		fmt.Fprintf(os.Stderr, "Error: invalid mode %q (must be extract, remove, or embed)\n", mode)
+		fmt.Fprintf(os.Stderr, "Error: invalid mode %q (must be extract/ex, remove/re, or embed/em)\n", mode)
 		fmt.Fprintln(os.Stderr)
 		fs.Usage()
 		return types.Options{}, ErrHelp
@@ -117,9 +117,9 @@ Usage:
   ` + exe + ` -mode <mode> -input <path> [options]
 
 Modes:
-  extract    Extract subtitle tracks from MKV files
-  remove     Remove subtitle tracks from MKV files
-  embed      Embed external subtitles into MKV files
+  extract, ex  Extract subtitle tracks from MKV files
+  remove,  re  Remove subtitle tracks from MKV files
+  embed,   em  Embed external subtitles into MKV files
 
 Options:
   -m, -mode <mode>        Operation mode (required)
