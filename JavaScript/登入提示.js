@@ -44,16 +44,11 @@
  * 
  * - 互動設計 (Interaction):
  *   - 可拖動: 面板頂部應作為拖動手柄，方便使用者移動。
+ *   - 可拉伸: 面板側面提供拉伸手柄，方便使用者調整大小。
  *   - 定位: 預設位置在畫面頂部、水平置中。
- *   - 點擊穿透: 面板背景應設定為 `pointer-events: none;`，
- *     而所有可互動的 UI 元素（按鈕、輸入框）則設為 `pointer-events: auto;`，
- *     確保在不操作面板時不會影響與網頁的正常互動。
  * 
  * - 主題與樣式 (Theming & Style):
  *   - 雙模式: 提供「亮色」與「暗黑」兩種預設主題。
- *   - 實現方式: 強烈建議使用 CSS 變數 (CSS Variables) 來定義顏色
- *     （如 --menu-bg, --menu-text-color）。切換主題時，只需在
- *     最外層容器上切換一個 class (如 dark-theme) 即可，高效且易於擴展。
  *
  * ---
  *
@@ -70,8 +65,9 @@
  *
  * 2. 功能設置 (Settings Tab)
  *   - 自動填入/登入 (Auto-fill/Auto-login):
- *     - 一個開關 (Switch Checkbox) 用於啟用或禁用「自動填入帳號密碼」。
- *     - 在此開關下，提供另一個開關來決定填入後是否「自動點擊登入」。
+ *     - 一個開關 (Switch Checkbox) 用於啟用或禁用「自動填入帳號密碼」(預設開啟)。
+ *     - 另一個開關來決定填入後是否「自動點擊登入」 (預設關閉)。
+ *     - 提供自訂後操作輸入框 (預設關閉)
  * 
  *   - 登入提示 (Login Prompting - UX Enhancement):
  *     - [獨立菜單]
@@ -81,12 +77,11 @@
  *
  *   - 自訂加密金鑰 (Custom Encryption Key):
  *     - 一個開關 (Switch Checkbox) 用於啟用此功能。
- *     - 啟用後，會出現一個說明文字，強調 「腳本不會以任何形式儲存你的金鑰」。
  *     - 安全機制: 啟用此功能後，將強制禁用「自動填入/登入」功能。
  *
  * 3. 進階功能 (Advanced Features)
  *   - 自訂登入操作 (Custom Login Scripts):
- *     - 提供一個文本框, 可直接使用 js 代碼, 可以載入一些第三方的, 靜態分析庫, 方便代碼編寫
+ *     - 提供一個文本框, 可直接使用 js 代碼
  *     - 目的: 應對需要額外驗證步驟（如驗證碼、兩步驟驗證）的複雜登入流程。
  *     - 安全實現:
  *       - 採用 new Function(userCode) 作為更安全的替代方案。
@@ -102,6 +97,17 @@
  *       修改 CSS 變數的值（如背景、文字顏色），並即時預覽效果。
  *   - 語言選擇 (Localization):
  *     - 一個下拉列表 (Dropdown) 用於切換介面語言。
+ * 
+ * ----- 實現功能改進 -----
+ * 
+ * 如果可以盡量不使用第三方庫來實現, 全都採用第一方庫來實現
+ * 如果對應加解密功能, 瀏覽器內建都有, 也改成內建版本
+ * 我覺得自動填入, 應該另外在設計一個, 自動提示的功能, 作為二選一操作, 自動提示是在該頁面, 跳出乾淨的提示窗口
+ * 當前的許多打印操作, 跟藉助插件菜單功能的, 之後都改成菜單版本, 或是用 css 功能等, 不過為了避免通用, 要用獨立的 shadow dom
+ * 查找對應元素功能阿, 後續自動填寫跟登入功能阿, 等等的你都應該重新幫我使用更先進的處理方式, 我以前都是根據我觀察到的來處理的, 還是很多不完善
+ * 
+ * 上面是我以前些的 UI 想法, 但是老實說, 我現在都不知道我當時要什麼, 總之你主要還是用你的方式設計, 我的話參考用就好, 要先像我確認的就問
+ * 全部確認完成再來實作
  * 
  */
 
@@ -234,27 +240,27 @@
             const save = prompt("輸入以下數據, 請確實按照順序輸入\n帳號, 密碼, 其餘操作");
             if (!save) return;
 
-            const Data = save.split(/\s*[,|/]\s*/);
-            if (Data.length > 1) {
-                const SaveBox = {};
+            const data = save.split(/\s*[,|/]\s*/);
+            if (data.length > 1) {
+                const saveBox = {};
 
                 this.saveTemplate.forEach((key, index) => {
-                    let Info = Data[index] ?? false;
+                    let info = data[index] ?? false;
 
                     if (key === "Account" || key === "Password") {
-                        Info = this.algorithm.encry(Info, `${Lib.$domain}@Default_${key}@`);
-                    } else if (key === "Autologin" && Info === "true") {
-                        Info = true;
+                        info = this.algorithm.encry(info, `${Lib.$domain}@Default_${key}@`);
+                    } else if (key === "Autologin" && info === "true") {
+                        info = true;
                     }
 
-                    SaveBox[key] = Info;
+                    saveBox[key] = info;
                 });
 
                 // 目前預設都是加密
-                SaveBox["Encrypted"] = true;
+                saveBox["Encrypted"] = true;
 
                 setTimeout(() => {
-                    Lib.setV(Lib.$domain, Object.assign({ Url: this.URL }, SaveBox));
+                    Lib.setV(Lib.$domain, Object.assign({ Url: this.URL }, saveBox));
                     this._createDeleteMenu();
                 }, 1000);
             } else {
@@ -313,8 +319,8 @@
                 "📝 添加登入資訊": () => this._saveAccount()
             })
 
-            const Info = this.loginInfo;
-            if (!Info?.Url || !this.URL.startsWith(Info.Url)) return;
+            const info = this.loginInfo;
+            if (!info?.Url || !this.URL.startsWith(info.Url)) return;
 
             this._createDeleteMenu();
 
