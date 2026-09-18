@@ -14,10 +14,10 @@ from curl_cffi.requests import exceptions, AsyncSession as CurlAsyncSession
 
 BROWSER_HEAD = {
     "Google": {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
     },
     "Edge": {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 Edg/151.0.0.0"
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/151.0.0.0"
     },
 }
 
@@ -41,7 +41,7 @@ class Fetch:
         self.cookies = cookies
 
         # HTTPX Client (HTTP/2)
-        self.client = httpx.Client(http2=True)
+        self.client = httpx.Client(http2=True, follow_redirects=True)
 
         # Curl Session (HTTP/3)
         # impersonate 會自動設定 UA，為了避免指紋衝突，這裡不建議手動 update headers 中的 UA
