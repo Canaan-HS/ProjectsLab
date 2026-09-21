@@ -1,7 +1,7 @@
 from typing import Any
 from types import SimpleNamespace
 
-import httpx
+import httpx2
 
 from lxml import html, etree
 from curl_cffi import requests as curl
@@ -41,7 +41,7 @@ class Fetch:
         self.cookies = cookies
 
         # HTTPX Client (HTTP/2)
-        self.client = httpx.Client(http2=True, follow_redirects=True)
+        self.client = httpx2.Client(http2=True, follow_redirects=True)
 
         # Curl Session (HTTP/3)
         # impersonate 會自動設定 UA，為了避免指紋衝突，這裡不建議手動 update headers 中的 UA
@@ -123,7 +123,7 @@ class Fetch:
                 ),
                 "status",
             )
-        except httpx.TimeoutException:
+        except httpx2.TimeoutException:
             return 408
         except Exception as e:
             # print(f"Request Error: {e}")
@@ -149,7 +149,7 @@ class Fetch:
                 ),
                 type,
             )
-        except httpx.TimeoutException:
+        except httpx2.TimeoutException:
             return SimpleNamespace(text="Request Timeout", status_code=408)
         except Exception as e:
             return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
@@ -204,7 +204,7 @@ class Fetch:
     async def async_httpx_get(
         self,
         url: str,
-        client: httpx.AsyncClient = None,
+        client: httpx2.AsyncClient = None,
         headers: dict = None,
         cookies: dict = None,
         type: str = "text",
@@ -213,10 +213,10 @@ class Fetch:
         >>> type: "none" | "text" | "content" | "status" | "tree" | "html" | "lex"
 
         >>> Example:
-        import httpx
+        import httpx2
 
         async def main():
-            async with httpx.AsyncClient(http2=True) as client:
+            async with httpx2.AsyncClient(http2=True) as client:
                 result = await fetch.async_http2_get("https://example.com", client=client)
         """
 
@@ -237,9 +237,9 @@ class Fetch:
                 return await _do_request(client)
             else:
                 # 沒傳 client 會導致無法複用連接，大量請求時速度會慢
-                async with httpx.AsyncClient(http2=True) as ac:
+                async with httpx2.AsyncClient(http2=True) as ac:
                     return await _do_request(ac)
-        except httpx.TimeoutException:
+        except httpx2.TimeoutException:
             return SimpleNamespace(text="Async H2 Timeout", status_code=408)
         except Exception as e:
             return SimpleNamespace(text=f"Async H2 Error: {e}", status_code=-1)
@@ -291,5 +291,5 @@ class Fetch:
 fetch = Fetch()
 
 if __name__ == "__main__":
-    response = fetch.curl_get("https://example.com")
+    response = fetch.httpx_get("https://example.com")
     print(response)
