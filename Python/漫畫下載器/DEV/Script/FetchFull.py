@@ -122,24 +122,20 @@ class Fetch:
             return respon
 
     @staticmethod
-    def ElapsedTime(func):
-        """
-        裝飾器: 測試請求運行耗時
-        """
-
+    def __elapsed_time(func):
         def wrapper(self, *args, **kwargs):
             start_time = time.perf_counter()
             result = func(self, *args, **kwargs)
             end_time = time.perf_counter()
             url = args[0] if args else kwargs.get("url", "Unknown URL")
-            print(f"[{func.__name__}] 耗時: {end_time - start_time:.4f} 秒 | URL: {url}")
+            print(f"[{func.__name__.upper()}] {url}\n耗時: {end_time - start_time:.4f} 秒\n")
             return result
 
         return wrapper if __name__ == "__main__" else func
 
     # ================= 同步請求 =================
 
-    @ElapsedTime
+    @__elapsed_time
     def req_head(self, url: str, headers: dict = None, cookies: dict = None) -> int:
         """
         HEAD 請求，回傳狀態碼
@@ -160,7 +156,7 @@ class Fetch:
             # print(f"Request Error: {e}")
             return -1
 
-    @ElapsedTime
+    @__elapsed_time
     def req_get(
         self,
         url: str,
@@ -187,7 +183,7 @@ class Fetch:
         except Exception as e:
             return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
 
-    @ElapsedTime
+    @__elapsed_time
     def niq_head(self, url: str, headers: dict = None, cookies: dict = None) -> int:
         """
         HEAD 請求，回傳狀態碼
@@ -208,7 +204,7 @@ class Fetch:
             # print(f"Request Error: {e}")
             return -1
 
-    @ElapsedTime
+    @__elapsed_time
     def niq_get(
         self,
         url: str,
@@ -235,7 +231,7 @@ class Fetch:
         except Exception as e:
             return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
 
-    @ElapsedTime
+    @__elapsed_time
     def httpx_head(self, url: str, headers: dict = None, cookies: dict = None) -> int:
         """
         HTTP/2 HEAD 請求，回傳狀態碼
@@ -256,7 +252,7 @@ class Fetch:
             # print(f"Request Error: {e}")
             return -1
 
-    @ElapsedTime
+    @__elapsed_time
     def httpx_get(
         self,
         url: str,
@@ -282,7 +278,7 @@ class Fetch:
         except Exception as e:
             return SimpleNamespace(text=f"Request Error: {e}", status_code=-1)
 
-    @ElapsedTime
+    @__elapsed_time
     def curl_head(self, url: str, headers: dict = None, cookies: dict = None) -> int:
         """
         HTTP/3 HEAD 請求，回傳狀態碼
@@ -303,7 +299,7 @@ class Fetch:
             # print(f"Request Error: {e}")
             return -1
 
-    @ElapsedTime
+    @__elapsed_time
     def curl_get(
         self,
         url: str,
