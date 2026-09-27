@@ -128,9 +128,9 @@ class Fetch:
         """
 
         def wrapper(self, *args, **kwargs):
-            start_time = time.time()
+            start_time = time.perf_counter()
             result = func(self, *args, **kwargs)
-            end_time = time.time()
+            end_time = time.perf_counter()
             url = args[0] if args else kwargs.get("url", "Unknown URL")
             print(f"[{func.__name__}] 耗時: {end_time - start_time:.4f} 秒 | URL: {url}")
             return result
