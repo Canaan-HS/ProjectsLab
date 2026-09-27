@@ -49,7 +49,7 @@ $Package = @(
     <# Web 請求與 HTTP - HTTP 通訊與基礎請求處理 #>
     "requests" # 傳統同步 HTTP，易用但不支援 HTTP/2/3，不適合大量請求
     "requests_toolbelt" # requests 的擴充套件，提供 multipart、流式上傳等
-    "httpx[http2]" # 現代 HTTP 客戶端，支援 async / HTTP/2 / proxy / 連接池
+    "httpx2[http2]" # 現代 HTTP 客戶端，支援 async / HTTP/2 / proxy / 連接池
     "curl_cffi" # 基於 libcurl，支援 HTTP/3 與指紋模擬（impersonate）
     "niquests" # 支援 HTTP/3 的 Python 原生實作，適合長連線或持久連接
 
