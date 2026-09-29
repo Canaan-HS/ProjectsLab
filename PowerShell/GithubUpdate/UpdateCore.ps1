@@ -200,8 +200,16 @@ function DownloadAsset {
     Write-Host "目標位置: $filePath"
     Write-Host "下載網址: $url"
 
-    Invoke-WebRequest -Uri $url -OutFile $filePath
+    try {
+        Invoke-WebRequest -Uri $url -OutFile $filePath
+    }
+    catch {
+        Write-Host "下載失敗: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+
     Write-Host "下載完成: $($asset.name)"
+    return $true
 }
 
 function SendRequest {
@@ -236,8 +244,19 @@ function SendRequest {
 
         if ($downloadInfo) {
             Write-Host "版本更新為 $($response.tag_name)"
-            foreach ($asset in $downloadInfo) { DownloadAsset -asset $asset }
-            SetVersion $response.tag_name
+
+            $failed = @()
+            foreach ($asset in $downloadInfo) {
+                if (-not (DownloadAsset -asset $asset)) { $failed += $asset.name }
+            }
+
+            if ($failed.Count -eq 0) {
+                SetVersion $response.tag_name
+            }
+            else {
+                Write-Host "有 $($failed.Count) 個資產下載失敗，版本記錄未更新，下次執行會重新嘗試：" -ForegroundColor Red
+                foreach ($name in $failed) { Write-Host "  - $name" -ForegroundColor Red }
+            }
         }
         else {
             Write-Host "未找到適合下載的資產。請檢查倉庫的發布頁面以確保有適合 Windows 的資產，或使用 -asset_name 參數指定資產名稱。" -ForegroundColor Yellow
