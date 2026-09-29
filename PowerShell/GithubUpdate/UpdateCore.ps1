@@ -24,7 +24,7 @@ param (
 function ShowHelp {
     Write-Host @"
 
-GitHub 發佈快速更新
+GitHub Asset Update Tool
 
 使用:
   gau.exe <GitHub 網址> [選項]
@@ -57,14 +57,14 @@ if ($MyInvocation.MyCommand.CommandType -ne "ExternalScript") {
         $hash = $sha256.ComputeHash($bytes)
         $hashString = [System.BitConverter]::ToString($hash).Replace('-', '')
 
-        Write-Host "SHA-256: $hashString`n" -ForegroundColor Cyan
+        Write-Host "Hash: $($hashString.Substring(0, 32))`n" -ForegroundColor Cyan
     }
     finally {
         $sha256.Dispose()
     }
 }
 
-if ($help) { ShowHelp }
+if ($help -or $PSBoundParameters.Count -eq 0) { ShowHelp }
 
 if ($url -match '(?i)^https://github\.com/([^/]+)/([^/]+)') {
     $owner = $matches[1]
