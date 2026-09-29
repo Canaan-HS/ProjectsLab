@@ -1,4 +1,8 @@
 param (
+    [Parameter(Position = 0)]
+    [Alias("u")]
+    [string]$url = "",
+
     [Alias("o")]
     [string]$owner = "",
 
@@ -23,9 +27,11 @@ function ShowHelp {
 GitHub 發佈快速更新
 
 使用:
-  gau.exe [選項]
+  gau.exe <GitHub 網址> [選項]
+  gau.exe -o <owner> -r <repo> [選項]
 
 選項:
+  -u, -url <url>                 https://github.com/owner/repo
   -o, -owner <name>              GitHub owner
   -r, -repo <name>               GitHub repository
   -a, -asset_name <name>         Asset name keyword
@@ -33,6 +39,7 @@ GitHub 發佈快速更新
   -h, -help                      Show this help
 
 範例:
+  gau https://github.com/owner/repo
   gau -o user -r app
   gau -o user -r app -a "software_x64_portable.exe"
   gau -o user -r app -e "debug,source"
@@ -58,8 +65,14 @@ if ($MyInvocation.MyCommand.CommandType -ne "ExternalScript") {
 }
 
 if ($help) { ShowHelp }
-elseif (-not $owner -or -not $repo) {
-    Write-Host "參數 -owner 和 -repo 是必需的。" -ForegroundColor Red
+
+if ($url -match '(?i)^https://github\.com/([^/]+)/([^/]+)') {
+    $owner = $matches[1]
+    $repo = $matches[2]
+}
+
+if (-not $owner -or -not $repo) {
+    Write-Host "參數 -owner 和 -repo 是必需的" -ForegroundColor Red
     ShowHelp
 }
 
