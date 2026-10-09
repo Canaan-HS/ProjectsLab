@@ -197,7 +197,7 @@ function DownloadAsset {
     $filePath = Join-Path $callPath $asset.name
 
     Write-Host "下載資產: $($asset.name)"
-    Write-Host "目標位置: $filePath"
+    Write-Host "下載位置: $filePath"
     Write-Host "下載網址: $url"
 
     try {
@@ -243,7 +243,7 @@ function SendRequest {
         $downloadInfo = GetDownloadInfo -assets $response.assets
 
         if ($downloadInfo) {
-            Write-Host "版本更新為 $($response.tag_name)"
+            Write-Host "下載版本: $($response.tag_name)"
 
             $failed = @()
             foreach ($asset in $downloadInfo) {
