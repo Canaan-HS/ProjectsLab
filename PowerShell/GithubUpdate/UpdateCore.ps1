@@ -18,6 +18,9 @@ param (
     [Alias("ae")]
     [switch]$auto_extract = $null,
 
+    [Alias("ni")]
+    [switch]$no_idm = $null,
+
     [Alias("h")]
     [switch]$help
 )
@@ -40,6 +43,7 @@ GitHub Asset Update Tool
   -a, -asset_name <name>         Asset name keyword
   -e, -exclude_patterns <list>   Exclude patterns (comma separated)
   -ae, -auto_extract             Auto extract downloaded archive
+  -ni, -no_idm                   停用 IDM 偵測，強制使用內建下載器
   -h, -help                      Show this help
 
 範例:
@@ -87,6 +91,25 @@ $callPath = (Get-Location).Path
 $versionRecordTemplate = "! Version - $repo - {0}"
 $prefix = $versionRecordTemplate -replace '\{0\}', ''
 $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+
+# IDM 偵測
+function GetIdmPath {
+    # 1) IDM 自己寫入的 registry
+    $v = (Get-ItemProperty 'HKCU:\Software\DownloadManager' -ErrorAction SilentlyContinue).ExePath
+    if ($v -and (Test-Path $v)) { return $v }
+
+    # 2) 預設安裝路徑
+    foreach ($p in @(
+            "${env:ProgramFiles(x86)}\Internet Download Manager\IDMan.exe",
+            "$env:ProgramFiles\Internet Download Manager\IDMan.exe"
+        )) {
+        if ($p -and (Test-Path $p)) { return $p }
+    }
+
+    return $null
+}
+
+$idmExe = GetIdmPath
 
 # 取得版本文件
 $versionFile = Get-ChildItem -Path $callPath -File -Filter "$prefix*" |
@@ -248,6 +271,208 @@ function AutoExtract {
     return $true
 }
 
+function InvokeIdmDownload {
+    param($asset, [string]$filePath)
+
+    $url = $asset.browser_download_url
+    $assetName = $asset.name
+
+    # 呼叫前 IDM 是否已在執行（決定能否用 /q 與進程監控）
+    $idmWasRunning = [bool](Get-Process IDMan -ErrorAction SilentlyContinue)
+
+    # 呼叫前快照 registry 最大下載 ID（用來識別新下載 失敗則退回純檔案輪詢）
+    $idmRegBase = 'HKCU:\Software\DownloadManager'
+    $maxIdBefore = 0
+    try {
+        $mv = Get-ItemProperty "$idmRegBase\maxID" -ErrorAction SilentlyContinue
+        if ($mv -and $mv.maxID) { $maxIdBefore = [int]$mv.maxID }
+    }
+    catch { $maxIdBefore = 0 }
+
+    # /n：靜默模式，不跳對話框直接開始下載
+    # /q：只在我們自己啟動 IDM 時加（官方註明只在第一個 copy 有效），下載完成後 IDM 退出
+    # 參數以單一字串傳入（自行加引號），確保 5.1/7.x 行為一致
+    $idmArgs = "/n /d `"$url`" /p `"$callPath`" /f `"$($asset.name)`""
+    if (-not $idmWasRunning) { $idmArgs += ' /q' }
+
+    try {
+        Start-Process -FilePath $idmExe -ArgumentList $idmArgs -ErrorAction Stop | Out-Null
+    }
+    catch {
+        Write-Host "呼叫 IDM 失敗: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+
+    # 等待完成（1 秒輪詢）
+    # 進度來源：IDM registry 的 Downloaded/FileSize/Speed（讀不到時顯示純文字）
+    # 狀態原文：1=下載中、2=暫停/停止、3=完成（IDM 6.43 實測）
+    $expectedSize = 0
+    if ($asset.size -and $asset.size -gt 0) { $expectedSize = [long]$asset.size }
+
+    $timeout = [TimeSpan]::FromMinutes(30)
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $lastSize = -1
+    $stableCount = 0
+
+    $regEntryId = $null      # 鎖定後 IDM registry 的 key
+    $regSearchTimeout = 20   # 找不到對應 key 就放棄監看（退回純檔案輪詢）
+    $stoppedCount = 0        # Status=2（暫停/停止）連續次數
+    $goneCount = 0           # 對應 key 從 registry 消失的連續次數
+    $progressShown = $false
+
+    [Console]::Write("`rIDM 下載中 ...")
+    $progressShown = $true
+
+    while ($true) {
+        Start-Sleep -Seconds 1
+
+        # --- 檔案大小（成功判定的最終依據）---
+        $size = -1
+        if (Test-Path $filePath) {
+            $item = Get-Item $filePath -ErrorAction SilentlyContinue
+            if ($item) { $size = $item.Length }
+        }
+
+        if ($size -eq $lastSize) { $stableCount++ } else { $stableCount = 0; $lastSize = $size }
+
+        # 完成判定
+        if ($size -gt 0) {
+            if ($expectedSize -gt 0) {
+                if ($size -ge $expectedSize) {
+                    if ($progressShown) { Write-Host "" }
+                    Write-Host "IDM 下載完成: $assetName"
+                    return $true
+                }
+            }
+            elseif ($stableCount -ge 6) {
+                if ($progressShown) { Write-Host "" }
+                Write-Host "IDM 下載完成: $assetName"
+                return $true
+            }
+        }
+
+        # --- IDM registry 狀態監看 ---
+        $regStatus = $null; $regDl = $null; $regFs = $null; $regSpeed = $null
+
+        # 搜尋 ID 大於快照、且 Url0 或 Host+檔名 相符
+        if (-not $regEntryId -and $maxIdBefore -gt 0 -and $stopwatch.Elapsed.TotalSeconds -le $regSearchTimeout) {
+            try {
+                $cands = @(Get-ChildItem $idmRegBase -ErrorAction SilentlyContinue |
+                    Where-Object { $_.PSChildName -match '^\d+$' -and [int]$_.PSChildName -gt $maxIdBefore } |
+                    Sort-Object { [int]$_.PSChildName })
+                foreach ($cand in $cands) {
+                    $cv = Get-ItemProperty $cand.PSPath -ErrorAction SilentlyContinue
+                    if (-not $cv) { continue }
+                    $isOurs = $false
+                    if ($cv.Url0 -and $cv.Url0 -eq $url) { $isOurs = $true }
+                    else {
+                        try {
+                            $u = [Uri]$url
+                            $leaf = [System.IO.Path]::GetFileName($u.AbsolutePath)
+                            if ($leaf -and $cv.Host -eq $u.Host -and $cv.FileName -eq $leaf) { $isOurs = $true }
+                        }
+                        catch {}
+                    }
+                    if ($isOurs) { $regEntryId = $cand.PSChildName; break }
+                }
+            }
+            catch {}
+        }
+
+        if ($regEntryId) {
+            $ev = Get-ItemProperty "$idmRegBase\$regEntryId" -ErrorAction SilentlyContinue
+            if ($ev) {
+                $goneCount = 0
+                $regStatus = $ev.Status
+                if ($null -ne $ev.Downloaded) { try { $regDl = [BitConverter]::ToInt64([byte[]]$ev.Downloaded, 0) } catch {} }
+                if ($null -ne $ev.FileSize) { try { $regFs = [BitConverter]::ToInt64([byte[]]$ev.FileSize, 0) } catch {} }
+                if ($null -ne $ev.Speed) { $regSpeed = $ev.Speed }
+
+                # 快速失敗：使用者暫停/停止下載（Status=2）
+                if ($regStatus -eq 2) { $stoppedCount++ } else { $stoppedCount = 0 }
+                if ($stoppedCount -ge 2) {
+                    # 再確認一次（防瞬態，例如暫停後立刻續傳）
+                    Start-Sleep -Seconds 1
+                    $ev2 = Get-ItemProperty "$idmRegBase\$regEntryId" -ErrorAction SilentlyContinue
+                    if ($ev2 -and $ev2.Status -eq 2) {
+                        if ($size -gt 0 -and $expectedSize -gt 0 -and $size -ge $expectedSize) {
+                            if ($progressShown) { Write-Host "" }
+                            Write-Host "IDM 下載完成: $assetName"
+                            return $true
+                        }
+                        if ($progressShown) { Write-Host "" }
+                        Write-Host "IDM 下載已暫停/停止，視為失敗。" -ForegroundColor Red
+                        return $false
+                    }
+                    $stoppedCount = 0
+                }
+            }
+            else {
+                # 快速失敗：項目從清單被移除（取消/刪除）
+                $goneCount++
+                if ($goneCount -ge 2) {
+                    if ($size -gt 0 -and $expectedSize -gt 0 -and $size -ge $expectedSize) {
+                        if ($progressShown) { Write-Host "" }
+                        Write-Host "IDM 下載完成: $assetName"
+                        return $true
+                    }
+                    if ($progressShown) { Write-Host "" }
+                    Write-Host "IDM 下載項目已從清單移除（可能已取消），視為失敗。" -ForegroundColor Red
+                    return $false
+                }
+            }
+        }
+
+        # --- 進度列 ---
+        if ($null -ne $regDl) {
+            $speedMb = 0.0
+            if ($null -ne $regSpeed -and $regSpeed -gt 0) { $speedMb = $regSpeed / 1MB }
+            if ($null -ne $regFs -and $regFs -gt 0) {
+                $pct = [Math]::Min(100.0, $regDl * 100.0 / $regFs)
+                $line = "IDM 下載中: {0,7:N1} MB / {1,7:N1} MB ({2,5:N1}%) {3,6:N1} MB/s" -f ($regDl / 1MB), ($regFs / 1MB), $pct, $speedMb
+            }
+            else {
+                $line = "IDM 下載中: {0,7:N1} MB {1,6:N1} MB/s" -f ($regDl / 1MB), $speedMb
+            }
+        }
+        else {
+            $line = "IDM 下載中 ..."
+        }
+        [Console]::Write("`r" + $line + "    ")
+
+        # --- 案例 A： IDM 整個消失且檔案不完整 → 快速視為失敗 ---
+        # （idman.exe 只是 launcher stub，真正主體是另一個進程，所以檢查整個 IDM）
+        # 啟動後前 10 秒不判定，避免 stub/主體交接的空窗期
+        if (-not $idmWasRunning -and $stopwatch.Elapsed.TotalSeconds -ge 10 -and
+            -not (Get-Process IDMan -ErrorAction SilentlyContinue)) {
+
+            # 給最終檔案落地一點時間，再確認一次
+            Start-Sleep -Seconds 1
+            $finalSize = -1
+            if (Test-Path $filePath) {
+                $finalItem = Get-Item $filePath -ErrorAction SilentlyContinue
+                if ($finalItem) { $finalSize = $finalItem.Length }
+            }
+
+            if ($finalSize -gt 0 -and ($expectedSize -le 0 -or $finalSize -ge $expectedSize)) {
+                if ($progressShown) { Write-Host "" }
+                Write-Host "IDM 下載完成: $assetName"
+                return $true
+            }
+
+            if ($progressShown) { Write-Host "" }
+            Write-Host "IDM 已結束但檔案不完整（可能取消或失敗）。" -ForegroundColor Red
+            return $false
+        }
+
+        if ($stopwatch.Elapsed -ge $timeout) {
+            if ($progressShown) { Write-Host "" }
+            Write-Host "等待 IDM 下載逾時（30 分鐘），視為失敗。" -ForegroundColor Red
+            return $false
+        }
+    }
+}
+
 function DownloadAsset {
     param($asset)
 
@@ -257,6 +482,15 @@ function DownloadAsset {
     Write-Host "下載資產: $($asset.name)"
     Write-Host "下載位置: $filePath"
     Write-Host "下載網址: $url"
+
+    # 有 IDM 且未停用 → 交由 IDM 下載（不跑內部進度列）
+    if ($idmExe -and -not $no_idm) {
+        $ok = InvokeIdmDownload -asset $asset -filePath $filePath
+
+        if ($ok -and $auto_extract) { AutoExtract -filePath $filePath | Out-Null }
+
+        return $ok
+    }
 
     try {
         $request = [System.Net.WebRequest]::Create($url)
