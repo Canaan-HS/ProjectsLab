@@ -15,6 +15,9 @@ param (
     [Alias("e")]
     [string]$exclude_patterns = $null,
 
+    [Alias("ae")]
+    [switch]$auto_extract = $null,
+
     [Alias("h")]
     [switch]$help
 )
@@ -36,6 +39,7 @@ GitHub Asset Update Tool
   -r, -repo <name>               GitHub repository
   -a, -asset_name <name>         Asset name keyword
   -e, -exclude_patterns <list>   Exclude patterns (comma separated)
+  -ae, -auto_extract             Auto extract downloaded archive
   -h, -help                      Show this help
 
 範例:
@@ -191,6 +195,59 @@ function GetDownloadInfo {
     return $windowsAsset
 }
 
+function AutoExtract {
+    param([string]$filePath)
+
+    # 可解壓的封存檔副檔名（最長後綴優先、忽略大小寫）
+    $archiveExtensions = @(
+        '.tar.gz', '.tar.xz', '.tar.bz2', '.tar.zst',
+        '.tgz', '.txz', '.tbz2', '.tzst',
+        '.zip', '.7z', '.rar', '.tar'
+    )
+
+    $name = [System.IO.Path]::GetFileName($filePath)
+    $lowerName = $name.ToLowerInvariant()
+
+    $extension = $archiveExtensions | Where-Object { $lowerName.EndsWith($_) } | Select-Object -First 1
+    if (-not $extension) { return $true }
+
+    Write-Host "解壓中: $name"
+
+    $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
+    $destination = [System.IO.Path]::GetDirectoryName($filePath)
+
+    try {
+        # bsdtar 解壓時直接覆蓋同名檔案；檔案被鎖定等錯誤以 exit code 回報
+        $output = & $tar -xf $filePath -C $destination 2>&1
+        $exitCode = $LASTEXITCODE
+    }
+    catch {
+        $output = @($_.Exception.Message)
+        $exitCode = -1
+    }
+
+    if ($exitCode -ne 0) {
+        Write-Host "解壓失敗: $name（壓縮檔已保留）" -ForegroundColor Red
+        foreach ($line in $output) {
+            $text = "$line".Trim()
+            if ($text) { Write-Host "  $text" -ForegroundColor Red }
+        }
+        return $false
+    }
+
+    Write-Host "解壓完成: $name"
+
+    try {
+        Remove-Item -Path $filePath -Force -ErrorAction Stop
+        Write-Host "已移除壓縮檔: $name"
+    }
+    catch {
+        Write-Host "無法移除壓縮檔: $name" -ForegroundColor Yellow
+    }
+
+    return $true
+}
+
 function DownloadAsset {
     param($asset)
 
@@ -264,6 +321,9 @@ function DownloadAsset {
     }
 
     Write-Host "下載完成: $($asset.name)"
+
+    if ($auto_extract) { AutoExtract -filePath $filePath | Out-Null }
+
     return $true
 }
 
