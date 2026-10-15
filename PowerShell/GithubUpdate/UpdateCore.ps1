@@ -82,6 +82,7 @@ $callPath = (Get-Location).Path
 
 $versionRecordTemplate = "! Version - $repo - {0}"
 $prefix = $versionRecordTemplate -replace '\{0\}', ''
+$userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
 
 # 取得版本文件
 $versionFile = Get-ChildItem -Path $callPath -File -Filter "$prefix*" |
@@ -201,10 +202,64 @@ function DownloadAsset {
     Write-Host "下載網址: $url"
 
     try {
-        Invoke-WebRequest -Uri $url -OutFile $filePath
+        $request = [System.Net.WebRequest]::Create($url)
+        $request.UserAgent = $userAgent
+        $response = $request.GetResponse()
+        $stream = $response.GetResponseStream()
+
+        # 大小優先取 GitHub API 的 size，備援用 HTTP Content-Length
+        $total = $asset.size
+        if (-not $total -or $total -le 0) { $total = $response.ContentLength }
+
+        $fileStream = [System.IO.File]::Create($filePath)
+        $buffer = [byte[]]::new(1MB)
+        $readTotal = 0
+        $lastPercent = -1
+
+        # ps2exe 主控台模式不支援 Write-Progress
+        if ($total -gt 0) {
+            Write-Host ("`r下載中: 0.0 MB / {0:N1} MB (0%)" -f ($total / 1MB)) -NoNewline
+        }
+        else {
+            Write-Host "`r下載中: 0.0 MB" -NoNewline
+        }
+        $progressShown = $true
+
+        while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            $fileStream.Write($buffer, 0, $read)
+            $readTotal += $read
+
+            if ($total -gt 0) {
+                # 每跨過 1% 才更新一次
+                $percent = [int]($readTotal * 100 / $total)
+                if ($percent -gt $lastPercent) {
+                    $lastPercent = $percent
+                    Write-Host ("`r下載中: {0:N1} MB / {1:N1} MB ({2}%)" -f ($readTotal / 1MB), ($total / 1MB), [Math]::Min(100, $percent)) -NoNewline
+                }
+            }
+            else {
+                Write-Host ("`r下載中: {0:N1} MB" -f ($readTotal / 1MB)) -NoNewline
+            }
+        }
+
+        $ok = $true
     }
     catch {
-        Write-Host "下載失敗: $($_.Exception.Message)" -ForegroundColor Red
+        $errMsg = $_.Exception.GetBaseException().Message
+    }
+    finally {
+        if ($fileStream) { $fileStream.Dispose() }
+        if ($stream) { $stream.Dispose() }
+        if ($response) { $response.Dispose() }
+
+        # 結束進度列，避免後續訊息接在同一行
+        if ($progressShown) { Write-Host "" }
+
+        if (-not $ok -and (Test-Path $filePath)) { Remove-Item $filePath -Force }
+    }
+
+    if (-not $ok) {
+        Write-Host "下載失敗: $errMsg" -ForegroundColor Red
         return $false
     }
 
@@ -213,9 +268,7 @@ function DownloadAsset {
 }
 
 function SendRequest {
-    $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$owner/$repo/releases/latest" -Headers @{
-        "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
-    }
+    $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$owner/$repo/releases/latest" -Headers @{ "User-Agent" = $userAgent }
 
     # ? 測試用
     # GetDownloadInfo -assets $response.assets | ForEach-Object { write-host $_.name }
