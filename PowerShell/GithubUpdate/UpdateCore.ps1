@@ -154,7 +154,7 @@ function GetDownloadInfo {
     }
 
     # ! 塞選條件以我個人使用為主, 並非通用性
-    # 自動查找常見 windows x64 資產
+    # 自動查找常見 windows x64 資產（只取分數最高的一個）
     $windowsAsset = $assets |
     ForEach-Object {
         $name = $_.name
@@ -185,7 +185,7 @@ function GetDownloadInfo {
         }
     } |
     Sort-Object Score -Descending |
-    Select-Object -ExpandProperty Asset
+    Select-Object -First 1 -ExpandProperty Asset
 
     return $windowsAsset
 }
