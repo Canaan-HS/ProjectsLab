@@ -303,7 +303,6 @@ function InvokeIdmDownload {
         return $false
     }
 
-    # 等待完成（1 秒輪詢）
     # 進度來源：IDM registry 的 Downloaded/FileSize/Speed（讀不到時顯示純文字）
     # 狀態原文：1=下載中、2=暫停/停止、3=完成（IDM 6.43 實測）
     $expectedSize = 0
@@ -316,15 +315,44 @@ function InvokeIdmDownload {
 
     $regEntryId = $null      # 鎖定後 IDM registry 的 key
     $regSearchTimeout = 20   # 找不到對應 key 就放棄監看（退回純檔案輪詢）
+    $pollMs = 500            # 輪詢間隔（毫秒）
+    $stableLimit = [int][Math]::Ceiling(6000 / $pollMs)  # 大小不變達 6 秒視為完成（無 size 時）
     $stoppedCount = 0        # Status=2（暫停/停止）連續次數
     $goneCount = 0           # 對應 key 從 registry 消失的連續次數
     $progressShown = $false
+    $lastPct = -1.0          # 已顯示的最大百分比（避免重連時倒退）
+
+    # 進度列輸出
+    function Write-IdmLine {
+        param([long]$Downloaded, [long]$Total, [double]$Pct, [double]$SpeedMb)
+
+        if ($Total -gt 0) {
+            $line = "IDM 下載中: {0,7:N1} MB / {1,7:N1} MB ({2,5:N1}%) {3,6:N1} MB/s" -f `
+                ($Downloaded / 1MB), ($Total / 1MB), $Pct, $SpeedMb
+        }
+        else {
+            $line = "IDM 下載中: {0,7:N1} MB {1,6:N1} MB/s" -f ($Downloaded / 1MB), $SpeedMb
+        }
+        [Console]::Write("`r" + $line + "    ")
+    }
+
+    # 完成收尾：強制補畫一幀 100% 再印完成訊息
+    function Complete-IdmDownload {
+        param([string]$AssetName, [long]$Total, [long]$Downloaded)
+
+        if ($Total -le 0) { $Total = [Math]::Max($Downloaded, 1) }
+        if ($Downloaded -le 0) { $Downloaded = $Total }
+
+        Write-IdmLine -Downloaded $Downloaded -Total $Total -Pct 100 -SpeedMb 0
+        Write-Host ""
+        Write-Host "IDM 下載完成: $AssetName"
+    }
 
     [Console]::Write("`rIDM 下載中 ...")
     $progressShown = $true
 
     while ($true) {
-        Start-Sleep -Seconds 1
+        $cycleSw = [System.Diagnostics.Stopwatch]::StartNew()
 
         # --- 檔案大小（成功判定的最終依據）---
         $size = -1
@@ -339,14 +367,12 @@ function InvokeIdmDownload {
         if ($size -gt 0) {
             if ($expectedSize -gt 0) {
                 if ($size -ge $expectedSize) {
-                    if ($progressShown) { Write-Host "" }
-                    Write-Host "IDM 下載完成: $assetName"
+                    Complete-IdmDownload -AssetName $assetName -Total ([Math]::Max($expectedSize, $size))
                     return $true
                 }
             }
-            elseif ($stableCount -ge 6) {
-                if ($progressShown) { Write-Host "" }
-                Write-Host "IDM 下載完成: $assetName"
+            elseif ($stableCount -ge $stableLimit) {
+                Complete-IdmDownload -AssetName $assetName -Total $size
                 return $true
             }
         }
@@ -392,12 +418,11 @@ function InvokeIdmDownload {
                 if ($regStatus -eq 2) { $stoppedCount++ } else { $stoppedCount = 0 }
                 if ($stoppedCount -ge 2) {
                     # 再確認一次（防瞬態，例如暫停後立刻續傳）
-                    Start-Sleep -Seconds 1
+                    Start-Sleep -Milliseconds $pollMs
                     $ev2 = Get-ItemProperty "$idmRegBase\$regEntryId" -ErrorAction SilentlyContinue
                     if ($ev2 -and $ev2.Status -eq 2) {
                         if ($size -gt 0 -and $expectedSize -gt 0 -and $size -ge $expectedSize) {
-                            if ($progressShown) { Write-Host "" }
-                            Write-Host "IDM 下載完成: $assetName"
+                            Complete-IdmDownload -AssetName $assetName -Total ([Math]::Max($expectedSize, $size))
                             return $true
                         }
                         if ($progressShown) { Write-Host "" }
@@ -412,8 +437,7 @@ function InvokeIdmDownload {
                 $goneCount++
                 if ($goneCount -ge 2) {
                     if ($size -gt 0 -and $expectedSize -gt 0 -and $size -ge $expectedSize) {
-                        if ($progressShown) { Write-Host "" }
-                        Write-Host "IDM 下載完成: $assetName"
+                        Complete-IdmDownload -AssetName $assetName -Total ([Math]::Max($expectedSize, $size))
                         return $true
                     }
                     if ($progressShown) { Write-Host "" }
@@ -427,18 +451,25 @@ function InvokeIdmDownload {
         if ($null -ne $regDl) {
             $speedMb = 0.0
             if ($null -ne $regSpeed -and $regSpeed -gt 0) { $speedMb = $regSpeed / 1MB }
-            if ($null -ne $regFs -and $regFs -gt 0) {
-                $pct = [Math]::Min(100.0, $regDl * 100.0 / $regFs)
-                $line = "IDM 下載中: {0,7:N1} MB / {1,7:N1} MB ({2,5:N1}%) {3,6:N1} MB/s" -f ($regDl / 1MB), ($regFs / 1MB), $pct, $speedMb
+
+            # 總量優先取 registry，缺漏時退回 GitHub API 的 size
+            $dispFs = 0
+            if ($null -ne $regFs -and $regFs -gt 0) { $dispFs = $regFs }
+            elseif ($expectedSize -gt 0) { $dispFs = $expectedSize }
+
+            if ($dispFs -gt 0) {
+                $pct = [Math]::Min(100.0, $regDl * 100.0 / $dispFs)
+                # 單調不倒退（IDM 重連時 Downloaded 可能回落）
+                if ($pct -lt $lastPct) { $pct = $lastPct } else { $lastPct = $pct }
+                Write-IdmLine -Downloaded $regDl -Total $dispFs -Pct $pct -SpeedMb $speedMb
             }
             else {
-                $line = "IDM 下載中: {0,7:N1} MB {1,6:N1} MB/s" -f ($regDl / 1MB), $speedMb
+                Write-IdmLine -Downloaded $regDl -Total 0 -Pct 0 -SpeedMb $speedMb
             }
         }
         else {
-            $line = "IDM 下載中 ..."
+            [Console]::Write("`rIDM 下載中 ...")
         }
-        [Console]::Write("`r" + $line + "    ")
 
         # --- 案例 A： IDM 整個消失且檔案不完整 → 快速視為失敗 ---
         # （idman.exe 只是 launcher stub，真正主體是另一個進程，所以檢查整個 IDM）
@@ -470,6 +501,10 @@ function InvokeIdmDownload {
             Write-Host "等待 IDM 下載逾時（30 分鐘），視為失敗。" -ForegroundColor Red
             return $false
         }
+
+        # 對齊固定週期（避免工作時間累積造成間隔漂移）
+        $remainMs = $pollMs - $cycleSw.ElapsedMilliseconds
+        if ($remainMs -gt 0) { Start-Sleep -Milliseconds $remainMs }
     }
 }
 
