@@ -20,3 +20,4 @@ test
 pnpm-lock.yaml
 
 !DB.json
+!requirements.txt
