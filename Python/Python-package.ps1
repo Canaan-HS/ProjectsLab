@@ -1,4 +1,4 @@
-function IsAdmin {
+﻿function IsAdmin {
     return ([bool](New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
         ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 }
@@ -220,6 +220,7 @@ if ($hasUv) {
         updatepip = @("pip", "install", "--upgrade", "pip", "--system")
         updatepkg = @("pip", "install", "--upgrade", "--system")
         freeze    = @("pip", "freeze", "--system")
+        outdated  = @("pip", "list", "--outdated", "--system", "--format", "json")
     }
 }
 else {
@@ -230,6 +231,7 @@ else {
         updatepip = @("install", "--upgrade", "pip")
         updatepkg = @("install", "--upgrade")
         freeze    = @("freeze")
+        outdated  = @("list", "--outdated", "--format", "json")
     }
 }
 
@@ -248,8 +250,14 @@ function Print {
 掃描所有安裝包並建立 requirements.txt
 pip freeze > requirements.txt
 
-直接在 powershell 中使用 freeze 掃描後 使用 uv 更新
-pip freeze | ForEach-Object { uv pip install --upgrade $_ --index-url https://mirrors.aliyun.com/pypi/simple/ }
+freeze 輸出為「名稱==版本」釘選格式，直接餵給 --upgrade 不會生效
+
+uv pip list --outdated --system
+
+uv pip list --outdated --system --format json
+pip list --outdated --format json
+
+如需鏡像：uv pip install --upgrade --system fastapi --index-url https://mirrors.aliyun.com/pypi/simple/
 #>
 # ! 僅安裝|更新, 腳本的 $Package
 function Install {
@@ -291,8 +299,14 @@ function Upgrade {
     Print "Upgrade Package" Yellow
     Print "====================`n"
 
-    & $cmd.exe @($cmd.freeze) | ForEach-Object {
-        & $cmd.exe @($cmd.install + @("--upgrade", $_))
+    $outdated = & $cmd.exe @($cmd.outdated) | ConvertFrom-Json
+
+    if (-not $outdated) {
+        Print "All packages are already up to date." Green
+    }
+    foreach ($p in $outdated) {
+        Print "$($p.name): $($p.version) -> $($p.latest_version)" Cyan
+        & $cmd.exe @($cmd.install + @("--upgrade", $p.name))
     }
 
     Print "`n===================="
@@ -304,18 +318,20 @@ function Upgrade {
 
 <#
 批量卸載所有包
-pip freeze | ForEach-Object { pip uninstall -y $_ }
+uv  : '' | uv pip sync --system --allow-empty-requirements
+pip : pip freeze | ForEach-Object { pip uninstall -y $_ }
 #>
 function Uninstall {
     Print "`n===================="
     Print "Uninstall Package" Red
     Print "====================`n"
 
-    & $cmd.exe @($cmd.freeze) | ForEach-Object {
-        if ($hasUv) {
-            & $cmd.exe @($cmd.uninstall + $_) # uv 不需要 -y
-        }
-        else {
+    if ($hasUv) {
+        # 空清單 + sync = 卸載環境中全部套件（uv 原生做法，--allow-empty-requirements 就是為此設計）
+        '' | & $cmd.exe pip sync --system --allow-empty-requirements -
+    }
+    else {
+        & $cmd.exe @($cmd.freeze) | ForEach-Object {
             & $cmd.exe @($cmd.uninstall + @("-y", $_))
         }
     }
