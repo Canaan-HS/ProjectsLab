@@ -271,32 +271,46 @@ function DownloadAsset {
         $fileStream = [System.IO.File]::Create($filePath)
         $buffer = [byte[]]::new(1MB)
         $readTotal = 0
-        $lastPercent = -1
 
+        # 進度顯示：固定欄寬 + 0.1% 精度 + 即時速度
         # ps2exe 主控台模式不支援 Write-Progress
-        if ($total -gt 0) {
-            Write-Host ("`r下載中: 0.0 MB / {0:N1} MB (0%)" -f ($total / 1MB)) -NoNewline
+        function ShowProgress {
+            param([double]$speed)
+
+            if ($total -gt 0) {
+                $percent = [Math]::Min(100.0, $readTotal * 100.0 / $total)
+                [Console]::Write(("`r下載中: {0,7:N1} MB / {1,7:N1} MB ({2,5:N1}%) {3,6:N1} MB/s" -f ($readTotal / 1MB), ($total / 1MB), $percent, $speed))
+            }
+            else {
+                [Console]::Write(("`r下載中: {0,7:N1} MB {1,6:N1} MB/s" -f ($readTotal / 1MB), $speed))
+            }
         }
-        else {
-            Write-Host "`r下載中: 0.0 MB" -NoNewline
-        }
+
+        $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+        $lastUpdateMs = 0
+        $lastShownBytes = 0
+
+        ShowProgress 0.0
         $progressShown = $true
 
         while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
             $fileStream.Write($buffer, 0, $read)
             $readTotal += $read
 
-            if ($total -gt 0) {
-                # 每跨過 1% 才更新一次
-                $percent = [int]($readTotal * 100 / $total)
-                if ($percent -gt $lastPercent) {
-                    $lastPercent = $percent
-                    Write-Host ("`r下載中: {0:N1} MB / {1:N1} MB ({2}%)" -f ($readTotal / 1MB), ($total / 1MB), [Math]::Min(100, $percent)) -NoNewline
-                }
+            # 每 100ms 更新一次，不受百分比粒度限制
+            $nowMs = $stopwatch.ElapsedMilliseconds
+            if (($nowMs - $lastUpdateMs) -ge 100) {
+                $elapsedSec = [Math]::Max(($nowMs - $lastUpdateMs) / 1000.0, 0.001)
+                ShowProgress (($readTotal - $lastShownBytes) / 1MB / $elapsedSec)
+                $lastUpdateMs = $nowMs
+                $lastShownBytes = $readTotal
             }
-            else {
-                Write-Host ("`r下載中: {0:N1} MB" -f ($readTotal / 1MB)) -NoNewline
-            }
+        }
+
+        # 收尾確保最後一幀一定輸出（時間節流可能吞掉）
+        if ($readTotal -gt $lastShownBytes) {
+            $elapsedSec = [Math]::Max($stopwatch.ElapsedMilliseconds - $lastUpdateMs, 1) / 1000.0
+            ShowProgress (($readTotal - $lastShownBytes) / 1MB / $elapsedSec)
         }
 
         $ok = $true
