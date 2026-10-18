@@ -277,24 +277,8 @@ function InvokeIdmDownload {
     # --- 基本資訊 ---
     $downloadUrl   = $asset.browser_download_url
     $assetName     = $asset.name
-    $githubSize    = if ($asset.size -gt 0) { [long]$asset.size } else { 0 }
+    $githubSize    = [long]$asset.size
     $idmWasRunning = [bool](Get-Process IDMan -ErrorAction SilentlyContinue)
-    $idmRegistryPath = 'Software\DownloadManager'
-
-    # --- 啟動前快照 ---
-    # 只追蹤呼叫後新出現的數字 key，避免誤認舊下載。
-    $initialKeyIds = [System.Collections.Generic.HashSet[string]]::new()
-    $snapshotRoot = $null
-    try {
-        $snapshotRoot = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($idmRegistryPath)
-        if ($snapshotRoot) {
-            foreach ($name in $snapshotRoot.GetSubKeyNames()) {
-                if ($name -match '^\d+$') { [void]$initialKeyIds.Add($name) }
-            }
-        }
-    }
-    catch {}
-    finally { if ($snapshotRoot) { $snapshotRoot.Dispose() } }
 
     # --- 啟動 IDM ---
     # /n 靜默下載；/q 只在 IDM 原本未執行時使用（完成後會退出）。
@@ -314,22 +298,14 @@ function InvokeIdmDownload {
     # --- IDM 進度彈窗 ---
     # 彈窗由既有的 IDMan 主進程建立（新的 IDMan.exe 只是啟動器），
     # 內含 msctls_progress32 與 Static 進度文字，約 200ms 更新一次。
-    # 讀不到時退回 registry；完成／失敗仍以 registry 與檔案大小為準。
-    $progressApiReady = $false
-    try {
-        if (-not ('GauIdmProgressWindow' -as [type])) {
-            Add-Type -TypeDefinition @'
+    # 彈窗只用來顯示進度；使用者可能按「隱藏」或取消後重新下載，句柄會失效，需重新搜尋。
+    if (-not ('GauIdmProgressWindow' -as [type])) {
+        Add-Type -TypeDefinition @'
 using System;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
-
-public class GauIdmProgress {
-    public double Percent = -1;
-    public long Downloaded;
-    public long Speed;
-}
 
 public static class GauIdmProgressWindow {
     private delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
@@ -340,15 +316,15 @@ public static class GauIdmProgressWindow {
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hWnd, StringBuilder sb, int max);
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
 
-    private static readonly Regex DownloadedRegex = new Regex(@"([0-9][0-9.,]*)\s*MB\s*\(\s*([0-9][0-9.,]*)\s*%", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex SpeedRegex = new Regex(@"([0-9][0-9.,]*)\s*(MB|KB)\s*/\s*(?:s|sec|秒)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex DownloadedRegex = new Regex(@"([0-9][0-9.,]*)\s*MB\s*\(\s*([0-9][0-9.,]*)\s*%", RegexOptions.IgnoreCase);
+    private static readonly Regex SpeedRegex = new Regex(@"([0-9][0-9.,]*)\s*(MB|KB)\s*/\s*(?:s|sec|秒)", RegexOptions.IgnoreCase);
 
     private static string ClassOf(IntPtr hWnd) { StringBuilder sb = new StringBuilder(128); GetClassName(hWnd, sb, sb.Capacity); return sb.ToString(); }
     private static string TextOf(IntPtr hWnd) { StringBuilder sb = new StringBuilder(512); GetWindowText(hWnd, sb, sb.Capacity); return sb.ToString(); }
 
     private static bool IsPopup(IntPtr hWnd) {
         bool found = false;
-        EnumChildWindows(hWnd, delegate(IntPtr child, IntPtr p) {
+        EnumChildWindows(hWnd, (child, p) => {
             string cls = ClassOf(child);
             found = cls == "msctls_progress32" || cls == "IDM DownloadProgressComponent class";
             return !found;
@@ -356,382 +332,135 @@ public static class GauIdmProgressWindow {
         return found;
     }
 
-    private static bool TitleMatches(string title, string assetName) {
-        if (String.IsNullOrEmpty(title) || String.IsNullOrEmpty(assetName)) return false;
+    // 標題為「檔名」或「xx% 檔名」等，檔名前必須是分隔字元，避免誤認其他檔案。
+    private static bool TitleMatches(string title, string name) {
         title = title.Trim();
-        if (title.Equals(assetName, StringComparison.OrdinalIgnoreCase)) return true;
-        if (!title.EndsWith(assetName, StringComparison.OrdinalIgnoreCase)) return false;
-        int index = title.Length - assetName.Length;
-        return index <= 0 || " -(%".IndexOf(title[index - 1]) >= 0;
+        if (!title.EndsWith(name, StringComparison.OrdinalIgnoreCase)) return false;
+        int i = title.Length - name.Length;
+        return i == 0 || " -(%".IndexOf(title[i - 1]) >= 0;
     }
 
     public static IntPtr Find(string assetName) {
         IntPtr found = IntPtr.Zero;
-        EnumWindows(delegate(IntPtr hWnd, IntPtr p) {
-            if (ClassOf(hWnd) != "#32770") return true;
-            if (!TitleMatches(TextOf(hWnd), assetName)) return true;
-            if (!IsPopup(hWnd)) return true;
+        EnumWindows((hWnd, p) => {
+            if (ClassOf(hWnd) != "#32770" || !TitleMatches(TextOf(hWnd), assetName) || !IsPopup(hWnd)) return true;
             found = hWnd;
             return false;
         }, IntPtr.Zero);
         return found;
     }
 
-    private static double Number(string text) {
-        double value;
-        if (Double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value)) return value;
-        if (Double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value)) return value;
-        if (text.IndexOf(',') >= 0) text = text.IndexOf('.') >= 0 ? text.Replace(",", "") : text.Replace(',', '.');
-        return Double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ? value : -1;
+    private static double Number(string s) {
+        if (s.IndexOf(',') >= 0) s = s.IndexOf('.') >= 0 ? s.Replace(",", "") : s.Replace(',', '.');
+        double v;
+        return Double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v) ? v : -1;
     }
 
-    public static GauIdmProgress Read(IntPtr hWnd) {
-        if (hWnd == IntPtr.Zero || !IsWindow(hWnd)) return null;
-
-        GauIdmProgress data = new GauIdmProgress();
+    // 回傳 { 百分比(讀不到為 -1), 已下載 bytes, 速度 bytes/s }
+    public static double[] Read(IntPtr hWnd) {
+        double percent = -1, downloaded = 0, speed = 0;
         string title = TextOf(hWnd);
-        int percentIndex = title.IndexOf('%');
-        if (percentIndex > 0) {
-            double titlePercent = Number(title.Substring(0, percentIndex).Trim());
-            if (titlePercent >= 0) data.Percent = titlePercent;
-        }
+        int idx = title.IndexOf('%');
+        if (idx > 0) percent = Number(title.Substring(0, idx).Trim());
 
-        EnumChildWindows(hWnd, delegate(IntPtr child, IntPtr p) {
+        EnumChildWindows(hWnd, (child, p) => {
             if (ClassOf(child) != "Static") return true;
-
             string text = TextOf(child);
-            if (String.IsNullOrEmpty(text)) return true;
 
-            Match downloaded = DownloadedRegex.Match(text);
-            if (downloaded.Success) {
-                double mb = Number(downloaded.Groups[1].Value), pct = Number(downloaded.Groups[2].Value);
-                if (mb >= 0) data.Downloaded = (long)Math.Round(mb * 1048576.0);
-                if (pct >= 0) data.Percent = pct;
-            }
+            Match d = DownloadedRegex.Match(text);
+            if (d.Success) { downloaded = Number(d.Groups[1].Value) * 1048576.0; percent = Number(d.Groups[2].Value); }
 
-            Match speed = SpeedRegex.Match(text);
-            if (speed.Success) {
-                double value = Number(speed.Groups[1].Value);
-                double factor = speed.Groups[2].Value.Equals("KB", StringComparison.OrdinalIgnoreCase) ? 1024.0 : 1048576.0;
-                if (value >= 0) data.Speed = (long)Math.Round(value * factor);
-            }
-
+            Match s = SpeedRegex.Match(text);
+            if (s.Success) speed = Number(s.Groups[1].Value) * (s.Groups[2].Value.Equals("KB", StringComparison.OrdinalIgnoreCase) ? 1024.0 : 1048576.0);
             return true;
         }, IntPtr.Zero);
 
-        return (data.Percent >= 0 || data.Downloaded > 0 || data.Speed > 0) ? data : null;
+        return new double[] { percent, downloaded, speed };
     }
 }
 '@
-        }
-        $progressApiReady = $true
     }
-    catch {}
 
     # --- 監控參數 ---
-    # registry 搜尋：前 2 秒 50ms、之後 200ms，最多 30 秒。
-    # 找到後：有彈窗 250ms，否則 1 秒。
-    $fastScanIntervalMs = 50; $fastScanDurationMs = 2000; $slowScanIntervalMs = 200
-    $searchTimeoutMs = 30000; $progressIntervalMs = 1000
-    $popupIntervalMs = 250; $popupSearchTimeoutMs = 15000
+    $idmShutdownGraceMs = 10000   # idman.exe 只是啟動器；啟動後前 10 秒不判定進程消失
+    $confirmMs          = 3000    # 進程消失後，等待檔案落地的時間
+    $downloadTimeout    = [TimeSpan]::FromMinutes(30)
 
-    # 完成與失敗判定。
-    $fileStableLimitMs = 6000; $confirmMs = 1000
-    $processCheckIntervalMs = 1000; $idmShutdownGraceMs = 10000
-    $downloadTimeout = [TimeSpan]::FromMinutes(30)
-
-    $timer               = [System.Diagnostics.Stopwatch]::StartNew()
-    $downloadId          = $null
-    $progressWindow      = [IntPtr]::Zero
-    $lastFileSize        = -1
-    $fileSizeChangedAtMs = 0
-    $problemAtMs         = $null
-    $lastProcessCheckMs  = $null
-    $highestPercentShown = -1.0
+    $timer          = [System.Diagnostics.Stopwatch]::StartNew()
+    $progressWindow = [IntPtr]::Zero
+    $goneAtMs       = $null
+    $highestPercent = 0.0
 
     # --- 輸出 ---
     $consoleState = @{ LastLength = 0 }
 
-    function Write-IdmText {
-        param([string]$Text)
-        $padding = $consoleState.LastLength - $Text.Length
-        if ($padding -gt 0) { $Text += ' ' * $padding }
-        [Console]::Write("`r$Text")
-        $consoleState.LastLength = $Text.Length
-    }
-
+    # 不帶參數時只顯示「下載中」；有 $githubSize 時顯示總大小與百分比
     function Write-IdmLine {
-        param([long]$Downloaded, [long]$Total, [double]$Percent, [double]$SpeedMB)
-        if ($Total -gt 0) {
-            $line = "IDM 下載中: {0:N1} MB / {1:N1} MB ({2:N1}%) {3:N1} MB/s" -f `
-                ($Downloaded / 1MB), ($Total / 1MB), $Percent, $SpeedMB
-        }
-        else {
-            $line = "IDM 下載中: {0:N1} MB {1:N1} MB/s" -f ($Downloaded / 1MB), $SpeedMB
-        }
-        Write-IdmText $line
-    }
-
-    function Complete-IdmDownload {
-        param([long]$Total)
-        if ($Total -le 0) { $Total = 1 }
-        Write-IdmLine -Downloaded $Total -Total $Total -Percent 100 -SpeedMB 0
-        Write-Host "`nIDM 下載完成: $assetName"
-    }
-
-    function Write-IdmFailure {
-        param([string]$Message)
-        Write-Host "`n$Message" -ForegroundColor Red
-    }
-
-    function Get-TargetFileSize {
-        try {
-            $info = [System.IO.FileInfo]::new($filePath)
-            if ($info.Exists) { return $info.Length }
-        }
-        catch {}
-        return -1
-    }
-
-    # --- registry 存取 ---
-    # Downloaded / FileSize 是 8-byte little-endian；Status / Speed 是 Int32。
-    function Convert-IdmQword {
-        param($Value)
-        if ($Value -isnot [byte[]]) { return $null }
-        if ($Value.Length -ge 8) { return [BitConverter]::ToInt64($Value, 0) }
-        if ($Value.Length -eq 4) { return [BitConverter]::ToUInt32($Value, 0) }
-        return $null
-    }
-
-    function Get-IdmEntryState {
-        param([string]$KeyId)
-        $state = [pscustomobject]@{ Found = $false; Status = $null; Downloaded = $null; FileSize = $null; Speed = $null }
-        $root = $null; $key = $null
-        try {
-            $root = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($idmRegistryPath)
-            if (-not $root) { return $state }
-            $key = $root.OpenSubKey($KeyId)
-            if (-not $key) { return $state }
-
-            $state.Found = $true
-            $state.Status = $key.GetValue('Status')
-            $state.Speed = $key.GetValue('Speed')
-            $state.Downloaded = Convert-IdmQword ($key.GetValue('Downloaded'))
-            $state.FileSize = Convert-IdmQword ($key.GetValue('FileSize'))
-        }
-        catch {}
-        finally { if ($key) { $key.Dispose() }; if ($root) { $root.Dispose() } }
-        return $state
-    }
-
-    function Find-IdmEntryId {
-        $root = $null; $bestId = $null
-        try {
-            $root = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($idmRegistryPath)
-            if (-not $root) { return $null }
-
-            foreach ($name in $root.GetSubKeyNames()) {
-                $keyId = 0
-                if (-not [int]::TryParse($name, [ref]$keyId)) { continue }
-                if ($initialKeyIds.Contains($name)) { continue }
-                if ($null -ne $bestId -and $keyId -ge $bestId) { continue }
-
-                $key = $root.OpenSubKey($name)
-                if (-not $key) { continue }
-                try {
-                    # Url0 是原始 URL；Referer 是 GitHub 頁面。FileName 是帶簽章 URL，不能比對。
-                    $url0 = [string]$key.GetValue('Url0')
-                    $referer = [string]$key.GetValue('Referer')
-                    if ($url0.Trim() -eq $downloadUrl -or $referer.Trim() -eq $downloadUrl) { $bestId = $keyId }
-                }
-                finally { $key.Dispose() }
-            }
-        }
-        catch {}
-        finally { if ($root) { $root.Dispose() } }
-
-        if ($null -ne $bestId) { return [string]$bestId }
-        return $null
-    }
-
-    function Test-IdmFileComplete {
-        param([long]$Size, [switch]$AllowUnknownSize)
-        if ($Size -le 0) { return $false }
-        if ($githubSize -gt 0) { return $Size -ge $githubSize }
-        return [bool]$AllowUnknownSize
+        param($Downloaded = $null, [double]$Percent = 0, [double]$SpeedMB = 0)
+        $text = if ($null -eq $Downloaded) { 'IDM 下載中 ...' }
+                elseif ($githubSize -gt 0) { "IDM 下載中: {0:N1} MB / {1:N1} MB ({2:N1}%) {3:N1} MB/s" -f ($Downloaded / 1MB), ($githubSize / 1MB), $Percent, $SpeedMB }
+                else { "IDM 下載中: {0:N1} MB {1:N1} MB/s" -f ($Downloaded / 1MB), $SpeedMB }
+        [Console]::Write("`r" + $text.PadRight($consoleState.LastLength))
+        $consoleState.LastLength = $text.Length
     }
 
     # --- 主迴圈 ---
-    Write-IdmText "IDM 下載中 ..."
-    $nextTickMs = $timer.ElapsedMilliseconds
-
+    Write-IdmLine
     while ($true) {
         $nowMs = $timer.ElapsedMilliseconds
-        $isSearching = (-not $downloadId -and $nowMs -le $searchTimeoutMs)
 
         # --- 讀取彈窗 ---
-        $popupProgress = $null
-        if ($progressApiReady) {
-            if ($progressWindow -eq [IntPtr]::Zero -and $nowMs -le $popupSearchTimeoutMs) {
-                $progressWindow = [GauIdmProgressWindow]::Find($assetName)
-            }
-            if ($progressWindow -ne [IntPtr]::Zero) {
-                $popupProgress = [GauIdmProgressWindow]::Read($progressWindow)
-                if ($null -eq $popupProgress -and -not [GauIdmProgressWindow]::IsWindow($progressWindow)) {
-                    $progressWindow = [IntPtr]::Zero
-                }
-            }
+        # 句柄失效（隱藏、取消後重新下載）就清掉，並在同一輪重新搜尋。
+        if ($progressWindow -ne [IntPtr]::Zero -and -not [GauIdmProgressWindow]::IsWindow($progressWindow)) {
+            $progressWindow = [IntPtr]::Zero
         }
-
-        # --- 尋找並讀取本次下載項目 ---
-        if ($isSearching) { $downloadId = Find-IdmEntryId }
-
-        $idmState = if ($downloadId) { Get-IdmEntryState -KeyId $downloadId } else { $null }
-        $entryMissing = $null -ne $idmState -and (-not $idmState.Found -or $null -eq $idmState.Status)
-
-        # --- 檔案大小 ---
-        $fileSize = Get-TargetFileSize
-        if ($fileSize -ne $lastFileSize) {
-            $lastFileSize = $fileSize
-            $fileSizeChangedAtMs = $nowMs
+        if ($progressWindow -eq [IntPtr]::Zero) {
+            $progressWindow = [GauIdmProgressWindow]::Find($assetName)
         }
+        $popup = if ($progressWindow -ne [IntPtr]::Zero) { [GauIdmProgressWindow]::Read($progressWindow) } else { @(-1, 0, 0) }
+
+        # IDM 進程已消失（IDM 原本就在執行時不看進程）
+        # 彈窗還在代表 IDM 一定活著，省略 Get-Process 以降低 CPU 開銷。
+        $processGone = -not $idmWasRunning -and $nowMs -ge $idmShutdownGraceMs -and
+                       $progressWindow -eq [IntPtr]::Zero -and
+                       -not (Get-Process IDMan -ErrorAction SilentlyContinue)
 
         # --- 完成判定 ---
-        # registry Status=3 優先；其次才是檔案大小。
-        if ($null -ne $idmState -and $idmState.Status -eq 3 -and $fileSize -gt 0) {
-            $finalTotal = [Math]::Max([long]$fileSize, [long]$githubSize)
-            if ($idmState.FileSize -gt $finalTotal) { $finalTotal = [long]$idmState.FileSize }
-            Complete-IdmDownload -Total $finalTotal
+        # 已知大小：檔案達到 GitHub 大小即完成；未知大小：進程結束後檔案存在即完成。
+        $info = [System.IO.FileInfo]::new($filePath)
+        $fileSize = if ($info.Exists) { $info.Length } else { -1 }
+        $isComplete = if ($githubSize -gt 0) { $fileSize -ge $githubSize } else { $processGone -and $fileSize -gt 0 }
+
+        if ($isComplete) {
+            Write-IdmLine -Downloaded ([Math]::Max($githubSize, $fileSize)) -Percent 100
+            Write-Host "`nIDM 下載完成: $assetName"
             return $true
         }
 
-        if (Test-IdmFileComplete $fileSize) {
-            Complete-IdmDownload -Total ([Math]::Max($githubSize, $fileSize))
-            return $true
-        }
-        if ($githubSize -le 0 -and $fileSize -gt 0 -and
-            ($nowMs - $fileSizeChangedAtMs) -ge $fileStableLimitMs) {
-            Complete-IdmDownload -Total $fileSize
-            return $true
-        }
-
-        # --- 失敗判定：暫停或項目移除 ---
-        $problemKind = if ($null -ne $idmState -and $idmState.Status -eq 2) { 'paused' } elseif ($entryMissing) { 'missing' }
-
-        if ($problemKind) {
-            if ($null -eq $problemAtMs) {
-                $problemAtMs = $nowMs
-            }
-            elseif (($nowMs - $problemAtMs) -ge $confirmMs) {
-                $persists = $true
-                if ($problemKind -eq 'paused') {
-                    # 暫停後可能立刻續傳，再確認一次。
-                    Start-Sleep -Milliseconds $progressIntervalMs
-                    $persists = ((Get-IdmEntryState -KeyId $downloadId).Status -eq 2)
-                }
-
-                if ($persists) {
-                    if (Test-IdmFileComplete $fileSize) {
-                        Complete-IdmDownload -Total ([Math]::Max($githubSize, $fileSize))
-                        return $true
-                    }
-
-                    $message = if ($problemKind -eq 'paused') { 'IDM 下載已暫停/停止，視為失敗。' }
-                               else { 'IDM 下載項目已從清單移除（可能已取消），視為失敗。' }
-                    Write-IdmFailure $message
-                    return $false
-                }
-
-                $problemAtMs = $null
-            }
-        }
-        else {
-            $problemAtMs = $null
-        }
-
-        # --- 顯示進度 ---
-        # 彈窗是即時值；registry 約 2–3 秒才更新，只當備援。
-        $totalBytes = if ($null -ne $idmState -and [long]$idmState.FileSize -gt 0) {
-            [long]$idmState.FileSize
-        }
-        elseif ($githubSize -gt 0) { [long]$githubSize }
-        else { 0 }
-
-        $downloaded = $null; $percent = 0.0; $speedMB = 0.0
-
-        if ($null -ne $popupProgress -and $popupProgress.Percent -ge 0 -and
-            ($popupProgress.Downloaded -gt 0 -or $totalBytes -gt 0)) {
-
-            $percent = [Math]::Min(100.0, [Math]::Max(0.0, $popupProgress.Percent))
-            $downloaded = [long]$popupProgress.Downloaded
-            if ($downloaded -le 0 -and $totalBytes -gt 0) {
-                $downloaded = [long]($totalBytes * $percent / 100.0)
-            }
-            $speedMB = $popupProgress.Speed / 1MB
-        }
-        elseif ($null -ne $idmState -and $null -ne $idmState.Downloaded) {
-            $downloaded = [long]$idmState.Downloaded
-            if ($totalBytes -gt 0) {
-                $percent = [Math]::Min(100.0, $downloaded * 100.0 / $totalBytes)
-            }
-            if ($null -ne $idmState.Speed -and $idmState.Speed -gt 0) {
-                $speedMB = $idmState.Speed / 1MB
-            }
-        }
-
-        if ($null -ne $downloaded) {
-            # IDM 重連時 Downloaded 可能回落，顯示值只前進不倒退。
-            $highestPercentShown = [Math]::Max($highestPercentShown, $percent)
-            Write-IdmLine -Downloaded $downloaded -Total $totalBytes `
-                -Percent $highestPercentShown -SpeedMB $speedMB
-        }
-        else {
-            Write-IdmText "IDM 下載中 ..."
-        }
-
-        # 重新取樣時間，避免輸出造成判定延遲。
-        $nowMs = $timer.ElapsedMilliseconds
-
-        # --- 失敗判定：IDM 程序消失 ---
-        # idman.exe 只是啟動器；啟動後前 10 秒不判定。
-        if (-not $idmWasRunning -and $nowMs -ge $idmShutdownGraceMs -and
-            ($null -eq $lastProcessCheckMs -or ($nowMs - $lastProcessCheckMs) -ge $processCheckIntervalMs)) {
-            $lastProcessCheckMs = $nowMs
-            if (-not (Get-Process IDMan -ErrorAction SilentlyContinue)) {
-                # 給最終檔案落地一點時間，再確認一次。
-                Start-Sleep -Milliseconds 1000
-                $finalSize = Get-TargetFileSize
-
-                if (Test-IdmFileComplete $finalSize -AllowUnknownSize) {
-                    Write-Host "`nIDM 下載完成: $assetName"
-                    return $true
-                }
-
-                Write-IdmFailure 'IDM 已結束但檔案不完整（可能取消或失敗）。'
-                return $false
-            }
-        }
-
-        # --- 失敗判定：逾時 ---
-        if ($timer.Elapsed -ge $downloadTimeout) {
-            Write-IdmFailure '等待 IDM 下載逾時（30 分鐘），視為失敗。'
+        # --- 失敗判定：進程消失（需持續 $confirmMs）、逾時 ---
+        # 暫停／停止／取消都不算失敗（IDM 可續傳或重新加入），一律等到逾時。
+        if (-not $processGone) { $goneAtMs = $null }
+        elseif ($null -eq $goneAtMs) { $goneAtMs = $nowMs }
+        elseif (($nowMs - $goneAtMs) -ge $confirmMs) {
+            Write-Host "`nIDM 已結束但檔案不完整（可能取消或失敗）。" -ForegroundColor Red
             return $false
         }
 
-        # --- 排程（絕對時間格線，避免漂移）---
-        $scheduleNowMs = $timer.ElapsedMilliseconds
-        $intervalMs = if (-not $downloadId -and $scheduleNowMs -le $searchTimeoutMs) {
-            if ($scheduleNowMs -lt $fastScanDurationMs) { $fastScanIntervalMs } else { $slowScanIntervalMs }
+        if ($timer.Elapsed -ge $downloadTimeout) {
+            Write-Host "`n等待 IDM 下載逾時（30 分鐘），視為失敗。" -ForegroundColor Red
+            return $false
         }
-        elseif ($progressApiReady -and
-            ($progressWindow -ne [IntPtr]::Zero -or $scheduleNowMs -le $popupSearchTimeoutMs)) { $popupIntervalMs }
-        else { $progressIntervalMs }
 
-        $nextTickMs += $intervalMs
-        if ($nextTickMs -lt $scheduleNowMs) { $nextTickMs = $scheduleNowMs }
+        # --- 顯示進度 ---
+        if ($popup[0] -ge 0) {
+            # IDM 重連時數值可能回落，顯示值只前進不倒退。
+            $highestPercent = [Math]::Max($highestPercent, [Math]::Min(100.0, $popup[0]))
+            $downloaded = if ($popup[1] -gt 0) { [long]$popup[1] } else { [long]($githubSize * $highestPercent / 100.0) }
+            Write-IdmLine -Downloaded $downloaded -Percent $highestPercent -SpeedMB ($popup[2] / 1MB)
+        }
 
-        $sleepMs = $nextTickMs - $scheduleNowMs
-        if ($sleepMs -gt 0) { Start-Sleep -Milliseconds $sleepMs }
+        # 有彈窗時 250ms；找不到時每秒才搜尋一次（EnumWindows 與 Get-Process 較吃資源）
+        Start-Sleep -Milliseconds $(if ($progressWindow -ne [IntPtr]::Zero) { 250 } else { 1000 })
     }
 }
 
@@ -775,10 +504,10 @@ function DownloadAsset {
 
             if ($total -gt 0) {
                 $percent = [Math]::Min(100.0, $readTotal * 100.0 / $total)
-                [Console]::Write(("`r下載中: {0,7:N1} MB / {1,7:N1} MB ({2,5:N1}%) {3,6:N1} MB/s" -f ($readTotal / 1MB), ($total / 1MB), $percent, $speed))
+                [Console]::Write(("`r下載中: {0:N1} MB / {1:N1} MB ({2:N1}%) {3:N1} MB/s" -f ($readTotal / 1MB), ($total / 1MB), $percent, $speed))
             }
             else {
-                [Console]::Write(("`r下載中: {0,7:N1} MB {1,6:N1} MB/s" -f ($readTotal / 1MB), $speed))
+                [Console]::Write(("`r下載中: {0:N1} MB {1:N1} MB/s" -f ($readTotal / 1MB), $speed))
             }
         }
 
