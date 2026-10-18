@@ -30,21 +30,21 @@ param (
 function ShowHelp {
     Write-Host @"
 
-GitHub Asset Update Tool
+GitHub 資產更新工具
 
 使用:
   gau.exe <GitHub 網址> [選項]
   gau.exe -o <owner> -r <repo> [選項]
 
 選項:
-  -u, -url <url>                 https://github.com/owner/repo
-  -o, -owner <name>              GitHub owner
-  -r, -repo <name>               GitHub repository
-  -a, -asset_name <name>         Asset name keyword
-  -e, -exclude_patterns <list>   Exclude patterns (comma separated)
-  -ae, -auto_extract             Auto extract downloaded archive
+  -u, -url <url>                 GitHub 儲存庫網址
+  -o, -owner <name>              GitHub 儲存庫擁有者
+  -r, -repo <name>               GitHub 儲存庫名稱
+  -a, -asset_name <name>         資產檔名關鍵字
+  -e, -exclude_patterns <list>   排除關鍵字（逗號分隔）
+  -ae, -auto_extract             下載後自動解壓縮
   -ni, -no_idm                   停用 IDM 偵測，強制使用內建下載器
-  -h, -help                      Show this help
+  -h, -help                      顯示本說明
 
 範例:
   gau https://github.com/owner/repo
