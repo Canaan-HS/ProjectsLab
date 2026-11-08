@@ -106,6 +106,7 @@ class Main {
         1. 只有一個主程式
             傳入 Name = 要保存文件的名子 (.cmd|.ps1)
             傳入 URL = 要請求的網址
+            Depend = $null (要給空值)
 
         2. 一個主程式 但他是壓縮文件
             傳入 Name = 要保存文件的名子 (.zip|.rar)
@@ -434,7 +435,7 @@ class Main {
                 Print ""
                 Print "  更新資訊:"
                 Print ""
-                Print "   1. .NET 版本更新"
+                Print "   1. IDM 授權腳本更新"
                 Print "----------------------------------"
                 $this.WaitBack()
             }
@@ -1186,15 +1187,15 @@ class Main {
             }
             (index) {
                 # IDM 授權
-                # https://github.com/tytsxai/IDM-Activation-Script-Chinese
-                # https://github.com/zinzied/IDM-Freezer-Activation-Tool
+                # https://github.com/cyberhavik/IDM-Activation-Script
+                # https://github.com/aonexyz/IDM-LifeTime-Activation
+                # https://github.com/zinzied/IDM-Freezer-Activation-Tool (最新發佈的 exe 相當可疑, 可能是病毒加載器)
 
                 $this.Authorize(
-                    "$($this.MD5("zied")).cmd",
-                    "https://raw.githubusercontent.com/zinzied/IDM-Freezer-Activation-Tool/refs/heads/main/zied.cmd", $null
+                    "$($this.MD5("aonexyz")).cmd",
+                    "https://github.com/aonexyz/IDM-LifeTime-Activation/releases/download/v1.0.0/IAS.cmd", $null
                 )
 
-                # https://bitbucket.org/coporton/idm-activation-script/downloads/
                 # $this.Authorize(
                     # "coporton-idm-activation-script-ee0fb338e245.zip",
                     # "https://bitbucket.org/coporton/idm-activation-script/get/ee0fb338e245.zip",
