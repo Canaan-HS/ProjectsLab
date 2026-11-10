@@ -9,8 +9,20 @@ param (
     [Alias("r")]
     [string]$repo = "",
 
-    [Alias("i")]             
+    [Alias("i")]
     [switch]$install = $null,
+
+    [Alias("un")]
+    [string]$uninstall = $null,
+
+    [Alias("l")]
+    [switch]$list = $null,
+
+    [Alias("c")]
+    [switch]$check = $null,
+
+    [Alias("al")]
+    [switch]$all = $null,
 
     [Alias("a")]
     [string]$asset_name = $null,
@@ -43,6 +55,8 @@ GitHub 資產更新工具
   gau.exe -o <owner> -r <repo> [選項]
   gau.exe -i <GitHub 網址 | owner/repo> [選項]
   gau.exe -i -o <owner> -r <repo> [選項]
+  gau.exe -un <owner/repo>
+  gau.exe -l | -check | -all
 
 選項:
   -u, -url <url>                 GitHub 儲存庫網址
@@ -54,6 +68,10 @@ GitHub 資產更新工具
   -ae2, -auto_extract2           解壓後攤平單一頂層資料夾
   -ni, -no_idm                   停用 IDM 偵測，強制使用內建下載器
   -i, -install                   統一管理線：下載並納入紀錄（無紀錄時直接下載最新）
+  -un, -uninstall <owner/repo>   解除紀錄綁定（不刪除已下載的檔案）
+  -l, -list                      顯示紀錄列表（含路徑存活檢查）
+  -c, -check                     批量檢查所有紀錄的更新（不下載、唯讀）
+  -al, -all                      批量更新所有紀錄（檢查 + 下載）
   -h, -help                      顯示本說明
 
 範例:
@@ -63,6 +81,10 @@ GitHub 資產更新工具
   gau -o user -r app -e "debug,source"
   gau -i astral-sh/uv -ae2
   gau -i -o astral-sh -r uv -a "x64" -ae
+  gau -un astral-sh/uv
+  gau -l
+  gau -check
+  gau -all
 
 備註:
   偵測到 gh CLI 登入或設定 GITHUB_TOKEN 環境變數時，API 自動帶授權（限額 60 → 5000/hr）
@@ -104,6 +126,14 @@ function ParseRepoArg {
 
 if ($help -or $PSBoundParameters.Count -eq 0) { ShowHelp }
 
+# 模式判定（同時出現時取先者；優先序: uninstall > install > list > check > all > 單發）
+$mode = 'single'
+if ($all) { $mode = 'all' }
+if ($check) { $mode = 'check' }
+if ($list) { $mode = 'list' }
+if ($install) { $mode = 'install' }
+if ($uninstall) { $mode = 'uninstall' }
+
 if ($url -match '(?i)^https://github\.com/([^/]+)/([^/]+)') {
     $owner = $matches[1]
     $repo = $matches[2]
@@ -118,15 +148,18 @@ elseif ($install -and $url) {
 }
 
 if (-not $owner -or -not $repo) {
-    if ($install) {
+    if ($mode -eq 'install') {
         Write-Host "gau -i 需要 GitHub 網址、owner/repo 簡寫，或 -o/-r 參數。" -ForegroundColor Red
         Write-Host "範例: gau -i astral-sh/uv" -ForegroundColor Yellow
         Write-Host "      gau -i https://github.com/astral-sh/uv" -ForegroundColor Yellow
         Write-Host "      gau -i -o astral-sh -r uv" -ForegroundColor Yellow
         exit 1
     }
-    Write-Host "參數 -owner 和 -repo 是必需的" -ForegroundColor Red
-    ShowHelp
+    if ($mode -eq 'single') {
+        Write-Host "參數 -owner 和 -repo 是必需的" -ForegroundColor Red
+        ShowHelp
+    }
+    # uninstall / list / check / all 不需要倉庫參數
 }
 
 # ===== 核心程式 =====
@@ -306,6 +339,60 @@ function RecordRemove {
     $records.Remove($oldKey)
     RecordsSave
     return $true
+}
+
+# 紀錄 → ctx（批量線每筆重建；dir 與參數全部用紀錄裡的，缺席欄位讀出 $null = 沒給）
+function CtxFromRecord {
+    param([string]$key, $rec)
+
+    $parts = $key -split '/'
+
+    return @{
+        owner            = $parts[0]
+        repo             = $parts[1]
+        dir              = "$($rec.dir)"
+        asset_name       = $rec.asset_name
+        exclude_patterns = $rec.exclude_patterns
+        auto_extract     = [bool]$rec.auto_extract
+        auto_extract2    = [bool]$rec.auto_extract2
+        no_idm           = [bool]$rec.no_idm
+        currentVersion   = "$($rec.version)"
+        DownloadOnFirstRecord = $true
+        CheckOnly        = $false
+        Status           = ""
+        NewVersion       = ""
+        Failed           = @()
+    }
+}
+
+# 顯示紀錄列表（-l）：每筆一行，路徑失效整行紅字
+function ShowRecords {
+    param($records)
+
+    if ($records.Count -eq 0) {
+        Write-Host "目前沒有任何紀錄。以 gau -i <owner/repo> 安裝的工具會出現在這裡。" -ForegroundColor Yellow
+        return
+    }
+
+    foreach ($key in @($records.Keys)) {
+        $rec = $records[$key]
+
+        $params = @()
+        if ($rec.asset_name) { $params += "a=$($rec.asset_name)" }
+        if ($rec.exclude_patterns) { $params += "e=$($rec.exclude_patterns)" }
+        if ($rec.auto_extract) { $params += "ae" }
+        if ($rec.auto_extract2) { $params += "ae2" }
+        if ($rec.no_idm) { $params += "ni" }
+        $paramText = if ($params.Count -gt 0) { " [$($params -join ' ')]" } else { "" }
+
+        $line = "{0}  v{1}  {2}{3}" -f $key, $rec.version, $rec.dir, $paramText
+        if (Test-Path -LiteralPath "$($rec.dir)") {
+            Write-Host $line
+        }
+        else {
+            Write-Host $line -ForegroundColor Red
+        }
+    }
 }
 
 function GetDownloadInfo {
@@ -816,6 +903,11 @@ function ToolUpdate {
             $ctx.Status = 'RecordOnly'
             return
         }
+        if ($ctx.CheckOnly) {
+            Write-Host "紀錄版本無法比對，遠端最新: $($response.tag_name)"
+            $ctx.Status = 'HasUpdate'
+            return
+        }
         # -i 無紀錄或新路徑：視同首次下載，直接下載最新
         Write-Host "視為首次下載，直接下載最新版本: $($response.tag_name)"
     }
@@ -826,6 +918,10 @@ function ToolUpdate {
     }
     elseif ($oldVersion -lt $newVersion) {
         Write-Host "有可用更新: $($response.tag_name) (目前版本: $oldVersion)"
+        if ($ctx.CheckOnly) {
+            $ctx.Status = 'HasUpdate'
+            return
+        }
     }
     else {
         Write-Host "本機版本 ($oldVersion) 比最新發布版本 ($newVersion) 更新。 版本記錄已重置。" -ForegroundColor Yellow
@@ -861,11 +957,24 @@ function ToolUpdate {
 
 # ===== 執行 =====
 
-# 模式判定（優先序: uninstall > install > list > check > all > 單發，之後的模式往上疊）
-$mode = 'single'
-if ($install) { $mode = 'install' }
-
 switch ($mode) {
+    'uninstall' {
+        # 解除紀錄綁定（不刪除任何已下載的檔案；不做路徑檢查）
+        $records = RecordsLoad
+        if ($null -eq $records) { break }
+
+        # -un 吃 key 或完整網址（解析統一走 ParseRepoArg）
+        $parsed = ParseRepoArg -arg $uninstall
+        $key = if ($parsed) { "$($parsed[0])/$($parsed[1])" } else { $uninstall }
+
+        if (RecordRemove -key $key) {
+            Write-Host "已解除紀錄綁定: $key（已下載的檔案未更動）"
+        }
+        else {
+            Write-Host "查無紀錄: $key" -ForegroundColor Red
+        }
+    }
+
     'install' {
         # 管理線：版本讀自統一紀錄；操作成功 → 整筆覆蓋寫回（不做逐欄合併）
         $records = RecordsLoad
@@ -891,6 +1000,57 @@ switch ($mode) {
             'Updated' { RecordUpsert }
             'UpToDate' { RecordUpsert }
             'Reset' { RecordUpsert }
+        }
+    }
+
+    'list' {
+        $records = RecordsLoad
+        if ($null -eq $records) { break }
+
+        ShowRecords -records $records
+    }
+
+    { $_ -in @('check', 'all') } {
+        # 批量線：-check 只檢查不下載（完全唯讀）；-all 用紀錄參數在紀錄的 dir 重放
+        $records = RecordsLoad
+        if ($null -eq $records) { break }
+
+        $stats = @{ Updated = 0; UpToDate = 0; Failed = 0; Dead = 0 }
+        $failedList = @()
+
+        foreach ($key in @($records.Keys)) {
+            $rec = $records[$key]
+            if (-not (Test-Path -LiteralPath "$($rec.dir)")) {
+                Write-Host "[$key] 路徑失效: $($rec.dir)" -ForegroundColor Red
+                $stats.Dead++
+                continue
+            }
+
+            Write-Host "`n[$key]"
+            try {
+                $ctx = CtxFromRecord -key $key -rec $rec
+                $ctx.CheckOnly = ($mode -eq 'check')
+                ToolUpdate
+
+                switch ($ctx.Status) {
+                    'Updated'   { $stats.Updated++; if ($mode -eq 'all') { RecordUpsert } }
+                    'HasUpdate' { $stats.Updated++ }
+                    'UpToDate'  { $stats.UpToDate++ }
+                    'Reset'     { $stats.UpToDate++; if ($mode -eq 'all') { RecordUpsert } }
+                    default     { $stats.Failed++; $failedList += "$key ($($ctx.Status))" }
+                }
+            }
+            catch {
+                Write-Host "[$key] 執行失敗: $($_.Exception.Message)" -ForegroundColor Red
+                $stats.Failed++
+                $failedList += "$key (例外: $($_.Exception.Message))"
+            }
+        }
+
+        Write-Host ""
+        Write-Host ("彙總: 更新 {0} | 已最新 {1} | 失敗 {2} | 路徑失效 {3}" -f $stats.Updated, $stats.UpToDate, $stats.Failed, $stats.Dead) -ForegroundColor Cyan
+        if ($failedList.Count -gt 0) {
+            foreach ($f in $failedList) { Write-Host "  失敗: $f" -ForegroundColor Red }
         }
     }
 
