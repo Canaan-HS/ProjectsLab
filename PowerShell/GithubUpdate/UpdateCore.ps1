@@ -386,7 +386,9 @@ function ShowRecords {
         if ($rec.no_idm) { $params += "ni" }
         $paramText = if ($params.Count -gt 0) { " [$($params -join ' ')]" } else { "" }
 
-        $line = "{0}  v{1}  {2}{3}" -f $key, $rec.version, $rec.dir, $paramText
+        # tag 已帶 v 前綴（如 v1.2.10）不重複補；裸版本（如 0.13.7）補 v 統一觀感
+        $verText = if ("$($rec.version)" -match '^v') { "$($rec.version)" } else { "v$($rec.version)" }
+        $line = "{0}  {1}  {2}{3}" -f $key, $verText, $rec.dir, $paramText
         if (Test-Path -LiteralPath "$($rec.dir)") {
             Write-Host $line
         }
