@@ -86,8 +86,6 @@ if (-not $owner -or -not $repo) {
 
 # ===== 核心程式 =====
 
-$callPath = (Get-Location).Path
-
 $versionRecordTemplate = "! Version - $repo - {0}"
 $prefix = $versionRecordTemplate -replace '\{0\}', ''
 $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
@@ -111,10 +109,31 @@ function GetIdmPath {
 
 $idmExe = GetIdmPath
 
-# 取得版本文件
-$versionFile = Get-ChildItem -Path $callPath -File -Filter "$prefix*" |
-Sort-Object Name -Descending |
-Select-Object -First 1
+# ctx: 本次操作的共享狀態（臨時乾淨列表）
+# 所有函數統一跟它拿參數、把結果寫回，不做函數間參數傳遞；一律同步操作
+# 單發線從參數建立；之後管理線會從紀錄逐筆重建
+# 注意: 函數內只准 $ctx.x = ... 屬性賦值，禁止 $ctx = ... 整體重綁（動態作用域會造出區域變數）
+$ctx = @{
+    owner            = $owner
+    repo             = $repo
+    dir              = (Get-Location).Path
+    asset_name       = $asset_name
+    exclude_patterns = $exclude_patterns
+    auto_extract     = [bool]$auto_extract
+    no_idm           = [bool]$no_idm
+    currentVersion   = ""
+    # 行為開關
+    DownloadOnFirstRecord = $false   # -i 無紀錄時直接下載最新；單發線只記版本不下載
+    # 結果欄位（ToolUpdate 寫回）
+    Status    = ""
+    NewVersion = ""
+    Failed    = @()
+}
+
+# 取得版本文件（單發線：標記檔）
+$versionFile = Get-ChildItem -LiteralPath $ctx.dir -File -Filter "$prefix*" |
+    Sort-Object Name -Descending |
+    Select-Object -First 1
 
 function GetVersion {
     if (-not $versionFile) { return "" }
@@ -127,11 +146,12 @@ function SetVersion {
     $newName = $versionRecordTemplate -f $version
 
     if ($versionFile) {
-        Rename-Item -Path $versionFile.FullName -NewName $newName -Force
+        Rename-Item -LiteralPath $versionFile.FullName -NewName $newName -Force
         Write-Host "版本紀錄修改: $version"
     }
     else {
-        New-Item -ItemType File -Path (Join-Path $callPath $newName) | Out-Null
+        # New-Item 沒有 -LiteralPath，改用 .NET 直接建空檔（路徑含 [ ] 也安全）
+        [System.IO.File]::WriteAllText((Join-Path $ctx.dir $newName), "")
         Write-Host "創建版本紀錄: $version"
     }
 }
@@ -162,23 +182,23 @@ function GetDownloadInfo {
     $notX64Architecture = "(?i)win32|wow32|arm(?:64)?|aarch64|i[3-6]86|x86(?![-_]?64)|32[-_ ]?bit|mips(?:64)?|ppc(?:64)?|powerpc|sparc|riscv(?:64)?|s390x?"
 
     # 如果有指定排除檔案名特徵
-    if ($exclude_patterns) {
-        $excludeRegex = "(?i)" + (($exclude_patterns -split ',' | ForEach-Object {
+    if ($ctx.exclude_patterns) {
+        $excludeRegex = "(?i)" + (($ctx.exclude_patterns -split ',' | ForEach-Object {
                     [regex]::Escape($_.Trim())
                 }) -join '|')
     }
 
     # 如果有指定下載特定檔案名稱，用包含匹配（忽略大小寫）
-    if ($asset_name) {
+    if ($ctx.asset_name) {
         $matched = $assets | Where-Object {
-            $_.name.Contains($asset_name) -and
+            $_.name.Contains($ctx.asset_name) -and
             -not ($excludeRegex -and $_.name -match $excludeRegex) -and
             $_.name -notmatch $notExecutable -and
             $_.name -notmatch $notWindowsExecutable -and
             $_.name -notmatch $notX64Architecture
         }
         if ($matched -and $matched.name) { return $matched }
-        Write-Host "未找到包含 '$asset_name' 的資產，使用自動檢測。" -ForegroundColor Yellow
+        Write-Host "未找到包含 '$($ctx.asset_name)' 的資產，使用自動檢測。" -ForegroundColor Yellow
     }
 
     # ! 塞選條件以我個人使用為主, 並非通用性
@@ -261,7 +281,7 @@ function AutoExtract {
     Write-Host "解壓完成: $name"
 
     try {
-        Remove-Item -Path $filePath -Force -ErrorAction Stop
+        Remove-Item -LiteralPath $filePath -Force -ErrorAction Stop
         Write-Host "已移除壓縮檔: $name"
     }
     catch {
@@ -283,7 +303,7 @@ function InvokeIdmDownload {
     # --- 啟動 IDM ---
     # /n 靜默下載；/q 只在 IDM 原本未執行時使用（完成後會退出）。
     # 路徑結尾反斜線會吃掉結尾引號，先加倍。
-    $quotedCallPath = $callPath -replace '(\\+)$', '$1$1'
+    $quotedCallPath = $ctx.dir -replace '(\\+)$', '$1$1'
     $idmArgs = "/n /d `"$downloadUrl`" /p `"$quotedCallPath`" /f `"$assetName`""
     if (-not $idmWasRunning) { $idmArgs += ' /q' }
 
@@ -468,17 +488,17 @@ function DownloadAsset {
     param($asset)
 
     $url = $asset.browser_download_url
-    $filePath = Join-Path $callPath $asset.name
+    $filePath = Join-Path $ctx.dir $asset.name
 
     Write-Host "下載資產: $($asset.name)"
     Write-Host "下載位置: $filePath"
     Write-Host "下載網址: $url"
 
     # 有 IDM 且未停用 → 交由 IDM 下載（不跑內部進度列）
-    if ($idmExe -and -not $no_idm) {
+    if ($idmExe -and -not $ctx.no_idm) {
         $ok = InvokeIdmDownload -asset $asset -filePath $filePath
 
-        if ($ok -and $auto_extract) { AutoExtract -filePath $filePath | Out-Null }
+        if ($ok -and $ctx.auto_extract) { AutoExtract -filePath $filePath | Out-Null }
 
         return $ok
     }
@@ -551,7 +571,7 @@ function DownloadAsset {
         # 結束進度列，避免後續訊息接在同一行
         if ($progressShown) { Write-Host "" }
 
-        if (-not $ok -and (Test-Path $filePath)) { Remove-Item $filePath -Force }
+        if (-not $ok -and (Test-Path -LiteralPath $filePath)) { Remove-Item -LiteralPath $filePath -Force }
     }
 
     if (-not $ok) {
@@ -561,13 +581,15 @@ function DownloadAsset {
 
     Write-Host "下載完成: $($asset.name)"
 
-    if ($auto_extract) { AutoExtract -filePath $filePath | Out-Null }
+    if ($ctx.auto_extract) { AutoExtract -filePath $filePath | Out-Null }
 
     return $true
 }
 
-function SendRequest {
-    $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$owner/$repo/releases/latest" -Headers @{ "User-Agent" = $userAgent }
+# 核心管線：查 API → 比版本 → 選資產 → 下載 → 解壓
+# 狀態全部從 $ctx 讀取，結果寫回 $ctx；版本寫回一律由呼叫端（模式層）接手
+function ToolUpdate {
+    $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$($ctx.owner)/$($ctx.repo)/releases/latest" -Headers @{ "User-Agent" = $userAgent }
 
     # ? 測試用
     # GetDownloadInfo -assets $response.assets | ForEach-Object { write-host $_.name }
@@ -575,50 +597,76 @@ function SendRequest {
 
     if (-not $response -or -not ($response.tag_name -and $response.assets)) {
         Write-Host "無法獲取最新版本資訊，請檢查倉庫名稱和網絡連接。" -ForegroundColor Red
+        $ctx.Status = 'ApiError'
         return
     }
 
-    $oldVersion = ParseVersion (GetVersion)
+    $ctx.NewVersion = $response.tag_name
+
+    $oldVersion = ParseVersion $ctx.currentVersion
     $newVersion = ParseVersion $response.tag_name
 
     if (-not $oldVersion) {
-        Write-Host "未找到之前的版本。"
-        SetVersion $response.tag_name
-        return
+        if (-not $ctx.DownloadOnFirstRecord) {
+            Write-Host "未找到之前的版本。"
+            $ctx.Status = 'RecordOnly'
+            return
+        }
+        # -i 無紀錄：視同有更新，直接下載最新
+        Write-Host "無紀錄，直接下載最新版本: $($response.tag_name)"
     }
-
-    if ($oldVersion -eq $newVersion) {
+    elseif ($oldVersion -eq $newVersion) {
         Write-Host "已是最新版本。`n當前版本: $($response.tag_name)"
+        $ctx.Status = 'UpToDate'
+        return
     }
     elseif ($oldVersion -lt $newVersion) {
         Write-Host "有可用更新: $($response.tag_name) (目前版本: $oldVersion)"
-        $downloadInfo = GetDownloadInfo -assets $response.assets
-
-        if ($downloadInfo) {
-            Write-Host "下載版本: $($response.tag_name)"
-
-            $failed = @()
-            foreach ($asset in $downloadInfo) {
-                if (-not (DownloadAsset -asset $asset)) { $failed += $asset.name }
-            }
-
-            if ($failed.Count -eq 0) {
-                SetVersion $response.tag_name
-            }
-            else {
-                Write-Host "有 $($failed.Count) 個資產下載失敗，版本記錄未更新，下次執行會重新嘗試：" -ForegroundColor Red
-                foreach ($name in $failed) { Write-Host "  - $name" -ForegroundColor Red }
-            }
-        }
-        else {
-            Write-Host "未找到適合下載的資產。請檢查倉庫的發布頁面以確保有適合 Windows 的資產，或使用 -asset_name 參數指定資產名稱。" -ForegroundColor Yellow
-        }
     }
     else {
         Write-Host "本機版本 ($oldVersion) 比最新發布版本 ($newVersion) 更新。 版本記錄已重置。" -ForegroundColor Yellow
-        SetVersion $response.tag_name
+        $ctx.Status = 'Reset'
+        return
+    }
+
+    $downloadInfo = GetDownloadInfo -assets $response.assets
+
+    if ($downloadInfo) {
+        Write-Host "下載版本: $($response.tag_name)"
+
+        $failed = @()
+        foreach ($asset in $downloadInfo) {
+            if (-not (DownloadAsset -asset $asset)) { $failed += $asset.name }
+        }
+
+        if ($failed.Count -eq 0) {
+            $ctx.Status = 'Updated'
+        }
+        else {
+            $ctx.Status = 'Failed'
+            $ctx.Failed = $failed
+            Write-Host "有 $($failed.Count) 個資產下載失敗，版本記錄未更新，下次執行會重新嘗試：" -ForegroundColor Red
+            foreach ($name in $failed) { Write-Host "  - $name" -ForegroundColor Red }
+        }
+    }
+    else {
+        $ctx.Status = 'NoAsset'
+        Write-Host "未找到適合下載的資產。請檢查倉庫的發布頁面以確保有適合 Windows 的資產，或使用 -asset_name 參數指定資產名稱。" -ForegroundColor Yellow
     }
 }
 
-SendRequest
+# ===== 執行（單發線）=====
+
+# 單發線：版本讀自標記檔（之後管理線：讀自統一紀錄）
+$ctx.currentVersion = GetVersion
+
+ToolUpdate
+
+# 收尾：依狀態寫回版本（單發線 = 標記檔；之後管理線 = 統一紀錄整筆覆蓋）
+switch ($ctx.Status) {
+    'RecordOnly' { SetVersion $ctx.NewVersion }   # 初次：只記版本不下載
+    'Updated' { SetVersion $ctx.NewVersion }      # 更新下載成功
+    'Reset' { SetVersion $ctx.NewVersion }        # 本機較新：重置為遠端
+}
+
 Read-Host "`n按任意鍵退出"
