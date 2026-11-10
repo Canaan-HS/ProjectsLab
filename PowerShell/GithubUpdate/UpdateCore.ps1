@@ -64,6 +64,9 @@ GitHub 資產更新工具
   gau -i astral-sh/uv -ae2
   gau -i -o astral-sh -r uv -a "x64" -ae
 
+備註:
+  偵測到 gh CLI 登入或設定 GITHUB_TOKEN 環境變數時，API 自動帶授權（限額 60 → 5000/hr）
+
 "@ -ForegroundColor Green
     exit 0
 }
@@ -134,6 +137,16 @@ $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 
 # 統一紀錄檔（管理線 -i 專用；單發線不碰）
 $recordsPath = Join-Path $env:USERPROFILE '.gau\records.json'
+
+# GitHub API token（提高限額 60 → 5000/hr）：環境變數優先，其次 gh CLI 登入憑證
+$githubToken = $env:GITHUB_TOKEN
+if (-not $githubToken) {
+    $ghCmd = Get-Command gh -ErrorAction SilentlyContinue
+    if ($ghCmd) {
+        try { $githubToken = "$(& $ghCmd.Source auth token 2>$null)".Trim() } catch { $githubToken = $null }
+        if (-not $githubToken) { $githubToken = $null }
+    }
+}
 
 # IDM 偵測
 function GetIdmPath {
@@ -777,7 +790,10 @@ function DownloadAsset {
 # 核心管線：查 API → 比版本 → 選資產 → 下載 → 解壓
 # 狀態全部從 $ctx 讀取，結果寫回 $ctx；版本寫回一律由呼叫端（模式層）接手
 function ToolUpdate {
-    $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$($ctx.owner)/$($ctx.repo)/releases/latest" -Headers @{ "User-Agent" = $userAgent }
+    $headers = @{ "User-Agent" = $userAgent }
+    if ($githubToken) { $headers["Authorization"] = "Bearer $githubToken" }
+
+    $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$($ctx.owner)/$($ctx.repo)/releases/latest" -Headers $headers
 
     # ? 測試用
     # GetDownloadInfo -assets $response.assets | ForEach-Object { write-host $_.name }
