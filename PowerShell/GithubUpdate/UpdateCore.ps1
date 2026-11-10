@@ -294,6 +294,21 @@ function RecordsLoad {
     return $loaded
 }
 
+# 單一 JSON 字串值（含外層引號與跳脫）；不用 ConvertTo-Json 是因為 5.1 對非 ASCII 與縮排的輸出與 7 不同
+function JsonEscapeString {
+    param([string]$value)
+
+    $escaped = $value.Replace('\', '\\').Replace('"', '\"')
+
+    $sb = [System.Text.StringBuilder]::new('"')
+    foreach ($ch in $escaped.ToCharArray()) {
+        if ([int]$ch -lt 32) { $null = $sb.Append('\u{0:x4}' -f [int]$ch) }
+        else { $null = $sb.Append($ch) }
+    }
+    $null = $sb.Append('"')
+    return $sb.ToString()
+}
+
 function RecordsSave {
     try {
         $parent = [System.IO.Path]::GetDirectoryName($recordsPath)
@@ -301,8 +316,44 @@ function RecordsSave {
             [System.IO.Directory]::CreateDirectory($parent) | Out-Null
         }
 
-        $json = $records | ConvertTo-Json -Depth 5 | Out-String
-        [System.IO.File]::WriteAllText($recordsPath, $json, [System.Text.UTF8Encoding]::new($false))
+        # 手動序列化：統一為標準 2 空格縮排（5.1 的 ConvertTo-Json 是對齊式縮排且空物件跨行）
+        $keys = @($records.Keys)
+        if ($keys.Count -eq 0) {
+            $json = "{}"
+        }
+        else {
+            $lines = [System.Collections.Generic.List[string]]::new()
+            $lines.Add('{')
+            for ($i = 0; $i -lt $keys.Count; $i++) {
+                $rec = $records[$keys[$i]]
+
+                $lines.Add(('  {0}: {{' -f (JsonEscapeString $keys[$i])))
+                $fieldNames = @($rec.Keys) | Where-Object { $null -ne $rec[$_] }
+                for ($j = 0; $j -lt $fieldNames.Count; $j++) {
+                    $name = $fieldNames[$j]
+                    $value = $rec[$name]
+
+                    if ($value -is [bool]) {
+                        $jsonValue = if ($value) { 'true' } else { 'false' }
+                    }
+                    elseif ($value -is [int] -or $value -is [long] -or $value -is [double] -or $value -is [decimal]) {
+                        $jsonValue = "$value"
+                    }
+                    else {
+                        $jsonValue = JsonEscapeString "$value"
+                    }
+                    $comma = if ($j -lt $fieldNames.Count - 1) { ',' } else { '' }
+                    $lines.Add(('    {0}: {1}{2}' -f (JsonEscapeString $name), $jsonValue, $comma))
+                }
+
+                $comma = if ($i -lt $keys.Count - 1) { ',' } else { '' }
+                $lines.Add(('  }}{0}' -f $comma))
+            }
+            $lines.Add('}')
+            $json = $lines -join "`r`n"
+        }
+
+        [System.IO.File]::WriteAllText($recordsPath, $json + "`r`n", [System.Text.UTF8Encoding]::new($false))
     }
     catch {
         Write-Host "紀錄檔寫入失敗: $($_.Exception.Message)" -ForegroundColor Red
