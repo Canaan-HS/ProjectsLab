@@ -94,6 +94,9 @@ $versionRecordTemplate = "! Version - $repo - {0}"
 $prefix = $versionRecordTemplate -replace '\{0\}', ''
 $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"
 
+# 統一紀錄檔（管理線 -i 專用；單發線不碰）
+$recordsPath = Join-Path $env:USERPROFILE '.gau\records.json'
+
 # IDM 偵測
 function GetIdmPath {
     # 1) IDM 自己寫入的 registry
@@ -177,6 +180,80 @@ function ParseVersion {
     }
 
     return $null
+}
+
+# ===== 統一紀錄（管理線）=====
+# 檔案結構: { "owner/repo": { dir, version, ...參數 } }
+# 欄位鏡像 CLI 參數名；沒給的參數不寫入（缺席 = 沒給），讀回時缺 key 為 $null（falsy）
+# key 比對不分大小寫，以最新一次輸入的大小寫改寫
+
+function RecordsLoad {
+    if (-not (Test-Path -LiteralPath $recordsPath)) { return @{} }
+
+    try {
+        $obj = Get-Content -LiteralPath $recordsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    }
+    catch {
+        Write-Host "紀錄檔解析失敗: $($_.Exception.Message)" -ForegroundColor Red
+        return $null
+    }
+
+    $loaded = @{}
+    if ($obj) {
+        foreach ($p in $obj.PSObject.Properties) {
+            $rec = @{}
+            foreach ($q in $p.Value.PSObject.Properties) { $rec[$q.Name] = $q.Value }
+            $loaded[$p.Name] = $rec
+        }
+    }
+    return $loaded
+}
+
+function RecordsSave {
+    try {
+        $parent = [System.IO.Path]::GetDirectoryName($recordsPath)
+        if (-not (Test-Path -LiteralPath $parent)) {
+            [System.IO.Directory]::CreateDirectory($parent) | Out-Null
+        }
+
+        $json = $records | ConvertTo-Json -Depth 5 | Out-String
+        [System.IO.File]::WriteAllText($recordsPath, $json, [System.Text.UTF8Encoding]::new($false))
+    }
+    catch {
+        Write-Host "紀錄檔寫入失敗: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+# 整筆重寫該 key 的紀錄（從 $ctx 序列化；不做逐欄合併，缺席欄位自然消失）
+function RecordUpsert {
+    $key = "$($ctx.owner)/$($ctx.repo)"
+
+    # 以本次輸入的大小寫改寫 key（比對不分大小寫）
+    $oldKeys = @($records.Keys) | Where-Object { $_ -ieq $key }
+    foreach ($k in $oldKeys) { $records.Remove($k) }
+
+    $rec = @{}
+    $rec['dir'] = $ctx.dir
+    $rec['version'] = $ctx.NewVersion
+    if ($ctx.asset_name) { $rec['asset_name'] = $ctx.asset_name }
+    if ($ctx.exclude_patterns) { $rec['exclude_patterns'] = $ctx.exclude_patterns }
+    if ($ctx.auto_extract) { $rec['auto_extract'] = $true }
+    if ($ctx.auto_extract2) { $rec['auto_extract2'] = $true }
+    if ($ctx.no_idm) { $rec['no_idm'] = $true }
+
+    $records[$key] = $rec
+    RecordsSave
+}
+
+function RecordRemove {
+    param([string]$key)
+
+    $oldKey = @($records.Keys) | Where-Object { $_ -ieq $key } | Select-Object -First 1
+    if (-not $oldKey) { return $false }
+
+    $records.Remove($oldKey)
+    RecordsSave
+    return $true
 }
 
 function GetDownloadInfo {
