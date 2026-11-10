@@ -67,7 +67,7 @@ GitHub 資產更新工具
   -ae, -auto_extract             下載後自動解壓縮
   -ae2, -auto_extract2           解壓後攤平單一頂層資料夾
   -ni, -no_idm                   停用 IDM 偵測，強制使用內建下載器
-  -i, -install                   統一管理線：下載並納入紀錄（無紀錄時直接下載最新）
+  -i, -install                   統一管理
   -un, -uninstall <owner/repo>   解除紀錄綁定（不刪除已下載的檔案）
   -l, -list                      顯示紀錄列表（含路徑存活檢查）
   -c, -check                     批量檢查所有紀錄的更新（不下載、唯讀）
@@ -79,16 +79,8 @@ GitHub 資產更新工具
   gau -o user -r app
   gau -o user -r app -a "software_x64_portable.exe"
   gau -o user -r app -e "debug,source"
-  gau -i astral-sh/uv -ae2
-  gau -i -o astral-sh -r uv -a "x64" -ae
-  gau -un astral-sh/uv
-  gau -l
-  gau -check
-  gau -all
-
-備註:
-  偵測到 gh CLI 登入或設定 GITHUB_TOKEN 環境變數時，API 自動帶授權（限額 60 → 5000/hr）
-
+  gau -i user/app -ae2
+  gau -i -o user -r app -a "x64" -ae
 "@ -ForegroundColor Green
     exit 0
 }
@@ -109,6 +101,8 @@ if ($MyInvocation.MyCommand.CommandType -ne "ExternalScript") {
     }
 }
 
+if ($help -or $PSBoundParameters.Count -eq 0) { ShowHelp }
+
 # 解析 -i / -un 的倉庫字串：完整 GitHub 網址或 owner/repo 簡寫
 # 回傳 @(owner, repo)；無法解析回傳空陣列
 function ParseRepoArg {
@@ -124,9 +118,7 @@ function ParseRepoArg {
     return @()
 }
 
-if ($help -or $PSBoundParameters.Count -eq 0) { ShowHelp }
-
-# 模式判定（同時出現時取先者；優先序: uninstall > install > list > check > all > 單發）
+# 模式判定（同時出現時取先者, 優先序: uninstall > install > list > check > all > 單發）
 $mode = 'single'
 if ($all) { $mode = 'all' }
 if ($check) { $mode = 'check' }
@@ -141,13 +133,16 @@ if ($url -match '(?i)^https://github\.com/([^/]+)/([^/]+)') {
 elseif ($install -and $url) {
     # -i 額外支援 owner/repo 簡寫（單發線維持原本只吃完整網址）
     $parsed = ParseRepoArg -arg $url
+
     if ($parsed) {
         $owner = $parsed[0]
         $repo = $parsed[1]
     }
 }
 
+# uninstall / list / check / all 不需要倉庫參數
 if (-not $owner -or -not $repo) {
+
     if ($mode -eq 'install') {
         Write-Host "gau -i 需要 GitHub 網址、owner/repo 簡寫，或 -o/-r 參數。" -ForegroundColor Red
         Write-Host "範例: gau -i astral-sh/uv" -ForegroundColor Yellow
@@ -155,11 +150,11 @@ if (-not $owner -or -not $repo) {
         Write-Host "      gau -i -o astral-sh -r uv" -ForegroundColor Yellow
         exit 1
     }
+
     if ($mode -eq 'single') {
         Write-Host "參數 -owner 和 -repo 是必需的" -ForegroundColor Red
         ShowHelp
     }
-    # uninstall / list / check / all 不需要倉庫參數
 }
 
 # ===== 核心程式 =====
@@ -168,13 +163,14 @@ $versionRecordTemplate = "! Version - $repo - {0}"
 $prefix = $versionRecordTemplate -replace '\{0\}', ''
 $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"
 
-# 統一紀錄檔（管理線 -i 專用；單發線不碰）
+# 統一紀錄檔（管理線 -i 專用）
 $recordsPath = Join-Path $env:USERPROFILE '.gau\records.json'
 
-# GitHub API token（提高限額 60 → 5000/hr）：環境變數優先，其次 gh CLI 登入憑證
+# GitHub API token：環境變數優先，其次 gh CLI 登入憑證
 $githubToken = $env:GITHUB_TOKEN
 if (-not $githubToken) {
     $ghCmd = Get-Command gh -ErrorAction SilentlyContinue
+
     if ($ghCmd) {
         try { $githubToken = "$(& $ghCmd.Source auth token 2>$null)".Trim() } catch { $githubToken = $null }
         if (-not $githubToken) { $githubToken = $null }
@@ -266,11 +262,10 @@ function ParseVersion {
     return $null
 }
 
-# ===== 統一紀錄（管理線）=====
+
 # 檔案結構: { "owner/repo": { dir, version, ...參數 } }
 # 欄位鏡像 CLI 參數名；沒給的參數不寫入（缺席 = 沒給），讀回時缺 key 為 $null（falsy）
 # key 比對不分大小寫，以最新一次輸入的大小寫改寫
-
 function RecordsLoad {
     if (-not (Test-Path -LiteralPath $recordsPath)) { return [ordered]@{} }
 
@@ -348,20 +343,20 @@ function CtxFromRecord {
     $parts = $key -split '/'
 
     return @{
-        owner            = $parts[0]
-        repo             = $parts[1]
-        dir              = "$($rec.dir)"
-        asset_name       = $rec.asset_name
-        exclude_patterns = $rec.exclude_patterns
-        auto_extract     = [bool]$rec.auto_extract
-        auto_extract2    = [bool]$rec.auto_extract2
-        no_idm           = [bool]$rec.no_idm
-        currentVersion   = "$($rec.version)"
+        owner                 = $parts[0]
+        repo                  = $parts[1]
+        dir                   = "$($rec.dir)"
+        asset_name            = $rec.asset_name
+        exclude_patterns      = $rec.exclude_patterns
+        auto_extract          = [bool]$rec.auto_extract
+        auto_extract2         = [bool]$rec.auto_extract2
+        no_idm                = [bool]$rec.no_idm
+        currentVersion        = "$($rec.version)"
         DownloadOnFirstRecord = $true
-        CheckOnly        = $false
-        Status           = ""
-        NewVersion       = ""
-        Failed           = @()
+        CheckOnly             = $false
+        Status                = ""
+        NewVersion            = ""
+        Failed                = @()
     }
 }
 
@@ -466,8 +461,6 @@ function FlattenFolder {
 
     $parent = [System.IO.Path]::GetDirectoryName($folderPath)
     $name = [System.IO.Path]::GetFileName($folderPath)
-
-    Write-Host "攤平資料夾: $name"
 
     try {
         foreach ($item in @(Get-ChildItem -LiteralPath $folderPath -Force)) {
@@ -874,8 +867,7 @@ function DownloadAsset {
     return $true
 }
 
-# 核心管線：查 API → 比版本 → 選資產 → 下載 → 解壓
-# 狀態全部從 $ctx 讀取，結果寫回 $ctx；版本寫回一律由呼叫端（模式層）接手
+# 查 API → 比版本 → 選資產 → 下載 → 解壓
 function ToolUpdate {
     $headers = @{ "User-Agent" = $userAgent }
     if ($githubToken) { $headers["Authorization"] = "Bearer $githubToken" }
@@ -908,6 +900,7 @@ function ToolUpdate {
             $ctx.Status = 'HasUpdate'
             return
         }
+
         # -i 無紀錄或新路徑：視同首次下載，直接下載最新
         Write-Host "視為首次下載，直接下載最新版本: $($response.tag_name)"
     }
@@ -918,6 +911,7 @@ function ToolUpdate {
     }
     elseif ($oldVersion -lt $newVersion) {
         Write-Host "有可用更新: $($response.tag_name) (目前版本: $oldVersion)"
+
         if ($ctx.CheckOnly) {
             $ctx.Status = 'HasUpdate'
             return
@@ -1033,11 +1027,11 @@ switch ($mode) {
                 ToolUpdate
 
                 switch ($ctx.Status) {
-                    'Updated'   { $stats.Updated++; if ($mode -eq 'all') { RecordUpsert } }
+                    'Updated' { $stats.Updated++; if ($mode -eq 'all') { RecordUpsert } }
                     'HasUpdate' { $stats.Updated++ }
-                    'UpToDate'  { $stats.UpToDate++ }
-                    'Reset'     { $stats.UpToDate++; if ($mode -eq 'all') { RecordUpsert } }
-                    default     { $stats.Failed++; $failedList += "$key ($($ctx.Status))" }
+                    'UpToDate' { $stats.UpToDate++ }
+                    'Reset' { $stats.UpToDate++; if ($mode -eq 'all') { RecordUpsert } }
+                    default { $stats.Failed++; $failedList += "$key ($($ctx.Status))" }
                 }
             }
             catch {
