@@ -204,12 +204,16 @@ $Github = @{
     # GitHub API token：環境變數優先，其次 gh CLI 登入憑證
     _FindToken = {
         if ($env:GITHUB_TOKEN) { return $env:GITHUB_TOKEN }
+        if ($env:GH_TOKEN) { return $env:GH_TOKEN }
 
         $ghCmd = Get-Command gh -ErrorAction SilentlyContinue
         if (-not $ghCmd) { return $null }
 
-        try { $token = "$(& $ghCmd.Source auth token 2>$null)".Trim() } catch { $token = $null }
-        if ($token) { return $token }
+        try {
+            $token = "$(& $ghCmd.Source auth token 2>$null)".Trim()
+            if ($token) { return $token }
+        } catch {}
+
         return $null
     }
 
