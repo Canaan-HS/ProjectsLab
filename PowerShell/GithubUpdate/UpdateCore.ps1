@@ -9,6 +9,9 @@ param (
     [Alias("r")]
     [string]$repo = "",
 
+    [Alias("i")]             
+    [switch]$install = $null,
+
     [Alias("a")]
     [string]$asset_name = $null,
 
@@ -38,6 +41,8 @@ GitHub 資產更新工具
 使用:
   gau.exe <GitHub 網址> [選項]
   gau.exe -o <owner> -r <repo> [選項]
+  gau.exe -i <GitHub 網址 | owner/repo> [選項]
+  gau.exe -i -o <owner> -r <repo> [選項]
 
 選項:
   -u, -url <url>                 GitHub 儲存庫網址
@@ -48,6 +53,7 @@ GitHub 資產更新工具
   -ae, -auto_extract             下載後自動解壓縮
   -ae2, -auto_extract2           解壓後攤平單一頂層資料夾
   -ni, -no_idm                   停用 IDM 偵測，強制使用內建下載器
+  -i, -install                   統一管理線：下載並納入紀錄（無紀錄時直接下載最新）
   -h, -help                      顯示本說明
 
 範例:
@@ -55,6 +61,8 @@ GitHub 資產更新工具
   gau -o user -r app
   gau -o user -r app -a "software_x64_portable.exe"
   gau -o user -r app -e "debug,source"
+  gau -i astral-sh/uv -ae2
+  gau -i -o astral-sh -r uv -a "x64" -ae
 
 "@ -ForegroundColor Green
     exit 0
@@ -76,14 +84,44 @@ if ($MyInvocation.MyCommand.CommandType -ne "ExternalScript") {
     }
 }
 
+# 解析 -i / -un 的倉庫字串：完整 GitHub 網址或 owner/repo 簡寫
+# 回傳 @(owner, repo)；無法解析回傳空陣列
+function ParseRepoArg {
+    param([string]$arg)
+
+    if ($arg -match '(?i)^https://github\.com/([^/]+)/([^/]+)') {
+        return @($matches[1], $matches[2])
+    }
+    if ($arg -match '^[^/\s]+/[^/\s]+$') {
+        $parts = $arg -split '/'
+        return @($parts[0], $parts[1])
+    }
+    return @()
+}
+
 if ($help -or $PSBoundParameters.Count -eq 0) { ShowHelp }
 
 if ($url -match '(?i)^https://github\.com/([^/]+)/([^/]+)') {
     $owner = $matches[1]
     $repo = $matches[2]
 }
+elseif ($install -and $url) {
+    # -i 額外支援 owner/repo 簡寫（單發線維持原本只吃完整網址）
+    $parsed = ParseRepoArg -arg $url
+    if ($parsed) {
+        $owner = $parsed[0]
+        $repo = $parsed[1]
+    }
+}
 
 if (-not $owner -or -not $repo) {
+    if ($install) {
+        Write-Host "gau -i 需要 GitHub 網址、owner/repo 簡寫，或 -o/-r 參數。" -ForegroundColor Red
+        Write-Host "範例: gau -i astral-sh/uv" -ForegroundColor Yellow
+        Write-Host "      gau -i https://github.com/astral-sh/uv" -ForegroundColor Yellow
+        Write-Host "      gau -i -o astral-sh -r uv" -ForegroundColor Yellow
+        exit 1
+    }
     Write-Host "參數 -owner 和 -repo 是必需的" -ForegroundColor Red
     ShowHelp
 }
@@ -121,27 +159,27 @@ $idmExe = GetIdmPath
 # 單發線從參數建立；之後管理線會從紀錄逐筆重建
 # 注意: 函數內只准 $ctx.x = ... 屬性賦值，禁止 $ctx = ... 整體重綁（動態作用域會造出區域變數）
 $ctx = @{
-    owner            = $owner
-    repo             = $repo
-    dir              = (Get-Location).Path
-    asset_name       = $asset_name
-    exclude_patterns = $exclude_patterns
-    auto_extract     = [bool]$auto_extract
-    auto_extract2    = [bool]$auto_extract2
-    no_idm           = [bool]$no_idm
-    currentVersion   = ""
+    owner                 = $owner
+    repo                  = $repo
+    dir                   = (Get-Location).Path
+    asset_name            = $asset_name
+    exclude_patterns      = $exclude_patterns
+    auto_extract          = [bool]$auto_extract
+    auto_extract2         = [bool]$auto_extract2
+    no_idm                = [bool]$no_idm
+    currentVersion        = ""
     # 行為開關
     DownloadOnFirstRecord = $false   # -i 無紀錄時直接下載最新；單發線只記版本不下載
     # 結果欄位（ToolUpdate 寫回）
-    Status    = ""
-    NewVersion = ""
-    Failed    = @()
+    Status                = ""
+    NewVersion            = ""
+    Failed                = @()
 }
 
 # 取得版本文件（單發線：標記檔）
 $versionFile = Get-ChildItem -LiteralPath $ctx.dir -File -Filter "$prefix*" |
-    Sort-Object Name -Descending |
-    Select-Object -First 1
+Sort-Object Name -Descending |
+Select-Object -First 1
 
 function GetVersion {
     if (-not $versionFile) { return "" }
@@ -188,7 +226,7 @@ function ParseVersion {
 # key 比對不分大小寫，以最新一次輸入的大小寫改寫
 
 function RecordsLoad {
-    if (-not (Test-Path -LiteralPath $recordsPath)) { return @{} }
+    if (-not (Test-Path -LiteralPath $recordsPath)) { return [ordered]@{} }
 
     try {
         $obj = Get-Content -LiteralPath $recordsPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -198,10 +236,10 @@ function RecordsLoad {
         return $null
     }
 
-    $loaded = @{}
+    $loaded = [ordered]@{}
     if ($obj) {
         foreach ($p in $obj.PSObject.Properties) {
-            $rec = @{}
+            $rec = [ordered]@{}
             foreach ($q in $p.Value.PSObject.Properties) { $rec[$q.Name] = $q.Value }
             $loaded[$p.Name] = $rec
         }
@@ -228,11 +266,12 @@ function RecordsSave {
 function RecordUpsert {
     $key = "$($ctx.owner)/$($ctx.repo)"
 
-    # 以本次輸入的大小寫改寫 key（比對不分大小寫）
-    $oldKeys = @($records.Keys) | Where-Object { $_ -ieq $key }
-    foreach ($k in $oldKeys) { $records.Remove($k) }
+    # 以本次輸入的大小寫改寫 key（比對不分大小寫；大小寫相同時原位覆蓋，保持檔案順序穩定）
+    $oldKey = @($records.Keys) | Where-Object { $_ -ieq $key } | Select-Object -First 1
+    if ($oldKey -and $oldKey -cne $key) { $records.Remove($oldKey) }
 
-    $rec = @{}
+    # [ordered] 保證欄位順序固定（雜湊表的列舉順序隨行程改變，會讓檔案位元組不穩定）
+    $rec = [ordered]@{}
     $rec['dir'] = $ctx.dir
     $rec['version'] = $ctx.NewVersion
     if ($ctx.asset_name) { $rec['asset_name'] = $ctx.asset_name }
@@ -436,9 +475,9 @@ function InvokeIdmDownload {
     param($asset, [string]$filePath)
 
     # --- 基本資訊 ---
-    $downloadUrl   = $asset.browser_download_url
-    $assetName     = $asset.name
-    $githubSize    = [long]$asset.size
+    $downloadUrl = $asset.browser_download_url
+    $assetName = $asset.name
+    $githubSize = [long]$asset.size
     $idmWasRunning = [bool](Get-Process IDMan -ErrorAction SilentlyContinue)
 
     # --- 啟動 IDM ---
@@ -544,12 +583,12 @@ public static class GauIdmProgressWindow {
 
     # --- 監控參數 ---
     $idmShutdownGraceMs = 10000   # idman.exe 只是啟動器；啟動後前 10 秒不判定進程消失
-    $confirmMs          = 3000    # 進程消失後，等待檔案落地的時間
-    $downloadTimeout    = [TimeSpan]::FromMinutes(30)
+    $confirmMs = 3000    # 進程消失後，等待檔案落地的時間
+    $downloadTimeout = [TimeSpan]::FromMinutes(30)
 
-    $timer          = [System.Diagnostics.Stopwatch]::StartNew()
+    $timer = [System.Diagnostics.Stopwatch]::StartNew()
     $progressWindow = [IntPtr]::Zero
-    $goneAtMs       = $null
+    $goneAtMs = $null
     $highestPercent = 0.0
 
     # --- 輸出 ---
@@ -559,8 +598,8 @@ public static class GauIdmProgressWindow {
     function Write-IdmLine {
         param($Downloaded = $null, [double]$Percent = 0, [double]$SpeedMB = 0)
         $text = if ($null -eq $Downloaded) { 'IDM 下載中 ...' }
-                elseif ($githubSize -gt 0) { "IDM 下載中: {0:N1} MB / {1:N1} MB ({2:N1}%) {3:N1} MB/s" -f ($Downloaded / 1MB), ($githubSize / 1MB), $Percent, $SpeedMB }
-                else { "IDM 下載中: {0:N1} MB {1:N1} MB/s" -f ($Downloaded / 1MB), $SpeedMB }
+        elseif ($githubSize -gt 0) { "IDM 下載中: {0:N1} MB / {1:N1} MB ({2:N1}%) {3:N1} MB/s" -f ($Downloaded / 1MB), ($githubSize / 1MB), $Percent, $SpeedMB }
+        else { "IDM 下載中: {0:N1} MB {1:N1} MB/s" -f ($Downloaded / 1MB), $SpeedMB }
         [Console]::Write("`r" + $text.PadRight($consoleState.LastLength))
         $consoleState.LastLength = $text.Length
     }
@@ -583,8 +622,8 @@ public static class GauIdmProgressWindow {
         # IDM 進程已消失（IDM 原本就在執行時不看進程）
         # 彈窗還在代表 IDM 一定活著，省略 Get-Process 以降低 CPU 開銷。
         $processGone = -not $idmWasRunning -and $nowMs -ge $idmShutdownGraceMs -and
-                       $progressWindow -eq [IntPtr]::Zero -and
-                       -not (Get-Process IDMan -ErrorAction SilentlyContinue)
+        $progressWindow -eq [IntPtr]::Zero -and
+        -not (Get-Process IDMan -ErrorAction SilentlyContinue)
 
         # --- 完成判定 ---
         # 已知大小：檔案達到 GitHub 大小即完成；未知大小：進程結束後檔案存在即完成。
@@ -753,8 +792,8 @@ function ToolUpdate {
             $ctx.Status = 'RecordOnly'
             return
         }
-        # -i 無紀錄：視同有更新，直接下載最新
-        Write-Host "無紀錄，直接下載最新版本: $($response.tag_name)"
+        # -i 無紀錄或新路徑：視同首次下載，直接下載最新
+        Write-Host "視為首次下載，直接下載最新版本: $($response.tag_name)"
     }
     elseif ($oldVersion -eq $newVersion) {
         Write-Host "已是最新版本。`n當前版本: $($response.tag_name)"
@@ -796,18 +835,54 @@ function ToolUpdate {
     }
 }
 
-# ===== 執行（單發線）=====
+# ===== 執行 =====
 
-# 單發線：版本讀自標記檔（之後管理線：讀自統一紀錄）
-$ctx.currentVersion = GetVersion
+# 模式判定（優先序: uninstall > install > list > check > all > 單發，之後的模式往上疊）
+$mode = 'single'
+if ($install) { $mode = 'install' }
 
-ToolUpdate
+switch ($mode) {
+    'install' {
+        # 管理線：版本讀自統一紀錄；操作成功 → 整筆覆蓋寫回（不做逐欄合併）
+        $records = RecordsLoad
+        if ($null -eq $records) { break }
 
-# 收尾：依狀態寫回版本（單發線 = 標記檔；之後管理線 = 統一紀錄整筆覆蓋）
-switch ($ctx.Status) {
-    'RecordOnly' { SetVersion $ctx.NewVersion }   # 初次：只記版本不下載
-    'Updated' { SetVersion $ctx.NewVersion }      # 更新下載成功
-    'Reset' { SetVersion $ctx.NewVersion }        # 本機較新：重置為遠端
+        $key = "$($ctx.owner)/$($ctx.repo)"
+        $ctx.DownloadOnFirstRecord = $true
+
+        if ($records.Contains($key)) {
+            $rec = $records[$key]
+
+            if ("$($rec.dir)" -eq $ctx.dir) {
+                $ctx.currentVersion = "$($rec.version)"
+            }
+            else {
+                Write-Host "調用路徑與紀錄不同（紀錄: $($rec.dir)），視為全新下載。" -ForegroundColor Yellow
+            }
+        }
+
+        ToolUpdate
+
+        switch ($ctx.Status) {
+            'Updated' { RecordUpsert }
+            'UpToDate' { RecordUpsert }
+            'Reset' { RecordUpsert }
+        }
+    }
+
+    'single' {
+        # 單發線：版本讀自標記檔
+        $ctx.currentVersion = GetVersion
+
+        ToolUpdate
+
+        # 收尾：依狀態寫回標記檔
+        switch ($ctx.Status) {
+            'RecordOnly' { SetVersion $ctx.NewVersion }
+            'Updated' { SetVersion $ctx.NewVersion }
+            'Reset' { SetVersion $ctx.NewVersion }
+        }
+    }
 }
 
 Read-Host "`n按任意鍵退出"
