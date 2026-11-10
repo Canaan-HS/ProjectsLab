@@ -10,7 +10,7 @@ param (
     [string]$repo = "",
 
     [Alias("i")]
-    [switch]$install = $null,
+    [string]$install = $null,
 
     [Alias("un")]
     [string]$uninstall = $null,
@@ -67,7 +67,7 @@ GitHub 資產更新工具
   -ae, -auto_extract             下載後自動解壓縮
   -ae2, -auto_extract2           解壓後攤平單一頂層資料夾
   -ni, -no_idm                   停用 IDM 偵測，強制使用內建下載器
-  -i, -install                   統一管理
+  -i, -install <owner/repo>      統一管理線：下載並納入紀錄
   -un, -uninstall <owner/repo>   解除紀錄綁定（不刪除已下載的檔案）
   -l, -list                      顯示紀錄列表（含路徑存活檢查）
   -c, -check                     批量檢查所有紀錄的更新（不下載、唯讀）
@@ -130,9 +130,10 @@ if ($url -match '(?i)^https://github\.com/([^/]+)/([^/]+)') {
     $owner = $matches[1]
     $repo = $matches[2]
 }
-elseif ($install -and $url) {
-    # -i 額外支援 owner/repo 簡寫（單發線維持原本只吃完整網址）
-    $parsed = ParseRepoArg -arg $url
+elseif ($install) {
+    # -i 的值（owner/repo 簡寫或 GitHub 網址）；編譯版「-i 後面沒有值」會傳入 'True'，
+    # ParseRepoArg 解析不了 → 落到 -o/-r；腳本模式下 -i 後無值則直接由 PowerShell 擋下（提示給值）
+    $parsed = ParseRepoArg -arg $install
 
     if ($parsed) {
         $owner = $parsed[0]
