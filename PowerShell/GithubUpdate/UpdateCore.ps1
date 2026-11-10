@@ -1116,8 +1116,8 @@ switch ($mode) {
         }
 
         $updatedLabel = if ($mode -eq 'check') { '可更新' } else { '已更新' }
-        Write-Host ""
-        Write-Host ("彙總: {0} {1} | 已最新 {2} | 失敗 {3} | 路徑失效 {4}" -f $updatedLabel, $stats.Updated, $stats.UpToDate, $stats.Failed, $stats.Dead) -ForegroundColor Cyan
+        Write-Host "`n"
+        Write-Host ("{0} {1} | 已最新 {2} | 失敗 {3} | 路徑失效 {4}" -f $updatedLabel, $stats.Updated, $stats.UpToDate, $stats.Failed, $stats.Dead) -ForegroundColor Green
         foreach ($f in $failedList) { & $Log.Err "  失敗: $f" }
     }
 
