@@ -667,6 +667,14 @@ public static class GauIdmProgressWindow {
 function DownloadAsset {
     param($asset)
 
+    # 區域變數先歸零：避免下載途中失敗時，finally 以動態作用域讀到外層同名變數（如 ToolUpdate 的 $response）
+    $ok = $false
+    $errMsg = ''
+    $response = $null
+    $stream = $null
+    $fileStream = $null
+    $progressShown = $false
+
     $url = $asset.browser_download_url
     $filePath = Join-Path $ctx.dir $asset.name
 
