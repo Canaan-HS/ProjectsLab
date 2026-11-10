@@ -18,6 +18,9 @@ param (
     [Alias("ae")]
     [switch]$auto_extract = $null,
 
+    [Alias("ae2")]
+    [switch]$auto_extract2 = $null,
+
     [Alias("ni")]
     [switch]$no_idm = $null,
 
@@ -43,6 +46,7 @@ GitHub 資產更新工具
   -a, -asset_name <name>         資產檔名關鍵字
   -e, -exclude_patterns <list>   排除關鍵字（逗號分隔）
   -ae, -auto_extract             下載後自動解壓縮
+  -ae2, -auto_extract2           解壓後攤平單一頂層資料夾
   -ni, -no_idm                   停用 IDM 偵測，強制使用內建下載器
   -h, -help                      顯示本說明
 
@@ -88,7 +92,7 @@ if (-not $owner -or -not $repo) {
 
 $versionRecordTemplate = "! Version - $repo - {0}"
 $prefix = $versionRecordTemplate -replace '\{0\}', ''
-$userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+$userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"
 
 # IDM 偵測
 function GetIdmPath {
@@ -120,6 +124,7 @@ $ctx = @{
     asset_name       = $asset_name
     exclude_patterns = $exclude_patterns
     auto_extract     = [bool]$auto_extract
+    auto_extract2    = [bool]$auto_extract2
     no_idm           = [bool]$no_idm
     currentVersion   = ""
     # 行為開關
@@ -238,6 +243,44 @@ function GetDownloadInfo {
     return $windowsAsset
 }
 
+# 攤平（-ae2）：將殼資料夾內容全部上移覆蓋到上層，最後刪除殼資料夾
+# 失敗時停止、保留殼資料夾與現狀，僅回報（不影響下載結果）
+function FlattenFolder {
+    param([string]$folderPath)
+
+    $parent = [System.IO.Path]::GetDirectoryName($folderPath)
+    $name = [System.IO.Path]::GetFileName($folderPath)
+
+    Write-Host "攤平資料夾: $name"
+
+    try {
+        foreach ($item in @(Get-ChildItem -LiteralPath $folderPath -Force)) {
+            $target = Join-Path $parent $item.Name
+
+            if (-not $item.PSIsContainer) {
+                # 檔案 → 直接覆蓋
+                Move-Item -LiteralPath $item.FullName -Destination $target -Force -ErrorAction Stop
+            }
+            elseif (Test-Path -LiteralPath $target) {
+                # 同名資料夾已存在 → 合併覆蓋後刪來源
+                Get-ChildItem -LiteralPath $item.FullName -Force | Copy-Item -Destination $target -Recurse -Force -ErrorAction Stop
+                Remove-Item -LiteralPath $item.FullName -Recurse -Force -ErrorAction Stop
+            }
+            else {
+                Move-Item -LiteralPath $item.FullName -Destination $target -ErrorAction Stop
+            }
+        }
+
+        Remove-Item -LiteralPath $folderPath -Force -ErrorAction Stop
+        Write-Host "攤平完成: $name"
+        return $true
+    }
+    catch {
+        Write-Host "攤平失敗: $name（$($_.Exception.Message)）" -ForegroundColor Red
+        return $false
+    }
+}
+
 function AutoExtract {
     param([string]$filePath)
 
@@ -259,6 +302,12 @@ function AutoExtract {
     $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
     $destination = [System.IO.Path]::GetDirectoryName($filePath)
 
+    # -ae2: 解壓前快照頂層項目（此時壓縮檔已存在於清單中，diff 只取解壓新增項）
+    $snapshotBefore = @()
+    if ($ctx.auto_extract2) {
+        $snapshotBefore = @(Get-ChildItem -LiteralPath $destination -Force | ForEach-Object { $_.Name })
+    }
+
     try {
         # bsdtar 解壓時直接覆蓋同名檔案；檔案被鎖定等錯誤以 exit code 回報
         $output = & $tar -xf $filePath -C $destination 2>&1
@@ -279,6 +328,21 @@ function AutoExtract {
     }
 
     Write-Host "解壓完成: $name"
+
+    # -ae2 攤平層：解壓新增項「恰好一個資料夾」才攤平，其他情況等同 -ae
+    if ($ctx.auto_extract2) {
+        $before = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($n in $snapshotBefore) { $null = $before.Add($n) }
+
+        $newItems = @(Get-ChildItem -LiteralPath $destination -Force | Where-Object { -not $before.Contains($_.Name) })
+
+        if ($newItems.Count -eq 1 -and $newItems[0].PSIsContainer) {
+            FlattenFolder -folderPath $newItems[0].FullName | Out-Null
+        }
+        else {
+            Write-Host "解壓結果非單一頂層資料夾，跳過攤平。" -ForegroundColor Yellow
+        }
+    }
 
     try {
         Remove-Item -LiteralPath $filePath -Force -ErrorAction Stop
@@ -498,7 +562,7 @@ function DownloadAsset {
     if ($idmExe -and -not $ctx.no_idm) {
         $ok = InvokeIdmDownload -asset $asset -filePath $filePath
 
-        if ($ok -and $ctx.auto_extract) { AutoExtract -filePath $filePath | Out-Null }
+        if ($ok -and ($ctx.auto_extract -or $ctx.auto_extract2)) { AutoExtract -filePath $filePath | Out-Null }
 
         return $ok
     }
@@ -581,7 +645,7 @@ function DownloadAsset {
 
     Write-Host "下載完成: $($asset.name)"
 
-    if ($ctx.auto_extract) { AutoExtract -filePath $filePath | Out-Null }
+    if ($ctx.auto_extract -or $ctx.auto_extract2) { AutoExtract -filePath $filePath | Out-Null }
 
     return $true
 }
