@@ -86,6 +86,11 @@ GitHub 資產更新工具
 }
 
 if ($MyInvocation.MyCommand.CommandType -ne "ExternalScript") {
+    # ps2exe 宿主以萬用字元解析工作目錄，路徑含 [ ] 時誤判而退回 exe 自身資料夾；
+    # 行程 CWD（Win32 層）不受影響，改以 -LiteralPath 導回
+    $procCwd = [Environment]::CurrentDirectory
+    if ($procCwd -and (Test-Path -LiteralPath $procCwd)) { Set-Location -LiteralPath $procCwd }
+
     $exePath = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
     $sha256 = [System.Security.Cryptography.SHA256]::Create()
 
