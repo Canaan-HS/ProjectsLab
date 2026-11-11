@@ -212,7 +212,8 @@ $Github = @{
         try {
             $token = "$(& $ghCmd.Source auth token 2>$null)".Trim()
             if ($token) { return $token }
-        } catch {}
+        }
+        catch {}
 
         return $null
     }
@@ -774,10 +775,10 @@ $Archive = @{
 }
 
 $Download = @{
-    _Last     = 0
+    _Last                 = 0
 
     # 同一行覆寫輸出，以前一次長度補空白避免殘留
-    _Print    = {
+    _Print                = {
         param([string]$text)
 
         [Console]::Write("`r" + $text.PadRight($Download._Last))
@@ -785,7 +786,7 @@ $Download = @{
     }
 
     # 結束進度列，避免後續訊息接在同一行
-    _EndLine  = {
+    _EndLine              = {
         Write-Host ""
         $Download._Last = 0
     }
@@ -793,7 +794,7 @@ $Download = @{
     # 進度顯示：固定欄寬 + 0.1% 精度 + 即時速度
     # ps2exe 主控台模式不支援 Write-Progress
     # total 未知時只顯示已下載量；percent 省略時由 done/total 計算
-    _Progress = {
+    _Progress             = {
         param([string]$label, [double]$done, [double]$total, [double]$speed, $percent = $null)
 
         if ($total -gt 0) {
@@ -807,7 +808,7 @@ $Download = @{
     }
 
     # 成功回傳 $null，失敗回傳原因
-    _Builtin  = {
+    _Builtin              = {
         param($asset, [string]$filePath)
 
         # 區域變數先歸零：避免下載途中失敗時，finally 以動態作用域讀到外層同名變數（如 Tool.Update 的 $response）
@@ -875,7 +876,7 @@ $Download = @{
         return $failure
     }
 
-    Fetch     = {
+    Fetch                 = {
         param($asset)
 
         $filePath = Join-Path $ctx.dir $asset.name
@@ -897,12 +898,16 @@ $Download = @{
         return $true
     }
 
-    Pick      = {
+    Pick                  = {
         param($assets)
 
-        $notWindowsExecutable = "(?i)linux|ubuntu|dos|mac|ios|uos|macos|apple|android|ohos"
-        $notExecutable = "(?i)sha256|checksum|checksums|hash|source|src|debug|symbols|pdb|test|tests|sh|json"
-        $notX64Architecture = "(?i)win32|wow32|arm(?:64)?|aarch64|i[3-6]86|x86(?![-_]?64)|32[-_ ]?bit|mips(?:64)?|ppc(?:64)?|powerpc|sparc|riscv(?:64)?|s390x?"
+        # 定義明確的分隔符號邊界（支援 開頭/結尾、減號、底線、點、空格）
+        $left = '(?:^|[-_ .])'
+        $right = '(?:$|[-_ .])'
+
+        $notWindowsExecutable = "(?i)$left(linux|ubuntu|dos|mac|ios|uos|macos|apple|android|ohos)$right"
+        $notExecutable = "(?i)$left(sha256|checksum|checksums|hash|source|src|debug|symbols|pdb|test|tests|json)$right|\.sh$"
+        $notX64Architecture = "(?i)$left(win32|wow32|arm(?:64)?|aarch64|i[3-6]86|x86(?![-_]?64)|32[-_ ]?bit|mips(?:64)?|ppc(?:64)?|powerpc|sparc|riscv(?:64)?|s390x?)$right"
 
         # 如果有指定排除檔案名特徵
         $excludeRegex = $null
