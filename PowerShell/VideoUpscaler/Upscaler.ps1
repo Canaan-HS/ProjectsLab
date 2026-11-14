@@ -21,7 +21,7 @@ $PARAMETER = Generator $DEPEND.ffmpeg $DEPEND.ffprobe
 # 獲取媒體資訊模塊
 Import-Module "$CURRENT_ROOT\modules\StreamsInfo.psm1"
 
-$UV = @{
+$VU = @{
     # ======== 檢查依賴項 (bool) ========
     _CheckDependent        = {
         param (
@@ -48,13 +48,13 @@ $UV = @{
     # ======== 日誌處理 (void) ========
     _LogProcess            = {
         # 讀取已完成的步驟
-        $UV.completed = @{}
-        if (Test-Path -LiteralPath $UV.logFile) {
-            Get-Content -LiteralPath $UV.logFile | ForEach-Object { $UV.completed[$_] = $true }
+        $VU.completed = @{}
+        if (Test-Path -LiteralPath $VU.logFile) {
+            Get-Content -LiteralPath $VU.logFile | ForEach-Object { $VU.completed[$_] = $true }
         }
 
         # 記錄已完成的步驟到日誌
-        $UV.writeLog = {
+        $VU.writeLog = {
             param([string]$message, [string]$step, [bool]$print = $true)
 
             if ($LASTEXITCODE -ne 0) {
@@ -62,32 +62,32 @@ $UV = @{
                 return
             }
 
-            Add-Content -LiteralPath $UV.logFile -Value $step
-            $UV.completed[$step] = $true
+            Add-Content -LiteralPath $VU.logFile -Value $step
+            $VU.completed[$step] = $true
         }
 
-        $UV.chunks = @()
-        if ($UV.chunkDurationSec -gt 0 -and $UV.totalDuration -gt $UV.chunkDurationSec) {
-            $numChunks = [Math]::Ceiling($UV.totalDuration / $UV.chunkDurationSec)
+        $VU.chunks = @()
+        if ($VU.chunkDurationSec -gt 0 -and $VU.totalDuration -gt $VU.chunkDurationSec) {
+            $numChunks = [Math]::Ceiling($VU.totalDuration / $VU.chunkDurationSec)
             for ($i = 0; $i -lt $numChunks; $i++) {
-                $startTimeSeconds = $i * $UV.chunkDurationSec
-                $currentDuration = [Math]::Min($UV.chunkDurationSec, $UV.totalDuration - $startTimeSeconds)
+                $startTimeSeconds = $i * $VU.chunkDurationSec
+                $currentDuration = [Math]::Min($VU.chunkDurationSec, $VU.totalDuration - $startTimeSeconds)
                 if ($currentDuration -le 0) { break }
 
-                $UV.chunks += [PSCustomObject]@{
+                $VU.chunks += [PSCustomObject]@{
                     Index      = $i
                     StartTime  = [TimeSpan]::FromSeconds($startTimeSeconds).ToString("g")
                     Duration   = $currentDuration
-                    OutputFile = Join-Path $UV.chunksDir "chunk_$($i.ToString('000')).$($UV.outputFormat)"
+                    OutputFile = Join-Path $VU.chunksDir "chunk_$($i.ToString('000')).$($VU.outputFormat)"
                 }
             }
         }
         else {
-            $UV.chunks += [PSCustomObject]@{
+            $VU.chunks += [PSCustomObject]@{
                 Index      = 0
                 StartTime  = "00:00:00"
-                Duration   = $UV.totalDuration
-                OutputFile = Join-Path $UV.chunksDir "chunk_000.$($UV.outputFormat)"
+                Duration   = $VU.totalDuration
+                OutputFile = Join-Path $VU.chunksDir "chunk_000.$($VU.outputFormat)"
             }
         }
     }
@@ -164,8 +164,8 @@ $UV = @{
             [string]$mode = "output"
         )
 
-        $isModernFormat = $UV.outputFormat -match '^(mp4|mkv|mov|m4v)$'
-        $isWebM = $UV.outputFormat -eq 'webm'
+        $isModernFormat = $VU.outputFormat -match '^(mp4|mkv|mov|m4v)$'
+        $isWebM = $VU.outputFormat -eq 'webm'
 
         # 如果是現代格式且無 Alpha，使用 10bit，否則標準 yuv420p
         $pixFmt = if ($isModernFormat) { "p010le" } else { "yuv420p" }
@@ -173,8 +173,8 @@ $UV = @{
         # 如果有 Alpha 通道，強制不能使用 NVENC (因為硬體不支援 Alpha)
         # 並且如果輸出是 MP4，建議切換到 WebM 或 MOV，因為 MP4 對 Alpha 支援極差
         # 這裡為了相容性，若有 Alpha 則強制切換邏輯為 CPU 編碼
-        if ($UV.hasAlpha) {
-            $UV.fastEncode = $false # 強制關閉 GPU 編碼
+        if ($VU.hasAlpha) {
+            $VU.fastEncode = $false # 強制關閉 GPU 編碼
         }
 
         # 統一位元率配置
@@ -195,30 +195,30 @@ $UV = @{
         }
 
         $getResKey = {
-            $h = [int](($UV.scaled -split ":")[1])
+            $h = [int](($VU.scaled -split ":")[1])
             @(2160, 1440, 1080, 720) | Where-Object { $h -ge $_ } | Select-Object -First 1
         }
 
         switch ($mode) {
             "extract" {
                 # 幀提取配置
-                $hwaccelParams = if (-not $UV.hasAlpha -and $UV.ext -match '^(mp4|mkv|mov|m4v|webm)$') {
+                $hwaccelParams = if (-not $VU.hasAlpha -and $VU.ext -match '^(mp4|mkv|mov|m4v|webm)$') {
                     @('-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda')
                 }
                 else { @() }
 
                 # 有 Alpha 時使用 bgra，否則 rgb24
-                $alphaPixelFormat = if ($UV.hasAlpha) { 'bgra' } else { 'rgb24' }
+                $alphaPixelFormat = if ($VU.hasAlpha) { 'bgra' } else { 'rgb24' }
 
                 $vfConfig = if ($hwaccelParams.Count -gt 0) {
-                    "hwdownload,format=nv12,format=$alphaPixelFormat,fps=$($UV.fps)"
+                    "hwdownload,format=nv12,format=$alphaPixelFormat,fps=$($VU.fps)"
                 }
                 else {
-                    "format=$alphaPixelFormat,fps=$($UV.fps)"
+                    "format=$alphaPixelFormat,fps=$($VU.fps)"
                 }
 
                 # 提取格式參數
-                $codecParams = switch ($UV.frameCacheFormat) {
+                $codecParams = switch ($VU.frameCacheFormat) {
                     'webp' { @('-c:v', 'libwebp', '-lossless', '1', '-compression_level', '0', '-quality', '100', '-preset', 'picture') }
                     'png' { @('-c:v', 'png', '-pred', 'mixed', '-compression_level', '1') }
                     default { @('-q:v', '1') }
@@ -234,18 +234,18 @@ $UV = @{
             "lossless" {
                 # 中間無損合併
                 # 如果有 Alpha，使用 yuva444p10le 以保證最高精度
-                $losslessPixFmt = if ($UV.hasAlpha) { 'yuva444p10le' } else { 'yuv420p10le' }
+                $losslessPixFmt = if ($VU.hasAlpha) { 'yuva444p10le' } else { 'yuv420p10le' }
 
-                $videoParams = if ($isWebM -or $UV.hasAlpha) {
+                $videoParams = if ($isWebM -or $VU.hasAlpha) {
                     # WebM 或 有 Alpha 時，強制使用 VP9 無損 (NVENC 不支援 Alpha)
-                    $webmPixFmt = if ($UV.hasAlpha) { "yuva420p" } else { "yuv420p" }
+                    $webmPixFmt = if ($VU.hasAlpha) { "yuva420p" } else { "yuv420p" }
                     @(
                         "-c:v", "libvpx-vp9", "-lossless", "1",
                         "-speed", "4", "-tile-columns", "4", "-frame-parallel", "1",
                         "-threads", "8", "-pix_fmt", $webmPixFmt
                     )
                 }
-                elseif ($UV.fastEncode) {
+                elseif ($VU.fastEncode) {
                     @(
                         "-c:v", "hevc_nvenc", "-profile:v", "main10",
                         "-preset", "p7", "-rc", "constqp", "-qp", "0",
@@ -261,23 +261,23 @@ $UV = @{
 
                 return @{
                     VideoCodec = $videoParams
-                    Container  = if ($isWebM -or $UV.hasAlpha) { @("-f", "webm") } else { @() }
+                    Container  = if ($isWebM -or $VU.hasAlpha) { @("-f", "webm") } else { @() }
                 }
             }
             "output" {
                 $resKey = & $getResKey
                 # 最終輸出像素格式
-                $outputPixFmt = if ($UV.hasAlpha) { 'yuva420p' } else { $pixFmt }
+                $outputPixFmt = if ($VU.hasAlpha) { 'yuva420p' } else { $pixFmt }
 
-                $audioParams = if ($UV.ext -eq $UV.outputFormat) { @("-c:a", "copy") }
+                $audioParams = if ($VU.ext -eq $VU.outputFormat) { @("-c:a", "copy") }
                 else { @("-c:a", "aac", "-b:a", "256k") }
 
                 # 如果有 Alpha，強制走 WebM/VP9 路徑 (相容性最好) 或 MOV/ProRes，這裡選用 VP9
-                $useVP9 = $isWebM -or $UV.hasAlpha
+                $useVP9 = $isWebM -or $VU.hasAlpha
 
                 $videoParams = if ($useVP9) {
                     $bitrate = $bitrateTable.vp9[$resKey]
-                    if ($UV.fastEncode) {
+                    if ($VU.fastEncode) {
                         # VP9 Realtime (CPU 較快)
                         @(
                             "-c:v", "libvpx-vp9", "-b:v", "0", "-crf", "15",
@@ -296,7 +296,7 @@ $UV = @{
                         )
                     }
                 }
-                elseif ($UV.fastEncode) {
+                elseif ($VU.fastEncode) {
                     # NVENC (無 Alpha)
                     $bitrate = $bitrateTable.nvenc[$resKey]
                     @(
@@ -334,15 +334,15 @@ $UV = @{
         param (
             [PSCustomObject]$chunk # 處理分段
         )
-        $extractPath = Join-Path $UV.cachePath "%0$($UV.imgFill)d.$($UV.frameCacheFormat)"
+        $extractPath = Join-Path $VU.cachePath "%0$($VU.imgFill)d.$($VU.frameCacheFormat)"
     
         # 獲取提取配置
-        $extractConfig = & $UV._GetFFmpegParams "extract"
+        $extractConfig = & $VU._GetFFmpegParams "extract"
 
         $ffmpegParams = @('-v', 'error') + $extractConfig.HwAccel + @(
             '-ss', $chunk.StartTime,
             '-t', $chunk.Duration,
-            '-i', $UV.videoPath,
+            '-i', $VU.videoPath,
             '-an',
             '-vf', $extractConfig.VideoFilter,
             '-pix_fmt', $extractConfig.PixelFormat
@@ -359,16 +359,16 @@ $UV = @{
         )
 
         $params = @(
-            '-i', $UV.cachePath,
-            '-o', $UV.cachePath,
-            '-n', $UV.preProcess[0],
-            '-s', $UV.preProcess[1],
+            '-i', $VU.cachePath,
+            '-o', $VU.cachePath,
+            '-n', $VU.preProcess[0],
+            '-s', $VU.preProcess[1],
             '-j', $thread,
             '-t', $tile,
-            '-f', $UV.frameCacheFormat
+            '-f', $VU.frameCacheFormat
         )
         
-        & $UV.preProcessCall $params
+        & $VU.preProcessCall $params
     }
     # ======== 補幀 (void) ========
     _Interpolator          = {
@@ -378,25 +378,25 @@ $UV = @{
         )
 
         $interpolatorParams = @(
-            '-i', $UV.cachePath,
+            '-i', $VU.cachePath,
             '-o', $fpsPath,
-            '-m', $UV.interpolationModel.path,
+            '-m', $VU.interpolationModel.path,
             '-j', $thread,
-            '-f', "%0$($UV.imgFill)d.$($UV.frameCacheFormat)",
+            '-f', "%0$($VU.imgFill)d.$($VU.frameCacheFormat)",
             '-u'
         )
 
         # 可以自訂幀數
-        if ($UV.interpolationModel.customFrame) {
-            $interpolatorParams += @('-n', $UV.finalFrames)
+        if ($VU.interpolationModel.customFrame) {
+            $interpolatorParams += @('-n', $VU.finalFrames)
         }
 
         # webp 品質
-        if ($UV.interpolatorName -eq 'RIFE') {
+        if ($VU.interpolatorName -eq 'RIFE') {
             $interpolatorParams += @('-q', 100)
         }
 
-        & $UV.interpolatorCall $interpolatorParams
+        & $VU.interpolatorCall $interpolatorParams
     }
     # ======== 畫質提升 (void) ========
     _Upscaler              = {
@@ -409,72 +409,72 @@ $UV = @{
         $argsList = @(
             "-i", $inputPath,
             "-o", $inputPath,
-            "-s", $UV.scaleFactor,
+            "-s", $VU.scaleFactor,
             "-j", $thread,
             "-t", $tile,
-            "-f", $UV.frameCacheFormat,
-            "-m", $UV.upscalerModels
+            "-f", $VU.frameCacheFormat,
+            "-m", $VU.upscalerModels
         )
 
         # Realesrgan 額外需要指定模型名稱
-        if ($UV.upscalerModelName) {
-            $argsList += @("-n", $UV.upscalerModelName)
+        if ($VU.upscalerModelName) {
+            $argsList += @("-n", $VU.upscalerModelName)
         }
 
-        & $UV.upscalerCall $argsList
+        & $VU.upscalerCall $argsList
     }
     # ======== 核心處理函數 (void) ========
     _Core                  = {
         # 根據當前畫質判斷是否需要預處理
-        $UV.preProcess = $UV.preProcessRules[(& $PARAMETER.GetResolution $UV.height)]
+        $VU.preProcess = $VU.preProcessRules[(& $PARAMETER.GetResolution $VU.height)]
 
-        $UV.vfUnsharp = "unsharp=3:3:0.03:3:3:0.0,deband=0.01:0.01:0.01:0.01:6:1"
+        $VU.vfUnsharp = "unsharp=3:3:0.03:3:3:0.0,deband=0.01:0.01:0.01:0.01:6:1"
 
         # 獲取編碼參數配置
-        $outputEncodeConfig = & $UV._GetFFmpegParams "output"
-        $losslessEncodeConfig = & $UV._GetFFmpegParams "lossless"
+        $outputEncodeConfig = & $VU._GetFFmpegParams "output"
+        $losslessEncodeConfig = & $VU._GetFFmpegParams "lossless"
 
         # -------- 主處理迴圈 --------
         $ProgressPreference = "SilentlyContinue" # 隱藏進度條
-        New-Item -ItemType Directory -Path $UV.chunksDir -Force | Out-Null # 創建分段目錄
+        New-Item -ItemType Directory -Path $VU.chunksDir -Force | Out-Null # 創建分段目錄
 
-        foreach ($chunk in $UV.chunks) {
+        foreach ($chunk in $VU.chunks) {
             $chunkIndex = $chunk.Index + 1
             $chunkId = "CHUNK_$($chunkIndex)"
 
-            if ($UV.completed.ContainsKey("$chunkId`_合併完成")) { continue }
+            if ($VU.completed.ContainsKey("$chunkId`_合併完成")) { continue }
 
-            Write-Host "`n===== 段落 [$chunkIndex/$($UV.chunksCount)] 處理開始 (段落時間: $($chunk.StartTime)) =====>`n"
+            Write-Host "`n===== 段落 [$chunkIndex/$($VU.chunksCount)] 處理開始 (段落時間: $($chunk.StartTime)) =====>`n"
 
-            $UV.cachePath = Join-Path $UV.cacheDir "cache-$chunkIndex"
-            $currentCachePath = $UV.cachePath
-            New-Item -ItemType Directory -Path $UV.cachePath -Force | Out-Null
+            $VU.cachePath = Join-Path $VU.cacheDir "cache-$chunkIndex"
+            $currentCachePath = $VU.cachePath
+            New-Item -ItemType Directory -Path $VU.cachePath -Force | Out-Null
 
             # ---- 追蹤當前解析度 (會隨著處理流程變化) ----
-            $currentWidth = $UV.width
-            $currentHeight = $UV.height
+            $currentWidth = $VU.width
+            $currentHeight = $VU.height
 
             # 1. 幀提取
             $step_extract = "$chunkId`_提取完成"
-            if (-not $UV.completed.ContainsKey($step_extract)) {
+            if (-not $VU.completed.ContainsKey($step_extract)) {
                 Write-Host "--> 幀提取 (Input=${currentWidth}x${currentHeight})"
-                $message = & $UV._ExtractFrames $chunk
-                & $UV.writeLog -message $message -step $step_extract
+                $message = & $VU._ExtractFrames $chunk
+                & $VU.writeLog -message $message -step $step_extract
             }
             else { Write-Host "--> 幀提取 (完成跳過)" -ForegroundColor Gray }
 
-            # 2. 預處理 (存在 $UV.preProcess 時代表需要預處理)
+            # 2. 預處理 (存在 $VU.preProcess 時代表需要預處理)
             $step_preProcess = "$chunkId`_預處理完成"
-            if ($UV.preProcess -and (-not $UV.completed.ContainsKey($step_preProcess))) {
-                if (Test-Path -LiteralPath $UV.cachePath -PathType Container) {
-                    $preScale = $UV.preProcess[1]
-                    $preParams = & $UV._GetVRAMParams $currentWidth $currentHeight $preScale "srmd"
+            if ($VU.preProcess -and (-not $VU.completed.ContainsKey($step_preProcess))) {
+                if (Test-Path -LiteralPath $VU.cachePath -PathType Container) {
+                    $preScale = $VU.preProcess[1]
+                    $preParams = & $VU._GetVRAMParams $currentWidth $currentHeight $preScale "srmd"
 
                     Write-Host "--> 預處理 [SRMD] (Input=${currentWidth}x${currentHeight})"
                     Write-Host "Output=$($preParams.OutputRes), Thread=$($preParams.Thread), Tile=$($preParams.Tile), MegaPixels=$($preParams.MegaPixels)"
 
-                    & $UV._PreProcess $preParams.Thread $preParams.Tile
-                    & $UV.writeLog -step $step_preProcess
+                    & $VU._PreProcess $preParams.Thread $preParams.Tile
+                    & $VU.writeLog -step $step_preProcess
 
                     # 更新當前解析度
                     $currentWidth = $currentWidth * $preScale
@@ -482,9 +482,9 @@ $UV = @{
                 }
                 else { Write-Host "預處理錯誤: 找不到快取目錄" -ForegroundColor Red; continue }
             }
-            elseif ($UV.preProcess) {
+            elseif ($VU.preProcess) {
                 # 即使跳過，也要更新解析度
-                $preScale = $UV.preProcess[1]
+                $preScale = $VU.preProcess[1]
                 $currentWidth = $currentWidth * $preScale
                 $currentHeight = $currentHeight * $preScale
                 Write-Host "--> 預處理 (完成跳過, Output=${currentWidth}x${currentHeight})" -ForegroundColor Gray 
@@ -492,12 +492,12 @@ $UV = @{
 
             # 3. 補幀
             $step_interpolator = "$chunkId`_補幀完成"
-            $fps_cachePath = "$($UV.cachePath)-fps"
-            if (($UV.targetFPS -gt $UV.fps) -and (-not $UV.completed.ContainsKey($step_interpolator))) {
-                if (Test-Path -LiteralPath $UV.cachePath -PathType Container) {
-                    $interpParams = & $UV._GetVRAMParams $currentWidth $currentHeight 1 $UV.interpolatorName
+            $fps_cachePath = "$($VU.cachePath)-fps"
+            if (($VU.targetFPS -gt $VU.fps) -and (-not $VU.completed.ContainsKey($step_interpolator))) {
+                if (Test-Path -LiteralPath $VU.cachePath -PathType Container) {
+                    $interpParams = & $VU._GetVRAMParams $currentWidth $currentHeight 1 $VU.interpolatorName
 
-                    Write-Host "--> 補幀 [$($UV.interpolatorName)] (Input=${currentWidth}x${currentHeight})"
+                    Write-Host "--> 補幀 [$($VU.interpolatorName)] (Input=${currentWidth}x${currentHeight})"
                     Write-Host "Output=$($interpParams.OutputRes), Thread=$($interpParams.Thread), MegaPixels=$($interpParams.MegaPixels)"
 
                     New-Item -ItemType Directory -Path $fps_cachePath -Force | Out-Null
@@ -505,15 +505,15 @@ $UV = @{
                     # 更新路徑給下一步使用
                     $currentCachePath = $fps_cachePath
 
-                    & $UV._Interpolator $fps_cachePath $interpParams.Thread
-                    & $UV.writeLog -step $step_interpolator
+                    & $VU._Interpolator $fps_cachePath $interpParams.Thread
+                    & $VU.writeLog -step $step_interpolator
 
                     # 立即清理舊的快取以節省空間
-                    Remove-Item -LiteralPath $UV.cachePath -Recurse -Force -ErrorAction SilentlyContinue
+                    Remove-Item -LiteralPath $VU.cachePath -Recurse -Force -ErrorAction SilentlyContinue
                 }
-                else { Write-Host "補幀錯誤, 找不到快取目錄: $($UV.cachePath)" -ForegroundColor Red; continue }
+                else { Write-Host "補幀錯誤, 找不到快取目錄: $($VU.cachePath)" -ForegroundColor Red; continue }
             }
-            elseif ($UV.targetFPS -gt $UV.fps) {
+            elseif ($VU.targetFPS -gt $VU.fps) {
                 # 即使跳過，也要更新路徑
                 $currentCachePath = $fps_cachePath
                 Write-Host "--> 補幀 (完成跳過)" -ForegroundColor Gray
@@ -521,73 +521,73 @@ $UV = @{
 
             # 4. 畫質提升
             $step_realesr = "$chunkId`_提升完成"
-            if ($UV.upscalerModels -and (-not $UV.completed.ContainsKey($step_realesr))) {
+            if ($VU.upscalerModels -and (-not $VU.completed.ContainsKey($step_realesr))) {
                 if (Test-Path -LiteralPath $currentCachePath -PathType Container) {
-                    $upscaleParams = & $UV._GetVRAMParams $currentWidth $currentHeight $UV.scaleFactor $UV.upscalerName
+                    $upscaleParams = & $VU._GetVRAMParams $currentWidth $currentHeight $VU.scaleFactor $VU.upscalerName
 
-                    Write-Host "--> 畫質提升 [$($UV.upscalerName)] (Input=${currentWidth}x${currentHeight})"
+                    Write-Host "--> 畫質提升 [$($VU.upscalerName)] (Input=${currentWidth}x${currentHeight})"
                     Write-Host "Output=$($upscaleParams.OutputRes), Thread=$($upscaleParams.Thread), Tile=$($upscaleParams.Tile), MegaPixels=$($upscaleParams.MegaPixels)"
 
                     # 獲取資料夾內符合格式的圖片總數
-                    if ((Get-ChildItem -LiteralPath $currentCachePath -Filter "*.$($UV.frameCacheFormat)" -File).Count -eq 0) {
+                    if ((Get-ChildItem -LiteralPath $currentCachePath -Filter "*.$($VU.frameCacheFormat)" -File).Count -eq 0) {
                         Write-Host "畫質提升警告: 在 $currentCachePath 中找不到可處理的圖片，跳過此步驟。" -ForegroundColor Yellow
-                        & $UV.writeLog -step $step_realesr
+                        & $VU.writeLog -step $step_realesr
                         continue
                     }
 
-                    & $UV._Upscaler $currentCachePath $upscaleParams.Thread $upscaleParams.Tile
+                    & $VU._Upscaler $currentCachePath $upscaleParams.Thread $upscaleParams.Tile
             
                     if ($LASTEXITCODE -eq 0) {
-                        & $UV.writeLog -step $step_realesr
-                        $currentWidth = $currentWidth * $UV.scaleFactor
-                        $currentHeight = $currentHeight * $UV.scaleFactor
+                        & $VU.writeLog -step $step_realesr
+                        $currentWidth = $currentWidth * $VU.scaleFactor
+                        $currentHeight = $currentHeight * $VU.scaleFactor
                     }
                     else { Write-Host "畫質提升處理失敗，退出碼: $LASTEXITCODE" -ForegroundColor Red }
                 }
                 else { Write-Host "畫質提升錯誤: 找不到快取目錄" -ForegroundColor Red; continue }
             }
-            elseif ($UV.upscalerModels) { 
+            elseif ($VU.upscalerModels) { 
                 # 即使跳過，也要更新解析度
-                $currentWidth = $currentWidth * $UV.scaleFactor
-                $currentHeight = $currentHeight * $UV.scaleFactor
+                $currentWidth = $currentWidth * $VU.scaleFactor
+                $currentHeight = $currentHeight * $VU.scaleFactor
                 Write-Host "--> 畫質提升 (完成跳過, Output=${currentWidth}x${currentHeight})" -ForegroundColor Gray 
             }
 
             # 5. 合併分段影片 (修正重點: 強制輸入與輸出的幀率一致)
             $step_merge_chunk = "$chunkId`_合併完成"
-            if (-not $UV.completed.ContainsKey($step_merge_chunk)) {
-                $imageInputPath = Join-Path $currentCachePath "%0$($UV.imgFill)d.$($UV.frameCacheFormat)"
+            if (-not $VU.completed.ContainsKey($step_merge_chunk)) {
+                $imageInputPath = Join-Path $currentCachePath "%0$($VU.imgFill)d.$($VU.frameCacheFormat)"
 
-                if (Get-ChildItem -LiteralPath $currentCachePath -Filter "*.$($UV.frameCacheFormat)" | Select-Object -First 1) {
+                if (Get-ChildItem -LiteralPath $currentCachePath -Filter "*.$($VU.frameCacheFormat)" | Select-Object -First 1) {
                     Write-Host "--> 合併分段影片"
 
                     # 設定 FPS
-                    $vfFilters = @("fps=$($UV.targetFPS)")
+                    $vfFilters = @("fps=$($VU.targetFPS)")
 
                     # 只有在指定自訂解析度時才縮放，否則保持 AI 輸出原尺寸 (避免縮小變形)
-                    if ($UV.outputResolution) {
-                        $scaleParam = if ($UV.reduce) { $UV.reduce } else { $UV.scaled }
+                    if ($VU.outputResolution) {
+                        $scaleParam = if ($VU.reduce) { $VU.reduce } else { $VU.scaled }
                         $vfFilters += "scale=$($scaleParam):flags=lanczos:force_original_aspect_ratio=decrease"
                         $vfFilters += "pad=ceil(iw/2)*2:ceil(ih/2)*2" # 確保偶數像素
                     }
 
                     # 加入銳化
-                    if ($UV.chunksCount -eq 1) { $vfFilters += $UV.vfUnsharp }
+                    if ($VU.chunksCount -eq 1) { $vfFilters += $VU.vfUnsharp }
 
                     $finalVf = $vfFilters -join ","
                     $ffmpegParams = @(
                         '-v', 'error',
-                        '-framerate', $UV.targetFPS,
+                        '-framerate', $VU.targetFPS,
                         '-start_number', 0,
                         '-i', $imageInputPath
                     )
 
-                    if ($UV.chunksCount -eq 1) {
+                    if ($VU.chunksCount -eq 1) {
                         # 單一分段：直接輸出最終品質
-                        $ffmpegParams += @('-i', $UV.videoPath)
+                        $ffmpegParams += @('-i', $VU.videoPath)
                         $ffmpegParams += @('-vf', $finalVf)
                         $ffmpegParams += @('-map', '0:v:0', '-map', '1:a:0?')
-                        $ffmpegParams += @('-r', $UV.targetFPS)
+                        $ffmpegParams += @('-r', $VU.targetFPS)
                         $ffmpegParams += $outputEncodeConfig.VideoCodec
                         $ffmpegParams += $outputEncodeConfig.AudioCodec
                         $ffmpegParams += $outputEncodeConfig.Container
@@ -595,7 +595,7 @@ $UV = @{
                     else {
                         # 多分段：中間檔無損編碼
                         $ffmpegParams += @('-vf', $finalVf)
-                        $ffmpegParams += @('-r', $UV.targetFPS)
+                        $ffmpegParams += @('-r', $VU.targetFPS)
                         $ffmpegParams += $losslessEncodeConfig.VideoCodec
                         $ffmpegParams += @('-an')
                         $ffmpegParams += $losslessEncodeConfig.Container
@@ -604,49 +604,49 @@ $UV = @{
                     $ffmpegParams += @($chunk.OutputFile, '-y')
 
                     $message = & $DEPEND.ffmpeg $ffmpegParams 2>&1
-                    & $UV.writeLog -message $message -step $step_merge_chunk
+                    & $VU.writeLog -message $message -step $step_merge_chunk
                 }
                 else { Write-Host "合併錯誤: 無圖片" -ForegroundColor Red; continue }
             }
             else { Write-Host "--> 合併分段影片 (完成跳過)" -ForegroundColor Gray }
 
             # 6. 即時清理
-            if ($UV.completed.ContainsKey("$chunkId`_合併完成")) {
-                Remove-Item -LiteralPath $UV.cachePath -Recurse -Force -ErrorAction SilentlyContinue
+            if ($VU.completed.ContainsKey("$chunkId`_合併完成")) {
+                Remove-Item -LiteralPath $VU.cachePath -Recurse -Force -ErrorAction SilentlyContinue
                 Remove-Item -LiteralPath $fps_cachePath -Recurse -Force -ErrorAction SilentlyContinue
-                Write-Host "段落 [$chunkIndex/$($UV.chunksCount)] 完成清理。" -ForegroundColor Green
+                Write-Host "段落 [$chunkIndex/$($VU.chunksCount)] 完成清理。" -ForegroundColor Green
             }
         }
 
         # -------- 最終合併 --------
         $step_final_merge = "最終合併完成"
-        if (-not $UV.completed.ContainsKey($step_final_merge)) {
+        if (-not $VU.completed.ContainsKey($step_final_merge)) {
             Write-Host "`n===== 所有段落處理完成，開始最終合併 =====>`n"
 
             # 定義最終輸出路徑
-            $merge = $UV.fastEncode ? "fast" : "slow"
-            $alphaTag = if ($UV.hasAlpha) { "-alpha" } else { "" }
-            $upscaled_Path = "$($UV.outputTemplate)-x$($UV.scaleFactor)-$($UV.targetFPS)fps$alphaTag-$merge.$($UV.outputFormat)"
+            $merge = $VU.fastEncode ? "fast" : "slow"
+            $alphaTag = if ($VU.hasAlpha) { "-alpha" } else { "" }
+            $upscaled_Path = "$($VU.outputTemplate)-x$($VU.scaleFactor)-$($VU.targetFPS)fps$alphaTag-$merge.$($VU.outputFormat)"
 
             # 只有一個分段時，直接移動檔案
-            if ($UV.chunksCount -eq 1) {
-                $sourceFile = $UV.chunks[0].OutputFile
+            if ($VU.chunksCount -eq 1) {
+                $sourceFile = $VU.chunks[0].OutputFile
                 if (Test-Path -LiteralPath $sourceFile) {
                     try {
                         Move-Item -LiteralPath $sourceFile -Destination $upscaled_Path -Force
                         Write-Host "影片移動成功: $upscaled_Path" -ForegroundColor Cyan
-                        & $UV.writeLog -step $step_final_merge
+                        & $VU.writeLog -step $step_final_merge
                     }
                     catch { Write-Host "影片移動失敗: $_" -ForegroundColor Red; exit }
                 }
                 else { Write-Host "段落合併錯誤: 找不到來源檔案" -ForegroundColor Red }
             }
             else {
-                $concatListFile = Join-Path $UV.workDir "concat_list.txt"
+                $concatListFile = Join-Path $VU.workDir "concat_list.txt"
 
                 # 檢查所有預期的分段影片是否都存在
                 $allChunksExist = $true
-                foreach ($chunk in $UV.chunks) {
+                foreach ($chunk in $VU.chunks) {
                     if (-not (Test-Path -LiteralPath $chunk.OutputFile)) {
                         Write-Host "最終合併錯誤: 找不到分段影片 $($chunk.OutputFile)" -ForegroundColor Red
                         $allChunksExist = $false; break
@@ -654,21 +654,21 @@ $UV = @{
                 }
 
                 if ($allChunksExist) {
-                    $UV.chunks | ForEach-Object { "file '$($_.OutputFile)'" } | Set-Content -LiteralPath $concatListFile
+                    $VU.chunks | ForEach-Object { "file '$($_.OutputFile)'" } | Set-Content -LiteralPath $concatListFile
 
                     try {
                         $message = ""
                         $ffmpegParams = @("-v", "error")
 
                         # WebM 不使用 CUDA 加速合併
-                        if ($UV.fastEncode -and -not $outputEncodeConfig.IsWebM) {
+                        if ($VU.fastEncode -and -not $outputEncodeConfig.IsWebM) {
                             $ffmpegParams += @("-hwaccel", "cuda")
                         }
 
                         $ffmpegParams += @("-f", "concat", "-safe", "0", "-i", $concatListFile)
 
-                        if ($UV.hasAudio) {
-                            $ffmpegParams += @("-i", "$($UV.videoPath)")
+                        if ($VU.hasAudio) {
+                            $ffmpegParams += @("-i", "$($VU.videoPath)")
                             $ffmpegParams += @("-map", "0:v:0", "-map", "1:a:0")
                             $ffmpegParams += $outputEncodeConfig.VideoCodec
                             $ffmpegParams += $outputEncodeConfig.AudioCodec
@@ -680,14 +680,14 @@ $UV = @{
                         }
 
                         # 最終合併時也加上 -r 以策安全，避免繼承到音軌的原始時間基準
-                        $ffmpegParams += @("-r", $UV.targetFPS)
+                        $ffmpegParams += @("-r", $VU.targetFPS)
                         
                         $ffmpegParams += $outputEncodeConfig.Container
                         $ffmpegParams += @("$upscaled_Path", "-y")
 
                         $message = & $DEPEND.ffmpeg @ffmpegParams 2>&1
 
-                        & $UV.writeLog -message $message -step $step_final_merge -print $false
+                        & $VU.writeLog -message $message -step $step_final_merge -print $false
                         if ($LASTEXITCODE -ne 0) { throw $message }
 
                         Write-Host "影片合併成功: $upscaled_Path" -ForegroundColor Cyan
@@ -698,38 +698,38 @@ $UV = @{
         }
 
         # -------- 清理工作目錄 --------
-        if ($UV.completed.ContainsKey("最終合併完成")) {
+        if ($VU.completed.ContainsKey("最終合併完成")) {
             Write-Host "已清理所有工作檔案。"
-            Remove-Item -LiteralPath $UV.workDir -Recurse -Force
+            Remove-Item -LiteralPath $VU.workDir -Recurse -Force
             Read-Host "Enter 離開..."
         }
     }
     # ======== 運行調用 (void) ========
     Start                  = {
-        if (-not(Test-Path -LiteralPath $UV.videoPath -PathType Leaf)) {
-            Write-Host "錯誤的媒體: $($UV.videoPath)"
+        if (-not(Test-Path -LiteralPath $VU.videoPath -PathType Leaf)) {
+            Write-Host "錯誤的媒體: $($VU.videoPath)"
             return
         }
 
         # 獲取媒體副檔名
-        $UV.ext = [System.IO.Path]::GetExtension($UV.videoPath).TrimStart('.')
+        $VU.ext = [System.IO.Path]::GetExtension($VU.videoPath).TrimStart('.')
 
         # -------- 初始化執行配置 --------
 
-        $UV.outputPath = Split-Path -LiteralPath $UV.videoPath
-        $UV.fileName = [System.IO.Path]::GetFileNameWithoutExtension($UV.videoPath)
-        $UV.outputTemplate = Join-Path $UV.outputPath $UV.fileName # 組成輸出路徑的字串模板
+        $VU.outputPath = Split-Path -LiteralPath $VU.videoPath
+        $VU.fileName = [System.IO.Path]::GetFileNameWithoutExtension($VU.videoPath)
+        $VU.outputTemplate = Join-Path $VU.outputPath $VU.fileName # 組成輸出路徑的字串模板
 
         # 宣告預處理應用參數
-        $UV.preProcessCall = Join-Path $CURRENT_ROOT "srmd-ncnn-vulkan.exe"
-        $UV.preProcessModels = Join-Path $CURRENT_ROOT "models-srmd"
+        $VU.preProcessCall = Join-Path $CURRENT_ROOT "srmd-ncnn-vulkan.exe"
+        $VU.preProcessModels = Join-Path $CURRENT_ROOT "models-srmd"
 
         # 宣告補幀應用參數
-        switch ($UV.interpolator) {
+        switch ($VU.interpolator) {
             "ifrnet" {
-                $UV.interpolatorName = "IFRNet"
-                $UV.interpolatorCall = Join-Path $CURRENT_ROOT "ifrnet-ncnn-vulkan.exe"
-                $UV.interpolatorModels = @{
+                $VU.interpolatorName = "IFRNet"
+                $VU.interpolatorCall = Join-Path $CURRENT_ROOT "ifrnet-ncnn-vulkan.exe"
+                $VU.interpolatorModels = @{
                     1 = [PSCustomObject]@{
                         path        = Join-Path $CURRENT_ROOT "ifrnet-models/IFRNet_L_GoPro"
                         customFrame = $true
@@ -746,9 +746,9 @@ $UV = @{
                 break
             }
             default {
-                $UV.interpolatorName = "RIFE"
-                $UV.interpolatorCall = Join-Path $CURRENT_ROOT "rife-ncnn-vulkan.exe"
-                $UV.interpolatorModels = @{
+                $VU.interpolatorName = "RIFE"
+                $VU.interpolatorCall = Join-Path $CURRENT_ROOT "rife-ncnn-vulkan.exe"
+                $VU.interpolatorModels = @{
                     1 = [PSCustomObject]@{
                         path        = Join-Path $CURRENT_ROOT "rife-models/rife-v4.26"
                         customFrame = $true
@@ -762,27 +762,27 @@ $UV = @{
         }
 
         # 獲取補幀模型
-        $UV.interpolationModel = $UV.interpolatorModels[$UV.interpolatorModelIndex]
+        $VU.interpolationModel = $VU.interpolatorModels[$VU.interpolatorModelIndex]
 
         # 宣告超分應用參數
-        switch ($UV.upscaler) {
+        switch ($VU.upscaler) {
             "realcugan" {
-                $UV.upscalerName = "RealCUGAN"
-                $UV.upscalerCall = Join-Path $CURRENT_ROOT "realcugan-ncnn-vulkan.exe"
-                $UV.upscalerModels = Join-Path $CURRENT_ROOT "realcugan-models-pro"
+                $VU.upscalerName = "RealCUGAN"
+                $VU.upscalerCall = Join-Path $CURRENT_ROOT "realcugan-ncnn-vulkan.exe"
+                $VU.upscalerModels = Join-Path $CURRENT_ROOT "realcugan-models-pro"
                 break
             }
             default {
-                $UV.upscalerName = "Realesrgan"
-                $UV.upscalerCall = Join-Path $CURRENT_ROOT "realesrgan-ncnn-vulkan.exe"
-                $UV.upscalerModels = Join-Path $CURRENT_ROOT "realesrgan-models"
+                $VU.upscalerName = "Realesrgan"
+                $VU.upscalerCall = Join-Path $CURRENT_ROOT "realesrgan-ncnn-vulkan.exe"
+                $VU.upscalerModels = Join-Path $CURRENT_ROOT "realesrgan-models"
             }
         }
 
         # -------- 初始化運算配置 --------
 
         # 根據解析度選擇 (降噪強度, 放大倍率)
-        $UV.preProcessRules = @{
+        $VU.preProcessRules = @{
             144 = @(7, 2)
             240 = @(6, 2)
             360 = @(5, 2)
@@ -790,7 +790,7 @@ $UV = @{
         }
 
         # realesrgan 限定, 自動模型選擇
-        $UV.realesrganModelName = @{
+        $VU.realesrganModelName = @{
             1 = ""
             2 = "realesr-animevideov3-x2"
             3 = "realesr-animevideov3-x3"
@@ -799,13 +799,13 @@ $UV = @{
 
         # -------- 檢查依賴完整性 --------
 
-        $result = & $UV._CheckDependent @(
-            $UV.preProcessCall,
-            $UV.preProcessModels,
-            $UV.interpolatorCall,
-            $UV.interpolationModel.path,
-            $UV.upscalerCall,
-            $UV.upscalerModels
+        $result = & $VU._CheckDependent @(
+            $VU.preProcessCall,
+            $VU.preProcessModels,
+            $VU.interpolatorCall,
+            $VU.interpolationModel.path,
+            $VU.upscalerCall,
+            $VU.upscalerModels
         )
 
         if (-not $result) { return }
@@ -814,102 +814,102 @@ $UV = @{
 
         # 獲取影片資訊
         (
-            $UV.width,
-            $UV.height,
-            $UV.fps,
-            $UV.totalDuration,
-            $UV.totalFrames,
-            $UV.finalFrames,
-            $UV.hasAudio
-        ) = GetStreamsInfo $UV.videoPath $UV.targetFPS
+            $VU.width,
+            $VU.height,
+            $VU.fps,
+            $VU.totalDuration,
+            $VU.totalFrames,
+            $VU.finalFrames,
+            $VU.hasAudio
+        ) = GetStreamsInfo $VU.videoPath $VU.targetFPS
 
-        $UV.hasAlpha = & $UV._CheckAlphaChannel $UV.videoPath
+        $VU.hasAlpha = & $VU._CheckAlphaChannel $VU.videoPath
 
         # 如果有提供自訂解析度且大於原始 FPS，則覆寫預設值
-        $UV.targetFPS = $UV.targetFPS -gt $UV.fps ? $UV.targetFPS : $UV.fps
+        $VU.targetFPS = $VU.targetFPS -gt $VU.fps ? $VU.targetFPS : $VU.fps
 
         # 不可自訂 FPS (預設直接 2 倍)
-        if (-not ($UV.interpolationModel.customFrame)) {
-            $UV.targetFPS = $UV.fps * 2
-            $UV.finalFrames = $UV.totalFrames * 2
+        if (-not ($VU.interpolationModel.customFrame)) {
+            $VU.targetFPS = $VU.fps * 2
+            $VU.finalFrames = $VU.totalFrames * 2
         }
 
         # 根據補幀後總幀數計算填充位數（至少 2 位）
-        $UV.imgFill = [Math]::Max(([string]$UV.finalFrames).Length, 2)
+        $VU.imgFill = [Math]::Max(([string]$VU.finalFrames).Length, 2)
 
         # ---- 處理 解析度 與 放大倍率 ----
-        $UV.reduce = $null # 縮小後解析度
-        $UV.scaled = & $PARAMETER.GetScaled `
-            $UV.width `
-            $UV.height `
-            $UV.scaleFactor
+        $VU.reduce = $null # 縮小後解析度
+        $VU.scaled = & $PARAMETER.GetScaled `
+            $VU.width `
+            $VU.height `
+            $VU.scaleFactor
 
         # 如果有提供自訂解析度，則覆寫預設值
-        if ($UV.outputResolution) {
-            ($UV.reduce, $UV.scaleFactor, $UV.scaled) = & $PARAMETER.GetCustomScale `
-                $UV.width `
-                $UV.height `
-                $UV.outputResolution
+        if ($VU.outputResolution) {
+            ($VU.reduce, $VU.scaleFactor, $VU.scaled) = & $PARAMETER.GetCustomScale `
+                $VU.width `
+                $VU.height `
+                $VU.outputResolution
         }
 
         # 確認放大倍率在 1-4 之間
-        $UV.scaleFactor = [Math]::Max(1, [Math]::Min($UV.scaleFactor, 4))
+        $VU.scaleFactor = [Math]::Max(1, [Math]::Min($VU.scaleFactor, 4))
 
         # 根據放大倍率獲取模型名稱
-        $UV.upscalerModelName = $UV.upscalerName -eq "Realesrgan" ? $UV.realesrganModelName[$UV.scaleFactor] : ""
+        $VU.upscalerModelName = $VU.upscalerName -eq "Realesrgan" ? $VU.realesrganModelName[$VU.scaleFactor] : ""
 
         # 如果放大倍率為 1 則不需要模型
-        if ($UV.scaleFactor -eq 1) {
-            $UV.upscalerModels = ""
+        if ($VU.scaleFactor -eq 1) {
+            $VU.upscalerModels = ""
         }
 
         # -------- 初始化工作目錄 與 日誌 --------
-        $UV.workDir = "$(& $PARAMETER.GetCachePath $UV.outputPath $UV.fileName $UV.scaleFactor $UV.targetFPS)"
-        $UV.cacheDir = (Test-Path -LiteralPath $UV.cacheDirectory) ? $UV.cacheDirectory : $UV.workDir # 如果有指定緩存目錄則使用
-        $UV.chunksDir = Join-Path $UV.workDir "chunks"
-        $UV.logFile = Join-Path $UV.workDir "progress.log"
+        $VU.workDir = "$(& $PARAMETER.GetCachePath $VU.outputPath $VU.fileName $VU.scaleFactor $VU.targetFPS)"
+        $VU.cacheDir = (Test-Path -LiteralPath $VU.cacheDirectory) ? $VU.cacheDirectory : $VU.workDir # 如果有指定緩存目錄則使用
+        $VU.chunksDir = Join-Path $VU.workDir "chunks"
+        $VU.logFile = Join-Path $VU.workDir "progress.log"
 
-        # 處理日誌 ($UV.chunks, $UV.completed, $UV.writeLog)
-        & $UV._LogProcess
+        # 處理日誌 ($VU.chunks, $VU.completed, $VU.writeLog)
+        & $VU._LogProcess
         # 取得分段數
-        $UV.chunksCount = $UV.chunks.Count
+        $VU.chunksCount = $VU.chunks.Count
 
         # -------- 輸出除錯資訊 --------
         @{
             "Meta" = @{
                 "媒體資訊" = @{
-                    "寬度"  = $UV.width
-                    "高度"  = $UV.height
-                    "FPS" = $UV.fps
-                    "總時長" = $UV.totalDuration
-                    "總幀數" = $UV.totalFrames
+                    "寬度"  = $VU.width
+                    "高度"  = $VU.height
+                    "FPS" = $VU.fps
+                    "總時長" = $VU.totalDuration
+                    "總幀數" = $VU.totalFrames
                 }
                 "輸出配置" = @{
-                    "媒體路徑"  = $UV.videoPath
-                    "放大倍率"  = $UV.scaleFactor
-                    "目標FPS" = $UV.targetFPS
-                    "輸出畫質"  = $UV.scaled
-                    "輸出幀數"  = $UV.finalFrames
-                    "輸出格式"  = $UV.outputFormat
-                    "快速編碼"  = $UV.fastEncode
-                    "分段秒數"  = $UV.chunkDurationSec
-                    "分段數量"  = $UV.chunksCount
-                    "合併目錄"  = $UV.workDir
-                    "緩存目錄"  = $UV.cacheDir
+                    "媒體路徑"  = $VU.videoPath
+                    "放大倍率"  = $VU.scaleFactor
+                    "目標FPS" = $VU.targetFPS
+                    "輸出畫質"  = $VU.scaled
+                    "輸出幀數"  = $VU.finalFrames
+                    "輸出格式"  = $VU.outputFormat
+                    "快速編碼"  = $VU.fastEncode
+                    "分段秒數"  = $VU.chunkDurationSec
+                    "分段數量"  = $VU.chunksCount
+                    "合併目錄"  = $VU.workDir
+                    "緩存目錄"  = $VU.cacheDir
                 }
                 "模型資訊" = @{
-                    "預處理程式"  = $UV.preProcessCall
-                    "預處理模型"  = $UV.preProcessModels
-                    "補幀程式"   = $UV.interpolatorCall
-                    "補幀模型"   = $UV.interpolationModel.path
-                    "超分程式"   = $UV.upscalerCall
-                    "超分模型路徑" = $UV.upscalerModels
-                    "超分模型名稱" = $UV.upscalerModelName
+                    "預處理程式"  = $VU.preProcessCall
+                    "預處理模型"  = $VU.preProcessModels
+                    "補幀程式"   = $VU.interpolatorCall
+                    "補幀模型"   = $VU.interpolationModel.path
+                    "超分程式"   = $VU.upscalerCall
+                    "超分模型路徑" = $VU.upscalerModels
+                    "超分模型名稱" = $VU.upscalerModelName
                 }
             }
         } | ConvertTo-Json -Depth 4 | Write-Host
 
-        & $UV._Core
+        & $VU._Core
     }
     # ======== 初始參數 ========
     videoPath              = ""          # 輸入影片路徑
@@ -933,18 +933,18 @@ $UV = @{
 }
 
 # --- 使用範例 ---
-$UV.videoPath = "R:\Test-2.mp4"
-$UV.upscaler = "realcugan"
-$UV.interpolator = "rife"
-$UV.interpolatorModelIndex = 1
-$UV.targetFPS = 0
-$UV.scaleFactor = 2
-$UV.outputFormat = "mp4"
-$UV.frameCacheFormat = "png"
-$UV.cacheDirectory = ""
-$UV.outputResolution = "1920x1080"
-$UV.fastEncode = $true
-$UV.chunkDurationSec = 15
+$VU.videoPath = "R:\Test-2.mp4"
+$VU.upscaler = "realcugan"
+$VU.interpolator = "rife"
+$VU.interpolatorModelIndex = 1
+$VU.targetFPS = 0
+$VU.scaleFactor = 2
+$VU.outputFormat = "mp4"
+$VU.frameCacheFormat = "png"
+$VU.cacheDirectory = ""
+$VU.outputResolution = "1920x1080"
+$VU.fastEncode = $true
+$VU.chunkDurationSec = 15
 
 # 執行
-& $UV.Start
+& $VU.Start
