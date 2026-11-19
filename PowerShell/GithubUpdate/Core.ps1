@@ -19,7 +19,7 @@ param (
     [switch]$list = $null,
 
     [Alias("c")]
-    [switch]$check = $null,
+    [string]$check = $null,
 
     [Alias("al")]
     [switch]$all = $null,
@@ -47,9 +47,20 @@ param (
 
 # 統一輸出格式，錯誤紅字、警告黃字
 $Log = @{
-    Info = { param([string]$msg) Write-Host $msg }
-    Warn = { param([string]$msg) Write-Host $msg -ForegroundColor Yellow }
-    Err  = { param([string]$msg) Write-Host $msg -ForegroundColor Red }
+    Info    = { param([string]$msg) Write-Host $msg }
+    Warn    = { param([string]$msg) Write-Host $msg -ForegroundColor Yellow }
+    Err     = { param([string]$msg) Write-Host $msg -ForegroundColor Red }
+
+    # 統計摘要：labels 與 counts 同索引配對，只印非 0，' | ' 合併
+    Summary = {
+        param([string[]]$labels, [int[]]$counts)
+        $text = @(
+            0..($counts.Count - 1) | ForEach-Object {
+                if ($counts[$_] -gt 0) { "{0} {1}" -f $labels[$_], $counts[$_] }
+            }
+        ) -join ' | '
+        if ($text) { Write-Host "`n$text" -ForegroundColor Green }
+    }
 }
 
 $Cli = @{
@@ -64,7 +75,7 @@ GitHub 資產更新工具
   gau.exe -i <GitHub 網址 | owner/repo> [選項]
   gau.exe -i -o <owner> -r <repo> [選項]
   gau.exe -un <owner/repo>
-  gau.exe -l | -c | -al
+  gau.exe -l | -c [repository] | -al
 
 選項:
   -u, -url <url>                 GitHub 儲存庫網址
@@ -75,12 +86,12 @@ GitHub 資產更新工具
   -ae, -auto_extract             下載後自動解壓縮
   -ae2, -auto_extract2           解壓後攤平單一頂層資料夾
   -ni, -no_idm                   停用 IDM 偵測，強制使用內建下載器
-  -i, -install <owner/repo>      統一管理線：下載並納入紀錄
-  -un, -uninstall <owner/repo>   解除紀錄綁定（不刪除已下載的檔案）
-  -l, -list                      顯示紀錄列表（含路徑存活檢查）
-  -c, -check                     批量檢查所有紀錄的更新（不下載、唯讀）
-  -al, -all                      批量更新所有紀錄（檢查 + 下載）
-  -h, -help                      顯示本說明
+  -i, -install <owner/repo>      指定儲存庫進行下載並統一管理
+  -un, -uninstall <owner/repo>   解除下載綁定（不刪除已下載的檔案）
+  -l, -list                      顯示下載列表（含路徑存活檢查）
+  -c, -check [repository]        僅檢查已下載的更新，可單獨指定儲存庫
+  -al, -all                      檢查並更新所有下載
+  -h, -help                      說明
 
 範例:
   gau https://github.com/owner/repo
@@ -104,6 +115,26 @@ GitHub 資產更新工具
             return $text -split '/'
         }
         return @()
+    }
+
+    # 參數轉換表：模式 → 參數名 + 解析結果型態
+    ArgSpec   = [ordered]@{
+        install = @{ Param = 'install'; Parse = 'parts' }   # → @(owner, repo)，失敗回傳空
+        check   = @{ Param = 'check'; Parse = 'key' }   # → 'owner/repo'，失敗保留原文
+    }
+
+    ArgValue  = {
+        param([string]$mode)
+        $spec = $Cli.ArgSpec[$mode]
+        if (-not $spec) { return $null }
+
+        $raw = Get-Variable -Name $spec.Param -ValueOnly -ErrorAction SilentlyContinue
+        if ([string]::IsNullOrWhiteSpace($raw) -or $raw -in @('True', 'False')) { return $null }
+
+        $parsed = & $Cli.ParseRepo $raw
+        if ($spec.Parse -eq 'parts') { return $parsed }
+        if ($parsed) { return "$($parsed[0])/$($parsed[1])" }
+        return $raw
     }
 }
 
@@ -134,7 +165,7 @@ if ($help -or $PSBoundParameters.Count -eq 0) { & $Cli.Help }
 $mode = if ($uninstall) { 'uninstall' }
 elseif ($install) { 'install' }
 elseif ($list) { 'list' }
-elseif ($check) { 'check' }
+elseif ($check -and $check -ne 'False') { 'check' }
 elseif ($all) { 'all' }
 else { 'single' }
 
@@ -142,11 +173,8 @@ if ($url -match '(?i)^https://github\.com/([^/]+)/([^/]+)') {
     $owner = $matches[1]
     $repo = $matches[2]
 }
-elseif ($install) {
-    # -i 的值（owner/repo 簡寫或 GitHub 網址）；編譯版「-i 後面沒有值」會傳入 'True'，
-    # ParseRepo 解析不了 → 落到 -o/-r；腳本模式下 -i 後無值則直接由 PowerShell 擋下（提示給值）
-    $parsed = & $Cli.ParseRepo $install
-
+else {
+    $parsed = & $Cli.ArgValue 'install'
     if ($parsed) {
         $owner = $parsed[0]
         $repo = $parsed[1]
@@ -229,10 +257,10 @@ $Github.Token = & $Github._FindToken
 
 # 版本：單發線用標記檔，比對用 Parse
 $Ver = @{
-    _Name = { param([string]$version) "! Version - $($ctx.repo) - $version" }
+    _Name   = { param([string]$version) "! Version - $($ctx.repo) - $version" }
 
     # 取得版本文件（單發線：標記檔）
-    _File = {
+    _File   = {
         $prefix = & $Ver._Name ''
 
         Get-ChildItem -LiteralPath $ctx.dir -File -Filter "$prefix*" |
@@ -240,13 +268,13 @@ $Ver = @{
         Select-Object -First 1
     }
 
-    Get   = {
+    Get     = {
         $file = & $Ver._File
         if (-not $file) { return "" }
         return $file.Name.Substring((& $Ver._Name '').Length)
     }
 
-    Set   = {
+    Set     = {
         param([string]$version)
 
         $file = & $Ver._File
@@ -262,7 +290,7 @@ $Ver = @{
         & $Log.Info "記錄版本: $(& $Ver.Display $version)"
     }
 
-    Parse = {
+    Parse   = {
         param([string]$version)
 
         if ([string]::IsNullOrWhiteSpace($version)) { return $null }
@@ -781,10 +809,10 @@ $Archive = @{
 }
 
 $Download = @{
-    _Last                 = 0
+    _Last     = 0
 
     # 同一行覆寫輸出，以前一次長度補空白避免殘留
-    _Print                = {
+    _Print    = {
         param([string]$text)
 
         [Console]::Write("`r" + $text.PadRight($Download._Last))
@@ -792,7 +820,7 @@ $Download = @{
     }
 
     # 結束進度列，避免後續訊息接在同一行
-    _EndLine              = {
+    _EndLine  = {
         Write-Host ""
         $Download._Last = 0
     }
@@ -800,7 +828,7 @@ $Download = @{
     # 進度顯示：固定欄寬 + 0.1% 精度 + 即時速度
     # ps2exe 主控台模式不支援 Write-Progress
     # total 未知時只顯示已下載量；percent 省略時由 done/total 計算
-    _Progress             = {
+    _Progress = {
         param([string]$label, [double]$done, [double]$total, [double]$speed, $percent = $null)
 
         if ($total -gt 0) {
@@ -814,7 +842,7 @@ $Download = @{
     }
 
     # 成功回傳 $null，失敗回傳原因
-    _Builtin              = {
+    _Builtin  = {
         param($asset, [string]$filePath)
 
         # 區域變數先歸零：避免下載途中失敗時，finally 以動態作用域讀到外層同名變數（如 Tool.Update 的 $response）
@@ -882,7 +910,7 @@ $Download = @{
         return $failure
     }
 
-    Fetch                 = {
+    Fetch     = {
         param($asset)
 
         $filePath = Join-Path $ctx.dir $asset.name
@@ -904,7 +932,7 @@ $Download = @{
         return $true
     }
 
-    Pick                  = {
+    Pick      = {
         param($assets)
 
         # 定義明確的分隔符號邊界（支援 開頭/結尾、減號、底線、點、空格）
@@ -1097,10 +1125,19 @@ switch ($mode) {
         # 批量線：-check 只檢查不下載（完全唯讀）；-all 用紀錄參數在紀錄的 dir 重放
         if (-not (& $Records.Load)) { break }
 
+        # -c 可接 -l 顯示的 key
+        $filterKey = if ($mode -eq 'check') { & $Cli.ArgValue 'check' }
+        if ($filterKey) {
+            $found = @($Records.Items.Keys) | Where-Object { $_ -ieq $filterKey } | Select-Object -First 1
+            if (-not $found) { & $Log.Err "未下載的倉庫: $filterKey"; break }
+            $filterKey = $found
+        }
+
         $stats = @{ Updated = 0; UpToDate = 0; Failed = 0; Dead = 0 }
         $failedList = @()
 
-        foreach ($key in @($Records.Items.Keys)) {
+        $keys = if ($filterKey) { @($filterKey) } else { @($Records.Items.Keys) }
+        foreach ($key in $keys) {
             $rec = $Records.Items[$key]
 
             & $Log.Info "`n[$key]"
@@ -1131,8 +1168,8 @@ switch ($mode) {
         }
 
         $updatedLabel = if ($mode -eq 'check') { '可更新' } else { '已更新' }
-        Write-Host "`n"
-        Write-Host ("{0} {1} | 已最新 {2} | 失敗 {3} | 路徑失效 {4}" -f $updatedLabel, $stats.Updated, $stats.UpToDate, $stats.Failed, $stats.Dead) -ForegroundColor Green
+        & $Log.Summary @($updatedLabel, '已最新', '失敗', '路徑失效') `
+        @($stats.Updated, $stats.UpToDate, $stats.Failed, $stats.Dead)
         foreach ($f in $failedList) { & $Log.Err "  失敗: $f" }
     }
 
