@@ -68,14 +68,16 @@ $Package = @(
     "aiofiles" # 非同步檔案 I/O，搭配 aiohttp 保存內容
 
     <# 瀏覽器自動化 - 模擬瀏覽器行為與動態網頁處理 #>
-    "selenium" # 傳統瀏覽器自動化，但容易被現代網站檢測
+    #! "selenium" # 傳統瀏覽器自動化，但容易被現代網站檢測
     "playwright" # 具備指紋較自然的自動化框架，Chrome/Firefox/WebKit 全支援
-    "DrissionPage" # 結合 requests + 瀏覽器的混合式自動化，對反爬相對友好
+    "DrissionPage" # 結合 requests + 瀏覽器的混合式自動化，對反爬相對友好 (比較熱門)
+	"nodriver" # uc 作者, 直接透過 CDP 通訊、零驅動依賴且極度輕量，與 DrissionPage 實現類似
     "webdriver_manager" # 自動下載與管理瀏覽器驅動（多用於 Selenium）
 
     <# 反爬蟲對抗與代理管理 - 繞過限制與匿名化工具 #>
-    "selenium-wire" # Selenium 增強版，可攔截/修改 HTTP 請求與響應
-    "undetected_chromedriver" # 對新版 Chrome 成功率不穩，但仍能避開部分 WebDriver 特徵
+    #! "selenium-wire" # Selenium 增強版，可攔截/修改 HTTP 請求與響應
+    #! "undetected_chromedriver" # 對新版 Chrome 成功率不穩，但仍能避開部分 WebDriver 特徵
+	"patchright" # 隱身魔改版 Playwright，API 100% 相容並修補底層 CDP 檢測漏洞，可無痛攔截 API 封包
     "browserforge[all]" # 指紋仿真套件，支援 UA、Canvas、WebGL 等瀏覽器層特徵偽裝
 
     <# 驗證碼處理 - 自動化驗證突破 #>
