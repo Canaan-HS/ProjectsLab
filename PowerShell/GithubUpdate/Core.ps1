@@ -259,7 +259,7 @@ $Ver = @{
             # New-Item 沒有 -LiteralPath，改用 .NET 直接建空檔（路徑含 [ ] 也安全）
             [System.IO.File]::WriteAllText((Join-Path $ctx.dir $newName), "")
         }
-        & $Log.Info "記錄版本: $version"
+        & $Log.Info "記錄版本: $(& $Ver.Display $version)"
     }
 
     Parse = {
@@ -278,6 +278,13 @@ $Ver = @{
         }
 
         return $null
+    }
+
+    Display = {
+        param([string]$version)
+        $s = "$version"
+        if ($s -match '^v') { return $s }
+        return "v$s"
     }
 }
 
@@ -436,8 +443,7 @@ $Records = @{
             foreach ($flag in $Flags.Keys) { if ($rec[$flag]) { $params += $Flags[$flag] } }
             $paramText = if ($params.Count -gt 0) { " [$($params -join ' ')]" } else { "" }
 
-            $verText = if ("$($rec.version)" -match '^v') { "$($rec.version)" } else { "v$($rec.version)" }
-            $line = "{0}  {1}  {2}{3}" -f $key, $verText, $rec.dir, $paramText
+            $line = "{0}  {1}  {2}{3}" -f $key, (& $Ver.Display $rec.version), $rec.dir, $paramText
             if (Test-Path -LiteralPath "$($rec.dir)") { & $Log.Info $line }
             else { & $Log.Err $line }
         }
@@ -993,21 +999,21 @@ $Tool = @{
                 return
             }
             if ($ctx.CheckOnly) {
-                & $Log.Info "無法比對版本, 最新: $tag"
+                & $Log.Info "無法比對版本, 最新: $(& $Ver.Display $tag)"
                 $ctx.Status = 'HasUpdate'
                 return
             }
 
             # -i 無紀錄或新路徑：視同首次下載，直接下載最新
-            & $Log.Info "首次下載: $tag"
+            & $Log.Info "首次下載: $(& $Ver.Display $tag)"
         }
         elseif ($oldVersion -eq $newVersion) {
-            & $Log.Info "已是最新版本: $tag"
+            & $Log.Info "已是最新版本: $(& $Ver.Display $tag)"
             $ctx.Status = 'UpToDate'
             return
         }
         elseif ($oldVersion -lt $newVersion) {
-            & $Log.Info "有可用更新: $($ctx.currentVersion) -> $tag"
+            & $Log.Info "有可用更新: $(& $Ver.Display $ctx.currentVersion) -> $(& $Ver.Display $tag)"
 
             if ($ctx.CheckOnly) {
                 $ctx.Status = 'HasUpdate'
@@ -1015,7 +1021,7 @@ $Tool = @{
             }
         }
         else {
-            & $Log.Warn "本機版本較新: $oldVersion > $newVersion"
+            & $Log.Warn "本機版本較新: $(& $Ver.Display $oldVersion) > $(& $Ver.Display $newVersion)"
             $ctx.Status = 'Reset'
             return
         }
