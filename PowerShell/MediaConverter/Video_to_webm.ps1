@@ -24,9 +24,13 @@ function StartConvert {
     $runspacePool.Open()
 
     # 讀取影片檔案
-    Get-ChildItem -LiteralPath $inputPath -Recurse |
-    Where-Object { $_.Extension -in '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv' } |
-    ForEach-Object {
+    $videoFiles = @(Get-ChildItem -LiteralPath $inputPath -Recurse |
+        Where-Object { $_.Extension -in '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv' })
+
+    Write-Host # 與一開始的輸入行空一行
+    Write-Host "Found $($videoFiles.Count) video(s) to convert." -ForegroundColor Yellow
+
+    $videoFiles | ForEach-Object {
 
         $inputFile = $_.FullName
         $outputFile = "$($_.DirectoryName)\$($_.BaseName).webm"
@@ -50,12 +54,14 @@ function StartConvert {
                 }
 
                 return [PSCustomObject]@{
-                    Success     = -not $ErrorOccurred
-                    InputFile   = $inputFile
-                    OutputFile  = $outputFile
-                    Error       = $ErrorMessage
+                    Success    = -not $ErrorOccurred
+                    InputFile  = $inputFile
+                    OutputFile = $outputFile
+                    Error      = $ErrorMessage
                 }
-            }).AddArgument($inputFile).AddArgument($outputFile)
+            }).AddArgument($inputFile).AddArgument($outputFile) | Out-Null
+
+        Write-Host "[Convert] $inputFile -> $outputFile" -ForegroundColor Cyan
 
         try {
             $jobs += [PSCustomObject]@{
@@ -83,7 +89,9 @@ function StartConvert {
                     $errorOccurred = $true
                     Write-Warning "$($result.InputFile) Delete Failed: $_"
                 }
-            }else {
+                Write-Host "[Done] $($result.OutputFile)" -ForegroundColor Green
+            }
+            else {
                 $errorOccurred = $true
                 Write-Error "Error File: $($result.InputFile) | Error Message: $($result.Error)"
             }
@@ -91,7 +99,8 @@ function StartConvert {
         catch {
             $errorOccurred = $true
             Write-Error "Task Failed： $($result.InputFile)"
-        } finally {
+        }
+        finally {
             $job.Runspace.Dispose()
         }
     }
