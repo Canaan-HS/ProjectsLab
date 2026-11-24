@@ -209,6 +209,12 @@ function Get-UniformPngSequence {
 }
 
 function Start-Convert {
+    param(
+        [int]$BaselineFps = 22,
+        [int]$MinFps = 12,
+        [int]$ReferenceFrames = 22
+    )
+
     $inputDirectory = $null
 
     while ($true) {
@@ -329,21 +335,30 @@ function Start-Convert {
             return
         }
 
-        Write-Host "[Convert] $outputFile (width $($sequence.Width))" -ForegroundColor Cyan
+        $frameCount = @($sequence.Paths).Count
+        if ($frameCount -lt $ReferenceFrames) {
+            $fps = $MinFps + ($BaselineFps - $MinFps) * ($frameCount - 1) / [Math]::Max(1, $ReferenceFrames - 1)
+        }
+        else {
+            $fps = $BaselineFps
+        }
+        $fps = [int][Math]::Round($fps)
+
+        Write-Host "[Convert] $outputFile (width $($sequence.Width), fps $fps)" -ForegroundColor Cyan
 
         # 建立一個新的 Runspace
         $runspace = [powershell]::Create()
         $runspace.RunspacePool = $runspacePool
 
         $runspace.AddScript({
-                param($pngPaths, $width, $outputFile, $inputFils, $tempFiles)
+                param($pngPaths, $width, $outputFile, $inputFils, $tempFiles, $fps)
 
                 $ErrorMessage = ""
                 $gifskiOutput = ""
                 $ErrorOccurred = $false
 
                 try {
-                    $gifskiOutput = gifski --fps 22 --quality 100 --lossy-quality 100 --width $width --extra `
+                    $gifskiOutput = gifski --fps $fps --quality 100 --lossy-quality 100 --width $width --extra `
                         -o "$outputFile" @pngPaths 2>&1
 
                     if ($LASTEXITCODE -ne 0) {
@@ -374,7 +389,13 @@ function Start-Convert {
                     OutputFile = $outputFile
                     Error      = $ErrorMessage
                 }
-            }).AddArgument($sequence.Paths).AddArgument($sequence.Width).AddArgument($outputFile).AddArgument($inputFils).AddArgument($sequence.TempFiles) | Out-Null
+            })
+        .AddArgument($sequence.Paths)
+        .AddArgument($sequence.Width)
+        .AddArgument($outputFile)
+        .AddArgument($inputFils)
+        .AddArgument($sequence.TempFiles)
+        .AddArgument($fps) | Out-Null
 
         try {
             $jobs += [PSCustomObject]@{
