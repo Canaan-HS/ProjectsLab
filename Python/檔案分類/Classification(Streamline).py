@@ -13,7 +13,6 @@ from tqdm import tqdm
 from rich.console import Console
 
 from utils import (
-    restore_suffix,
     restore_rpg,
     get_encryption_key,
     MAX_WORKERS,
@@ -243,7 +242,7 @@ class TypeSelection(ReadFolder, OutputFile):
                         def rpg_restore_task(source_path, output_path):
                             restore_rpg(
                                 input_path=source_path,
-                                output_path=restore_suffix(output_path, lower_selected),
+                                output_path=output_path,
                                 decrypt_key=cache_key,
                                 delete_original=not self.use_copy,  # 如果不是複製模式，就刪除原始檔案
                             )
