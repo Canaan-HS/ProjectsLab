@@ -21,7 +21,8 @@ function Get-ImageDimensions {
         }
     }
     catch {
-        $probe = ffprobe -v error -select_streams v:0 -show_entries stream=width, height -of csv=p=0 "$Path" | Select-Object -First 1
+        # 單引號不要拿掉，自動排版會在逗號後補空白，ffprobe 會把 height 當成輸入檔名
+        $probe = ffprobe -v error -select_streams v:0 -show_entries 'stream=width,height' -of csv=p=0 "$Path" | Select-Object -First 1
         $parts = if ($probe) { $probe.ToString().Trim().Split(',') } else { @() }
 
         if ($parts.Count -ge 2 -and $parts[0] -match '^\d+$' -and $parts[1] -match '^\d+$') {
