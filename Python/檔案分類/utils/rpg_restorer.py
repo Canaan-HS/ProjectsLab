@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 from enum import Enum, auto
 
 # PNG 文件頭 (前 16 字節)
@@ -34,15 +35,15 @@ class RestoreStatus(Enum):
     UNKNOWN_ERROR = auto()  # 發生未知錯誤
 
 
-def restore_suffix(path: str, suffix: str) -> str:
-    ext = ".unknown"
-
-    if suffix in UNENCRYPTED_IMAGE:
-        ext = ".png"
-    elif suffix in ENCRYPTED_AUDIO:
-        ext = ".m4a" if suffix == ".m4a_" else ".ogg"
-
-    return str(Path(path).with_suffix(ext))
+# MZ 編輯器只認 PNG，但素材內容可能是 JPG / WebP，還原後依文件頭決定實際副檔名
+def detect_image_extension(data: bytes) -> Optional[str]:
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return ".webp"
+    return None
 
 
 def restore_rpg(
@@ -61,10 +62,6 @@ def restore_rpg(
     # 排除預設圖片
     if suffix in UNENCRYPTED_IMAGE and path.stem.startswith(EXCLUDE_HEADER):
         return RestoreStatus.FILE_EXCLUDE
-
-    # 檢查輸出路徑
-    if output_path is None:
-        output_path = restore_suffix(str(path), suffix)
 
     # 讀取加密文件
     try:
@@ -91,9 +88,19 @@ def restore_rpg(
     else:
         restored_data = STANDARD_PNG_HEADER + encrypted_data[HEADER_OFFSET:]
 
-    # 寫入文件
+    # 解密後才能從文件頭判斷實際格式，再決定輸出副檔名
+    base = Path(output_path) if output_path else path
+
+    if suffix in UNENCRYPTED_IMAGE:
+        ext = detect_image_extension(restored_data) or ".png"
+    elif suffix in ENCRYPTED_AUDIO:
+        ext = ".m4a" if suffix == ".m4a_" else ".ogg"
+    else:
+        ext = base.suffix or ".unknown"
+
+    # 輸出文件
     try:
-        Path(output_path).write_bytes(restored_data)
+        base.with_suffix(ext).write_bytes(restored_data)
     except (IOError, PermissionError):
         return RestoreStatus.WRITE_ERROR
     except Exception:
