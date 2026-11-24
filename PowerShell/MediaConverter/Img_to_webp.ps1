@@ -24,9 +24,13 @@ function StartConvert {
     $runspacePool.Open()
 
     # 讀取圖片檔案
-    Get-ChildItem -LiteralPath $inputPath -Recurse |
-    Where-Object { $_.Extension -in '.jpg', '.png', '.gif', '.jpeg' } |
-    ForEach-Object {
+    $imageFiles = @(Get-ChildItem -LiteralPath $inputPath -Recurse |
+        Where-Object { $_.Extension -in '.jpg', '.png', '.gif', '.jpeg' })
+
+    Write-Host # 與一開始的輸入行空一行
+    Write-Host "Found $($imageFiles.Count) image(s) to convert." -ForegroundColor Yellow
+
+    $imageFiles | ForEach-Object {
 
         $inputFile = $_.FullName
         $outputFile = "$($_.DirectoryName)\$($_.BaseName).webp"
@@ -56,12 +60,14 @@ function StartConvert {
                 }
 
                 return [PSCustomObject]@{
-                    Success     = -not $ErrorOccurred
-                    InputFile   = $inputFile
-                    OutputFile  = $outputFile
-                    Error       = $ErrorMessage
+                    Success    = -not $ErrorOccurred
+                    InputFile  = $inputFile
+                    OutputFile = $outputFile
+                    Error      = $ErrorMessage
                 }
-            }).AddArgument($inputFile).AddArgument($outputFile).AddArgument($isGif)
+            }).AddArgument($inputFile).AddArgument($outputFile).AddArgument($isGif) | Out-Null
+
+        Write-Host "[Convert] $inputFile -> $outputFile" -ForegroundColor Cyan
 
         try {
             $jobs += [PSCustomObject]@{
@@ -89,7 +95,9 @@ function StartConvert {
                     $errorOccurred = $true
                     Write-Warning "$($result.InputFile) Delete Failed: $_"
                 }
-            }else {
+                Write-Host "[Done] $($result.OutputFile)" -ForegroundColor Green
+            }
+            else {
                 $errorOccurred = $true
                 Write-Error "Error File: $($result.InputFile) | Error Message: $($result.Error)"
             }
@@ -97,7 +105,8 @@ function StartConvert {
         catch {
             $errorOccurred = $true
             Write-Error "Task Failed： $($result.InputFile)"
-        } finally {
+        }
+        finally {
             $job.Runspace.Dispose()
         }
     }
